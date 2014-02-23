@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>browserbox</title>
+    </head>
+    <body>
+        <h1>IMAP browserbox</h1>
+
+        <table>
+            <tr>
+                <td>
+                    Hostname
+                </td>
+                <td>
+                    <input type="text" id="host" value="mail.hot.ee" />
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    Port
+                </td>
+                <td>
+                    <input type="text" id="port" value="143" />
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    Username
+                </td>
+                <td>
+                    <input type="text" id="user" />
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    Password
+                </td>
+                <td>
+                    <input type="password" id="pass" />
+                </td>
+            </tr>
+            <tr>
+                <td colspan="2">
+                    <input id="connect" type="button" value="Connect" />
+                </td>
+            </tr>
+        </table>
+
+        <pre id="log"></pre>
+
+        <script data-main="example" src="require.min.js"></script>
+    </body>
+</html>

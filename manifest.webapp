@@ -1,0 +1,24 @@
+{
+    "version": "1",
+    "name": "browserbox",
+    "type" : "privileged",
+    "launch_path": "/example/index.html",
+    "description": "browserbox test app",
+    "icons": {
+        "128": "/example/icon-128.png"
+    },
+    "developer": {
+        "name": "Andris Reinman",
+        "url": "http://www.andrisreinman.com"
+    },
+    "installs_allowed_from": ["*"],
+    "default_locale": "en",
+    "permissions": {
+        "tcp-socket": {
+            "description" : "Needed to connect to the IMAP server"
+        }
+    },
+    "chrome": {
+        "navigation": true
+    }
+}
