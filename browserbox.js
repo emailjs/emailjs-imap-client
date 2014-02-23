@@ -1,22 +1,5 @@
-// Copyright (c) 2013 Andris Reinman
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
 /* jshint browser: true */
-/* global define: false, imapHandler: false */
+/* global define: false, imapHandler: false, mimefuncs: false */
 
 // AMD shim
 (function(root, factory) {
@@ -24,11 +7,14 @@
     "use strict";
 
     if (typeof define === "function" && define.amd) {
-        define(["./bower_components/imapHandler/imapHandler"], factory);
+        define([
+            "./bower_components/imapHandler/imapHandler",
+            "./bower_components/mimefuncs/mimefuncs"
+            ], factory);
     } else {
-        root.browserbox = factory(imapHandler);
+        root.browserbox = factory(imapHandler, mimefuncs);
     }
-}(this, function(imapHandler) {
+}(this, function(imapHandler, mimefuncs) {
 
     "use strict";
 
@@ -66,7 +52,7 @@
         this.options.auth = this.options.auth || false;
 
         /**
-         * Downstream TCP socket to the IMAP server, created with mozTCPSocket
+         * Downstream TCP socket to the IMAP server, created with TCPSocket
          */
         this.socket = false;
 
@@ -89,6 +75,11 @@
          * true, once the connection is upgraded
          */
         this._secureMode = !!this.options.useSSL;
+
+        this._remainder = "";
+        this._command = "";
+        this._literalRemaining = 0;
+
     }
 
     // Event functions should be overriden, these are just placeholders
@@ -117,7 +108,6 @@
      * Initiate a connection to the server
      */
     IMAPClient.prototype.connect = function(){
-        // only mozTCPSocket exists currently but you'll never know when it's going to change
         var socket = navigator.TCPSocket || navigator.mozTCPSocket;
 
         this.socket = socket.open(this.host, this.port, {
@@ -127,6 +117,17 @@
 
         this.socket.onerror = this._onError.bind(this);
         this.socket.onopen = this._onOpen.bind(this);
+    };
+
+    /**
+     * Closes the connection to the server
+     */
+    IMAPClient.prototype.close = function(){
+        if(this.socket && this.socket.readyState === "open"){
+            this.socket.close();
+        }else{
+            this._destroy();
+        }
     };
 
     /**
@@ -149,7 +150,7 @@
 
     IMAPClient.prototype.isError = function(value){
         return !!Object.prototype.toString.call(value).match(/Error\]$/);
-    }
+    };
 
     /**
      * Ensures that the connection is closed and such
@@ -182,6 +183,57 @@
         this.ondrain();
     };
 
+    IMAPClient.prototype._onData = function(evt){
+        if(!evt || !evt.data){
+            return;
+        }
+
+        var match,
+            str = mimefuncs.fromArrayBuffer(evt.data);
+
+        if(this._literalRemaining){
+            if(this._literalRemaining > str.length){
+                this._literalRemaining -= str.length;
+                this._command += str;
+                return;
+            }
+            this._command += str.substr(0, this._literalRemaining);
+            str = str.substr(this._literalRemaining);
+            this._literalRemaining = 0;
+        }
+        str = this._remainder + str;
+        while((match = str.match(/(\{(\d+)(\+)?\})?\r?\n/))){
+            if(!match[2]){
+                // Now we have a full command line, so lets do something with it
+                window.log("Received a command from the server");
+                window.log(imapHandler.parser(this._command + str.substr(0, match.index)));
+
+                if(!window.logOutSent){
+                    window.logOutSent = true;
+                    window.log("Sending LOGOUT command...");
+                    this.socket.send(mimefuncs.toArrayBuffer("a LOGOUT\r\n").buffer);
+                }
+
+                this._remainder = str = str.substr(match.index + match[0].length);
+                this._command = "";
+                continue;
+            }
+            this._remainder = "";
+            this._command += str.substr(0, match.index + match[0].length);
+            this._literalRemaining = Number(match[2]);
+            str = str.substr(match.index + match[0].length);
+            if(this._literalRemaining > str.length){
+                this._command += str;
+                this._literalRemaining -= str.length;
+                return;
+            }else{
+                this._command += str.substr(0, this._literalRemaining);
+                str = str.substr(this._literalRemaining);
+                this._literalRemaining = 0;
+            }
+        }
+    };
+
     /**
      * Connection listener that is run when the connection to the server is opened.
      * Sets up different event handlers for the opened socket
@@ -190,20 +242,7 @@
      * @param {Event} evt Event object. Not used
      */
     IMAPClient.prototype._onOpen = function(evt){
-        this.socket.ondata = function(evt){
-            console.log(evt);
-            try{
-                if(evt && evt.data && evt.data.byteLength){
-                    var str = (new TextDecoder("utf-8")).decode(new Uint8Array(evt.data));
-                    str = str.trim();
-                    console.log(str);
-                    window.log(imapHandler.parser(str, {allowUntagged: true}));
-                }
-            }catch(E){
-                console.log(E.message);
-            }
-        }
-
+        this.socket.ondata = this._onData.bind(this);
         this.socket.onclose = this._onClose.bind(this);
         this.socket.ondrain = this._onDrain.bind(this);
     };
