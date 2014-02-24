@@ -108,9 +108,7 @@
      * Initiate a connection to the server
      */
     IMAPClient.prototype.connect = function(){
-        var socket = navigator.TCPSocket || navigator.mozTCPSocket;
-
-        this.socket = socket.open(this.host, this.port, {
+        this.socket = navigator.TCPSocket.open(this.host, this.port, {
             binaryType: "arraybuffer",
             useSSL: this._secureMode
         });
@@ -205,13 +203,17 @@
         while((match = str.match(/(\{(\d+)(\+)?\})?\r?\n/))){
             if(!match[2]){
                 // Now we have a full command line, so lets do something with it
-                window.log("Received a command from the server");
+                window.log("SERVER: " + this._command + str.substr(0, match.index));
                 window.log(imapHandler.parser(this._command + str.substr(0, match.index)));
 
                 if(!window.logOutSent){
                     window.logOutSent = true;
-                    window.log("Sending LOGOUT command...");
-                    this.socket.send(mimefuncs.toArrayBuffer("a LOGOUT\r\n").buffer);
+                    var cmd = imapHandler.compiler({
+                        tag: "A",
+                        command: "LOGOUT"
+                    });
+                    window.log("CLIENT: " + cmd);
+                    this.socket.send(mimefuncs.toArrayBuffer(cmd + "\r\n").buffer);
                 }
 
                 this._remainder = str = str.substr(match.index + match[0].length);
