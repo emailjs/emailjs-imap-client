@@ -19,9 +19,8 @@
     "use strict";
 
     /**
-     * Creates a connection object to a IMAP server and allows to send mail through it.
-     * Call `connect` method to inititate the actual connection, the constructor only
-     * defines the properties but does not actually connect.
+     * Creates a connection object to an IMAP server. Call `connect` method to inititate
+     * the actual connection, the constructor only defines the properties but does not actually connect.
      *
      * @constructor
      *
