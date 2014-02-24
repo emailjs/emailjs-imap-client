@@ -13,3 +13,13 @@ If you run the application as a FirefoxOS packaged webapp (using the manifest.we
   3. Add this directory as a packaged app either to FirefoxOS simulato/device or Chrome extensions
   4. Start the simulator and open browserbox app
 
+## Screenshots
+
+**FirefoxOS**
+
+![](https://raw2.github.com/Kreata/browserbox/master/example/firefoxos.png)
+
+**Chrome**
+
+![](https://raw2.github.com/Kreata/browserbox/master/example/chrome.png)
+
