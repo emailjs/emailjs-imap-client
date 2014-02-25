@@ -13,7 +13,7 @@
                     Hostname
                 </td>
                 <td>
-                    <input type="text" id="host" value="mail.hot.ee" />
+                    <input type="text" id="host" value="localhost" />
                 </td>
             </tr>
             <tr>
@@ -21,7 +21,7 @@
                     Port
                 </td>
                 <td>
-                    <input type="text" id="port" value="143" />
+                    <input type="text" id="port" value="1143" />
                 </td>
             </tr>
             <tr>
@@ -29,7 +29,7 @@
                     Username
                 </td>
                 <td>
-                    <input type="text" id="user" />
+                    <input type="text" id="user" value="user.name@gmail.com"/>
                 </td>
             </tr>
             <tr>
@@ -37,7 +37,7 @@
                     Password
                 </td>
                 <td>
-                    <input type="password" id="pass" />
+                    <input type="password" id="pass" value=""/>
                 </td>
             </tr>
             <tr>
@@ -47,9 +47,11 @@
             </tr>
         </table>
 
+        <p>Once connected the application opens INBOX and then fetches and parses envelopes for all messages.</p>
+
         <pre id="log" style="border: 1px solid gray; margin-bottom: 50px;"></pre>
 
-        <script src="../TCPSocket.js"></script>
+        <script src="../lib/TCPSocket.js"></script>
         <script data-main="example" src="require.min.js"></script>
     </body>
 </html>

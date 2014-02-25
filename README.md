@@ -13,6 +13,16 @@ If you run the application as a FirefoxOS packaged webapp (using the manifest.we
   3. Add this directory as a packaged app either to FirefoxOS simulato/device or Chrome extensions
   4. Start the simulator and open browserbox app
 
+**NB!** You might need to reinstall bower dependencies when upgrading
+
+## SSL support
+
+Currently only non secure connections are used. If you want to use a secure server, use the man-in-the-middle imap proxy. Run
+
+    node example/proxy.js
+
+And use host "localhost" and port "1143" to connect to GMail IMAP.
+
 ## Screenshots
 
 **FirefoxOS**

@@ -2,26 +2,28 @@ require(["../browserbox"], function(browserbox) {
 
     window.connect = function(){
         var host = document.getElementById("host").value,
-            port = Number(document.getElementById("port").value) || undefined;
+            port = Number(document.getElementById("port").value) || undefined,
+            user = document.getElementById("user").value,
+            pass = document.getElementById("pass").value;
 
         window.log("Connecting to " + host + ":" + port + "...");
 
-        var imap = browserbox(
-            host, 
-            port,
-            {
-                auth: {
-                    user: document.getElementById("user").value,
-                    pass: document.getElementById("pass").value
-                }
-            });
+        var client = browserbox(host, port, {
+            auth: {
+                user: user,
+                pass: pass
+            }
+        });
 
-        imap.onerror = window.log.bind(window);
-        imap.onclose = function(){
-            window.log("Connection to server closed");
+        client.onlog = function(type, payload){
+            window.log(type + ": " + payload);
         }
 
-        imap.connect();
+        client.onerror = window.log.bind(window);
+
+        client.onclose = function(){
+            window.log("Connection to server closed");
+        }
     }
 
     window.log = function(data){
