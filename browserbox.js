@@ -1,5 +1,5 @@
 /* jshint browser: true */
-/* global define: false, imap: false, mimefuncs: false */
+/* global define: false, imap: false */
 
 // AMD shim
 (function(root, factory) {
@@ -8,14 +8,13 @@
 
     if (typeof define === "function" && define.amd) {
         define([
-            "./lib/imap",
-            "./bower_components/mimefuncs/mimefuncs"
+            "./lib/imap"
             ], factory);
     } else {
-        root.browserbox = factory(imap, mimefuncs);
+        root.browserbox = factory(imap);
     }
 
-}(this, function(imap, mimefuncs) {
+}(this, function(imap) {
 
     "use strict";
 
