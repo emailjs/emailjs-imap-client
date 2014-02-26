@@ -42,6 +42,22 @@
             this.onclose();
         }).bind(this);
 
+        this.client.onready = (function(){
+            clearTimeout(this._connectionTimeout);
+
+            this.onlog("session", "Connection established");
+
+            if(!this.capabilites.length){
+                this.exec("CAPABILITY");
+            }
+
+            if(this.options.auth){
+                this.login();
+            }else{
+                this.exec("LOGOUT");
+            }
+        }).bind(this);
+
         this.client.setHandler("capability", function(response, next){
             this.capabilites = [].concat(response && response.attributes || []).map(function(capa){
                 return (capa.value || "").toString().toUpperCase().trim();
@@ -52,24 +68,6 @@
 
         this.client.setHandler("ok", (function(response, next){
             this._processResponseCode(response);
-
-            if(!this._established){
-                this._established = true;
-                clearTimeout(this._connectionTimeout);
-
-                this.onlog("session", response.humanText || "Connection established");
-
-                if(!this.capabilites.length){
-                    this.exec("CAPABILITY");
-                }
-
-                if(this.options.auth){
-                    this.login();
-                }else{
-                    this.exec("LOGOUT");
-                }
-            }
-
             next();
         }).bind(this));
 
@@ -96,8 +94,8 @@
                 this.capabilites = response.capability;
             }
 
-            if(response.code == "ALERT" && response.humanText){
-                this.onlog("alert", response.humanText);
+            if(response.code == "ALERT" && response.humanReadable){
+                this.onlog("alert", response.humanReadable);
             }
         }
     };
@@ -119,7 +117,8 @@
                             {type:"ATOM", value: "UID"},
                             {type:"ATOM", value: "ENVELOPE"}
                         ]
-                    ]});
+                    ]}).
+                    exec("LOGOUT");
             }
             next();
         }).bind(this));
@@ -138,7 +137,7 @@
             var error = null;
             this._processResponseCode(response);
             if(["NO", "BAD"].indexOf((response && response.command || "").toString().toUpperCase().trim()) >= 0){
-                error = new Error(response.humanText || "Error");
+                error = new Error(response.humanReadable || "Error");
                 if(response.code){
                     error.code = response.code;
                 }

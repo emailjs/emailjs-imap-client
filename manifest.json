@@ -11,7 +11,8 @@
             "socket": [
                 "tcp-connect"
             ]
-        }
+        },
+        "storage"
     ],
     "app": {
         "background": {
