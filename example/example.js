@@ -42,6 +42,10 @@ require(["../browserbox"], function(browserbox) {
             auth: {
                 user: userData.user,
                 pass: userData.pass
+            },
+            id: {
+                name: "Testmail",
+                version: "0.0.1"
             }
         });
 
@@ -53,6 +57,39 @@ require(["../browserbox"], function(browserbox) {
 
         client.onclose = function(){
             window.log("Connection to server closed");
+        }
+
+        client.onauth = function(){
+            client.listFolders(function(err, folders){
+
+                if(folders){
+                    var walkFolders = function(branch, level){
+                        var str = "";
+                        level = level || 0;
+
+                        if(level){
+                            str += Array(level * 2 - 1).join(" ") + "└ " + branch.name;
+                            if(branch.specialUse){
+                                str += " (for " + branch.specialUse + " messages)";
+                            }
+                        }else{
+                            str = "-";
+                        }
+
+                        for(var i = 0; i < branch.children.length; i++){
+                            str += "\n" + walkFolders(branch.children[i], level + 1);
+                        }
+
+                        return str;
+                    }
+                    var tree = walkFolders(folders, 0);
+                    window.log(tree);
+                    console.log(JSON.stringify(folders, false, 2));
+                    console.log(tree);
+                }
+
+                client.exec("LOGOUT");
+            });
         }
     }
 

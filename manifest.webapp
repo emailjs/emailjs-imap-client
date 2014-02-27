@@ -5,7 +5,7 @@
     "launch_path": "/example/index.html",
     "description": "browserbox test app",
     "icons": {
-        "128": "/example/icon-128.png"
+        "128": "/example/img/icon-128.png"
     },
     "developer": {
         "name": "Andris Reinman",
