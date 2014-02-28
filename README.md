@@ -9,7 +9,7 @@ If you run the application as a FirefoxOS packaged webapp (using the manifest.we
 ## Usage
 
   1. Download the source of this repo
-  2. Install dependencies with `bower install imapHandler mimefuncs`
+  2. Install dependencies with `bower install imapHandler mimefuncs utf7`
   3. Add this directory as a packaged app either to FirefoxOS simulato/device or Chrome extensions
   4. Start the simulator and open browserbox app
 

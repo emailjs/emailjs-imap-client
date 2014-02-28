@@ -9,13 +9,14 @@
     if (typeof define === "function" && define.amd) {
         define([
             "./lib/imap",
-            "./lib/specialUse"
+            "./lib/specialUse",
+            "./bower_components/utf7/utf7"
             ], factory);
     } else {
         root.browserbox = factory(imap, specialUse);
     }
 
-}(this, function(imap, specialUse) {
+}(this, function(imap, specialUse, utf7) {
 
     "use strict";
 
@@ -323,7 +324,7 @@
             }
             if(!found){
                 branch.children.push({
-                    name: names[i],
+                    name: utf7.imap.decode(names[i]),
                     delimiter: delimiter,
                     path: names.slice(0, i + 1).join(delimiter),
                     children: []
@@ -347,8 +348,6 @@
                 }
             }
         }else{
-            // FIXME: currently utf7 name is not converted to unicode
-            //        while mathcing is against unicode strings
             if((type = specialUse(folder.name))){
                 folder.flags = [].concat(folder.flags || []).concat(name);
             }
