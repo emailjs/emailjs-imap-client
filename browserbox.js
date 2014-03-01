@@ -20,16 +20,27 @@
 
     "use strict";
 
+    // NB! This file is a mess, I hope to get some structure into it once
+    //     there is enough functionality.
+
     function BrowserBox(host, port, options){
         this.options = options || {};
         this.client = imap(host, port);
         this.capability = [];
         this.serverId = null;
 
+        this.state = this.STATE_NOT_AUTHENTICATED;
+        this.authenticated = false;
+
         this._established = false;
 
         this._init();
     }
+
+    BrowserBox.prototype.STATE_NOT_AUTHENTICATED = 0;
+    BrowserBox.prototype.STATE_AUTHENTICATED = 1;
+    BrowserBox.prototype.STATE_SELECTED = 2;
+    BrowserBox.prototype.STATE_LOGOUT = 3;
 
     BrowserBox.prototype._init = function(){
         this.client.onlog = (function(type, payload){
@@ -169,6 +180,9 @@
             if(err){
                 return callback(err);
             }
+
+            this.state = this.STATE_AUTHENTICATED;
+            this.authenticated = true;
 
             // update post-auth capabilites
             if(response.capability && response.capability.length){
@@ -384,7 +398,7 @@
 
     BrowserBox.prototype._checkSpecialUse = function(folder){
         var type, specialFlags = ["\\All", "\\Archive", "\\Drafts", "\\Flagged", "\\Junk", "\\Sent", "\\Trash"];
-        if(this.capability.indexOf("SPECIAL-USE")){
+        if(this.capability.indexOf("SPECIAL-USE") >= 0){
             if(!folder.flags || !folder.flags.length){
                 return false;
             }
