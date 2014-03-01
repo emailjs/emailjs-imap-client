@@ -36,8 +36,8 @@ define(["../browserbox.js"], function(browserbox){
 
             {
                 personal: [{prefix: "INBOX.", delimiter: "."}],
-                users: null,
-                shared: null
+                users: false,
+                shared: false
             },
 
             br._parseNAMESPACE({payload:{
