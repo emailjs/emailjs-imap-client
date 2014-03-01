@@ -20,117 +20,217 @@
 
     "use strict";
 
-    // NB! This file is a mess, I hope to get some structure into it once
-    //     there is enough functionality.
-
+    /**
+     * High level IMAP client
+     *
+     * @constructor
+     *
+     * @param {String} [host="localhost"] Hostname to conenct to
+     * @param {Number} [port=143] Port number to connect to
+     * @param {Object} [options] Optional options object
+     */
     function BrowserBox(host, port, options){
-        this.options = options || {};
-        this.client = imap(host, port);
-        this.capability = [];
-        this.serverId = null;
 
-        this.state = this.STATE_NOT_AUTHENTICATED;
+        this.options = options || {};
+
+        /**
+         * List of extensions the server supports
+         */
+        this.capability = [];
+
+        /**
+         * Server ID (rfc2971) as key value pairs
+         */
+        this.serverId = false;
+
+        /**
+         * Current state
+         */
+        this.state = false;
+
+        /**
+         * Is the connection authenticated
+         */
         this.authenticated = false;
 
-        this._established = false;
+        /**
+         * IMAP client object
+         */
+        this.client = imap(host, port);
 
         this._init();
     }
 
-    BrowserBox.prototype.STATE_NOT_AUTHENTICATED = 0;
-    BrowserBox.prototype.STATE_AUTHENTICATED = 1;
-    BrowserBox.prototype.STATE_SELECTED = 2;
-    BrowserBox.prototype.STATE_LOGOUT = 3;
+    // State constants
 
+    BrowserBox.prototype.STATE_CONNECTING = 1;
+    BrowserBox.prototype.STATE_NOT_AUTHENTICATED = 2;
+    BrowserBox.prototype.STATE_AUTHENTICATED = 3;
+    BrowserBox.prototype.STATE_SELECTED = 4;
+    BrowserBox.prototype.STATE_LOGOUT = 5;
+
+    /**
+     * Initialization method. Setup event handlers and such
+     */
     BrowserBox.prototype._init = function(){
         this.client.onlog = (function(type, payload){
             this.onlog(type, payload);
         }).bind(this);
 
+        // proxy error events
         this.client.onerror = (function(err){
             this.onerror(err);
         }).bind(this);
 
+        // proxy close events
         this.client.onclose = (function(){
             this.onclose();
         }).bind(this);
 
-        this.client.setHandler("capability", function(response, next){
-            this.capability = [].concat(response && response.attributes || []).map(function(capa){
-                return (capa.value || "").toString().toUpperCase().trim();
-            });
+        // handle ready event which is fired when server has sent the greeting
+        this.client.onready = this._onReady.bind(this);
 
-            next();
-        });
-
-        this.client.setHandler("ok", (function(response, next){
-            this._processResponseCode(response);
-            next();
-        }).bind(this));
-
-        this.client.onready = (function(){
-            clearTimeout(this._connectionTimeout);
-
-            this.onlog("session", "Connection established");
-
-            this.checkCapability((function(){
-
-                this.updateId(this.options.id, (function(){
-                    if(this.options.auth){
-                        this.login(this.options.auth.user, this.options.auth.pass, (function(err){
-                            if(err){
-                                this.onlog("auth", "Authentication failed");
-                                this.onlog("error", err.message);
-                                this.onerror(new Error(err.message));
-                                this.close();
-                                return;
-                            }
-                            this.onauth();
-                        }).bind(this));
-                    }else{
-                        this.close();
-                    }
-
-                }).bind(this));
-            }).bind(this));
-        }).bind(this);
+        // set default handlers for untagged responses
+        this.client.setHandler("capability", this._untaggedCapabilityHandler.bind(this));
+        this.client.setHandler("ok", this._untaggedOkHandler.bind(this));
+        this.client.setHandler("exists", this._untaggedExistsHandler.bind(this));
     };
 
-    BrowserBox.prototype.connect = function(){
-        clearTimeout(this._connectionTimeout);
-        this._connectionTimeout = setTimeout(this._timeout, 60 * 1000);
-        this.client.connect();
-    };
-
-    BrowserBox.prototype.onlog = function(){};
-    BrowserBox.prototype.onerror = function(){};
+    // Event placeholders
+    BrowserBox.prototype.onlog = function(type, message){};
     BrowserBox.prototype.onclose = function(){};
     BrowserBox.prototype.onauth = function(){};
+    /* BrowserBox.prototype.onerror = function(err){}; // not defined by default */
 
+    // Event handlers
+
+    /**
+     * Connection to the server is closed. Proxies to 'onclose'.
+     *
+     * @event
+     */
     BrowserBox.prototype._onClose = function(){
         this.onclose();
     };
 
-    BrowserBox.prototype._timeout = (function(){
+    /**
+     * Connection to the server was not established. Proxies to 'onerror'.
+     *
+     * @event
+     */
+    BrowserBox.prototype._onTimeout = (function(){
         this.onerror(new Error("Timeout creating connection to the IMAP server"));
         this.client._destroy();
     }).bind(this);
 
-    BrowserBox.prototype._processResponseCode = function(response){
-        if(response){
-            if(response.capability){
+    /**
+     * Connection to the server is established. Method performs initial
+     * tasks like updating capabilities and auhtenticating the user
+     *
+     * @event
+     */
+    BrowserBox.prototype._onReady = function(){
+        clearTimeout(this._connectionTimeout);
+        this.onlog("session", "Connection established");
+        this.state = this.STATE_NOT_AUTHENTICATED;
+
+        this.updateCapability((function(){
+            this.updateId(this.options.id, (function(){
+                this.login(this.options.auth.user, this.options.auth.pass, (function(err){
+                    if(err){
+                        // emit an error
+                        this.onerror(err);
+                        this.close();
+                        return;
+                    }
+                    // emit
+                    this.onauth();
+                }).bind(this));
+            }).bind(this));
+        }).bind(this));
+    };
+
+    // Public methods
+
+    /**
+     * Initiate connection to the IMAP server
+     */
+    BrowserBox.prototype.connect = function(){
+        this.state = this.STATE_CONNECTING;
+
+        // set timeout to fail connection establishing
+        clearTimeout(this._connectionTimeout);
+        this._connectionTimeout = setTimeout(this._onTimeout, 60 * 1000);
+        this.client.connect();
+    };
+
+    /**
+     * Close current connection
+     */
+    BrowserBox.prototype.close = function(callback){
+        this.state = this.STATE_LOGOUT;
+
+        this.exec("LOGOUT", function(err){
+            if(typeof callback == "function"){
+                callback(err || null);
+            }
+        });
+    };
+
+    /**
+     * Run an IMAP command.
+     *
+     * @param {Object} request Structured request object
+     * @param {Array} acceptUntagged a list of untagged responses that will be included in "payload" property
+     * @param {Function} callback Callback function to run once the command has been processed
+     */
+    BrowserBox.prototype.exec = function(){
+        var args = Array.prototype.slice.call(arguments),
+            callback = args.pop();
+
+        if(typeof callback != "function"){
+            args.push(callback);
+            callback = undefined;
+        }
+
+        args.push((function(response, next){
+            var error = null;
+
+            if(response && response.capability){
                 this.capability = response.capability;
             }
 
-            if(response.code == "ALERT" && response.humanReadable){
-                this.onlog("alert", response.humanReadable);
+            if(["NO", "BAD"].indexOf((response && response.command || "").toString().toUpperCase().trim()) >= 0){
+                error = new Error(response.humanReadable || "Error");
+                if(response.code){
+                    error.code = response.code;
+                }
             }
-        }
+            if(typeof callback == "function"){
+                callback(error, response, next);
+            }else{
+                next();
+            }
+        }).bind(this));
+
+        this.client.exec.apply(this.client, args);
+
+        return this;
     };
 
-    // Macros
+    // IMAP macros
 
-    BrowserBox.prototype.checkCapability = function(forced, callback){
+
+    /**
+     * Runs CAPABILITY command
+     * http://tools.ietf.org/html/rfc3501#section-6.1.1
+     * Doesn't register untagged CAPABILITY handler as this is already
+     * handled by global handler
+     *
+     * @param {Boolean} [forced] By default the command is not run if capability is already listed. Set to true to skip this validation
+     * @param {Function} callback Callback function
+     */
+    BrowserBox.prototype.updateCapability = function(forced, callback){
         if(!callback && typeof forced == "function"){
             callback = forced;
             forced = undefined;
@@ -152,7 +252,12 @@
         });
     };
 
-    //https://tools.ietf.org/html/rfc2342
+    /**
+     * Runs NAMESPACE command
+     * https://tools.ietf.org/html/rfc2342
+     *
+     * @param {Function} callback Callback function with the namespae information
+     */
     BrowserBox.prototype.listNamespaces = function(callback){
         if(this.capability.indexOf("NAMESPACE") < 0){
             return callback(null, false);
@@ -169,6 +274,14 @@
         }).bind(this));
     };
 
+    /**
+     * Runs LOGIN command
+     * http://tools.ietf.org/html/rfc3501#section-6.2.3
+     *
+     * @param {String} username
+     * @param {String} password
+     * @param {Function} callback Returns error if login failed
+     */
     BrowserBox.prototype.login = function(username, password, callback){
         this.exec({
             command: "login",
@@ -200,7 +313,7 @@
                 callback(null, true);
             }else{
                 // capabilities were not automatically listed, reload
-                this.checkCapability(true, function(err){
+                this.updateCapability(true, function(err){
                     if(err){
                         callback(err);
                     }else{
@@ -211,7 +324,14 @@
         }).bind(this));
     };
 
-    // See http://tools.ietf.org/html/rfc2971#section-3.3 for values
+    /**
+     * Runs ID command. Retrieves server ID
+     * http://tools.ietf.org/html/rfc2971
+     * Sets this.serverId value
+     *
+     * @param {Object} id ID as key value pairs. See http://tools.ietf.org/html/rfc2971#section-3.3 for possible values
+     * @param {Function} callback
+     */
     BrowserBox.prototype.updateId = function(id, callback){
         if(this.capability.indexOf("ID") < 0){
             return callback(null, false);
@@ -260,6 +380,13 @@
         }).bind(this));
     };
 
+    /**
+     * Runs LIST and LSUB commands. Retrieves a tree of available mailboxes
+     * http://tools.ietf.org/html/rfc3501#section-6.3.8
+     * http://tools.ietf.org/html/rfc3501#section-6.3.9
+     *
+     * @param {Function} callback Returns mailbox tree object
+     */
     BrowserBox.prototype.listMailboxes = function(callback){
         this.exec({command: "LIST", attributes: ["", "*"]}, "LIST", (function(err, response, next){
             next();
@@ -316,6 +443,15 @@
         }).bind(this));
     };
 
+    /**
+     * Runs SELECT or EXAMINE to open a mailbox
+     * http://tools.ietf.org/html/rfc3501#section-6.3.1
+     * http://tools.ietf.org/html/rfc3501#section-6.3.2
+     *
+     * @param {String} path Full path to mailbox
+     * @param {Object} [options] Options object
+     * @param {Function} callback Return information about selected mailbox
+     */
     BrowserBox.prototype.selectMailbox = function(path, options, callback){
         if(!callback && typeof options == "function"){
             callback = options;
@@ -350,45 +486,53 @@
         }).bind(this));
     };
 
-    BrowserBox.prototype.close = function(callback){
-        this.state = this.STATE_LOGOUT;
-        this.exec("LOGOUT", function(err){
-            if(typeof callback == "function"){
-                callback(err || null);
-            }
-        });
-    };
+    // Default handlers for untagged responses
 
-    BrowserBox.prototype.exec = function(){
-        var args = Array.prototype.slice.call(arguments),
-            callback = args.pop();
-
-        if(typeof callback != "function"){
-            args.push(callback);
-            callback = undefined;
+    /**
+     * Checks if an untagged OK includes [CAPABILITY] tag and updates capability object
+     *
+     * @param {Object} response Parsed server response
+     * @param {Function} next Unitl called, server responses are not processed
+     */
+    BrowserBox.prototype._untaggedOkHandler = function(response, next){
+        if(response && response.capability){
+            this.capability = response.capability;
         }
-
-        args.push((function(response, next){
-            var error = null;
-            this._processResponseCode(response);
-            if(["NO", "BAD"].indexOf((response && response.command || "").toString().toUpperCase().trim()) >= 0){
-                error = new Error(response.humanReadable || "Error");
-                if(response.code){
-                    error.code = response.code;
-                }
-            }
-            if(typeof callback == "function"){
-                callback(error, response, next);
-            }else{
-                next();
-            }
-        }).bind(this));
-
-        this.client.exec.apply(this.client, args);
-
-        return this;
+        next();
     };
 
+    /**
+     * Updates capability object
+     *
+     * @param {Object} response Parsed server response
+     * @param {Function} next Unitl called, server responses are not processed
+     */
+    BrowserBox.prototype._untaggedCapabilityHandler = function(response, next){
+        this.capability = [].concat(response && response.attributes || []).map(function(capa){
+            return (capa.value || "").toString().toUpperCase().trim();
+        });
+        next();
+    };
+
+    /**
+     * Updates existing message count
+     *
+     * @param {Object} response Parsed server response
+     * @param {Function} next Unitl called, server responses are not processed
+     */
+    BrowserBox.prototype._untaggedExistsHandler = function(response, next){
+        console.log(response);
+        next();
+    };
+
+    // Private helpers
+
+    /**
+     * Parses SELECT response
+     *
+     * @param {Object} response
+     * @return {Object} Mailbox information object
+     */
     BrowserBox.prototype._parseSELECT = function(response){
         if(!response || !response.payload){
             return;
@@ -432,12 +576,18 @@
         return mailbox;
     };
 
+    /**
+     * Parses NAMESPACE response
+     *
+     * @param {Object} response
+     * @return {Object} Namespaces object
+     */
     BrowserBox.prototype._parseNAMESPACE = function(response){
         var attributes,
             namespaces = false,
             parseNsElement = function(arr){
-                return !arr ? null : [].concat(arr || []).map(function(ns){
-                    return !ns || !ns.length ? null : {
+                return !arr ? false : [].concat(arr || []).map(function(ns){
+                    return !ns || !ns.length ? false : {
                         prefix: ns[0].value,
                         delimiter: ns[1].value
                     };
@@ -459,6 +609,14 @@
         return namespaces;
     };
 
+    /**
+     * Ensures a path exists in the Mailbox tree
+     *
+     * @param {Object} tree Mailbox tree
+     * @param {String} path
+     * @param {String} delimiter
+     * @return {Object} branch for used path
+     */
     BrowserBox.prototype._ensurePath = function(tree, path, delimiter){
         var names = path.split(delimiter), branch = tree, i, j, found;
         for(i = 0; i < names.length; i++){
@@ -483,6 +641,12 @@
         return branch;
     };
 
+    /**
+     * Checks if a mailbox is for special use
+     *
+     * @param {Object} mailbox
+     * @return {String|Boolean} Special use flag (if detected) or false
+     */
     BrowserBox.prototype._checkSpecialUse = function(mailbox){
         var type, specialFlags = ["\\All", "\\Archive", "\\Drafts", "\\Flagged", "\\Junk", "\\Sent", "\\Trash"];
         if(this.capability.indexOf("SPECIAL-USE") >= 0){
@@ -508,6 +672,7 @@
         return type;
     };
 
+    // Exposed function
     return function(host, port, options){
         return new BrowserBox(host, port, options);
     };
