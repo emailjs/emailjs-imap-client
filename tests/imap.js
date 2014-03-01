@@ -1,7 +1,7 @@
 /* jshint browser: true */
-/* global define: true, expect: true, equal: true, test: true*/
+/* global define: false, expect: false, equal: false, test: false*/
 
-define(['../lib/imap.js', '../bower_components/mimefuncs/mimefuncs.js'], function(imap, mimefuncs){
+define(["../lib/imap.js", "../bower_components/mimefuncs/mimefuncs.js"], function(imap, mimefuncs){
 
     "use strict";
 

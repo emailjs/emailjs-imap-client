@@ -58,6 +58,14 @@ var client = browserbox("localhost", 143, {
 });
 ```
 
+## Initiate connection
+
+BrowserBox object by default does not initiate the connection, you need to call `client.connect()` to establish it
+
+    client.connect();
+
+This function does not take any arguments and does not return anything. See the events section to handle connection issues.
+
 ## Events
 
 The IMAP client has several events you can attach to by setting a listener
@@ -150,6 +158,33 @@ Example
   ]
 }
 ```
+
+## List namespaces
+
+List available namespaces with `listNamespaces`. If [NAMESPACE](https://tools.ietf.org/html/rfc2342) extension is not supported, the method returns `false`.
+
+```javascript
+client.listNamespaces(callback)
+```
+
+Where
+
+  * **callback** is the callback function with the following arguments
+    * **err** is an error object, only set if the request failed
+    * **namespaces** is an object with the namespace values or false if NAMESPACE is not supported
+
+Namespace object is with the following structure
+
+  * **personal** is an array of namespace elements or null for Personal Namespace
+  * **users** is an array of namespace elements or null for Other Users' Namespace
+  * **shared** is an array of namespace elements or null for Shared Namespace
+
+Namespace element object has the following structure
+
+  * **prefix** is the prefix string
+  * **delimiter** is the hierarchy delimiter
+
+**NB!** Namespace_Response_Extensions are not supported (extension data is silently skipped)
 
 ## Screenshots
 

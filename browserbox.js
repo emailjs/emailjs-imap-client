@@ -83,9 +83,12 @@
                 }).bind(this));
             }).bind(this));
         }).bind(this);
+    };
 
+    BrowserBox.prototype.connect = function(){
+        clearTimeout(this._connectionTimeout);
         this._connectionTimeout = setTimeout(this._timeout, 60 * 1000);
-        setTimeout(this.client.connect.bind(this.client));
+        this.client.connect();
     };
 
     BrowserBox.prototype.onlog = function(){};
@@ -138,6 +141,22 @@
         });
     };
 
+    BrowserBox.prototype.listNamespaces = function(callback){
+        if(this.capability.indexOf("NAMESPACE") < 0){
+            return callback(null, false);
+        }
+
+        this.exec("NAMESPACE", "NAMESPACE", (function(err, response, next){
+            next();
+
+            if(err){
+                return callback(err);
+            }
+
+            return callback(null, this._parseNAMESPACE(response));
+        }).bind(this));
+    };
+
     BrowserBox.prototype.login = function(username, password, callback){
         this.exec({
             command: "login",
@@ -146,32 +165,33 @@
             next();
 
             var capabilityUpdated = false;
+
             if(err){
                 return callback(err);
+            }
+
+            // update post-auth capabilites
+            if(response.capability && response.capability.length){
+                // capabilites were listed with the OK [CAPABILITY ...] response
+                this.capability = [].concat(response.capability || []);
+                capabilityUpdated = true;
+                callback(null, true);
+            }else if(response.payload && response.payload.CAPABILITY && response.payload.CAPABILITY.length){
+                // capabilites were listed with * CAPABILITY ... response
+                this.capability = [].concat(response.payload.CAPABILITY.pop().attributes || []).map(function(capa){
+                    return (capa.value || "").toString().toUpperCase().trim();
+                });
+                capabilityUpdated = true;
+                callback(null, true);
             }else{
-                // update post-auth capabilites
-                if(response.capability && response.capability.length){
-                    // capabilites were listed with the OK [CAPABILITY ...] response
-                    this.capability = [].concat(response.capability || []);
-                    capabilityUpdated = true;
-                    callback(null, true);
-                }else if(response.payload && response.payload.CAPABILITY && response.payload.CAPABILITY.length){
-                    // capabilites were listed with * CAPABILITY ... response
-                    this.capability = [].concat(response.payload.CAPABILITY.pop().attributes || []).map(function(capa){
-                        return (capa.value || "").toString().toUpperCase().trim();
-                    });
-                    capabilityUpdated = true;
-                    callback(null, true);
-                }else{
-                    // capabilities were not automatically listed, reload
-                    this.checkCapability(true, function(err){
-                        if(err){
-                            callback(err);
-                        }else{
-                            callback(null, true);
-                        }
-                    });
-                }
+                // capabilities were not automatically listed, reload
+                this.checkCapability(true, function(err){
+                    if(err){
+                        callback(err);
+                    }else{
+                        callback(null, true);
+                    }
+                });
             }
         }).bind(this));
     };
@@ -309,6 +329,33 @@
         this.client.exec.apply(this.client, args);
 
         return this;
+    };
+
+    BrowserBox.prototype._parseNAMESPACE = function(response){
+        var attributes,
+            namespaces = false,
+            parseNsElement = function(arr){
+                return !arr ? null : [].concat(arr || []).map(function(ns){
+                    return !ns || !ns.length ? null : {
+                        prefix: ns[0].value,
+                        delimiter: ns[1].value
+                    };
+                });
+            };
+
+        if(response.payload &&
+            response.payload.NAMESPACE &&
+            response.payload.NAMESPACE.length &&
+            (attributes = [].concat(response.payload.NAMESPACE.pop().attributes || [])).length){
+
+            namespaces = {
+                personal: parseNsElement(attributes[0]),
+                users: parseNsElement(attributes[1]),
+                shared: parseNsElement(attributes[2])
+            };
+        }
+
+        return namespaces;
     };
 
     BrowserBox.prototype._ensurePath = function(tree, path, delimiter){

@@ -60,37 +60,43 @@ require(["../browserbox"], function(browserbox) {
         }
 
         client.onauth = function(){
-            client.listFolders(function(err, folders){
+            client.listNamespaces(function(err, namespaces){
+                console.log(err || JSON.stringify(namespaces, false, 4));
 
-                if(folders){
-                    var walkFolders = function(branch, level){
-                        var str = "";
-                        level = level || 0;
+                client.listFolders(function(err, folders){
 
-                        if(level){
-                            str += Array(level * 2 - 1).join(" ") + "└ " + branch.name;
-                            if(branch.specialUse){
-                                str += " (for " + branch.specialUse + " messages)";
+                    if(folders){
+                        var walkFolders = function(branch, level){
+                            var str = "";
+                            level = level || 0;
+
+                            if(level){
+                                str += Array(level * 2 - 1).join(" ") + "└ " + branch.name;
+                                if(branch.specialUse){
+                                    str += " (for " + branch.specialUse + " messages)";
+                                }
+                            }else{
+                                str = "-";
                             }
-                        }else{
-                            str = "-";
-                        }
 
-                        for(var i = 0; i < branch.children.length; i++){
-                            str += "\n" + walkFolders(branch.children[i], level + 1);
-                        }
+                            for(var i = 0; i < branch.children.length; i++){
+                                str += "\n" + walkFolders(branch.children[i], level + 1);
+                            }
 
-                        return str;
+                            return str;
+                        }
+                        var tree = walkFolders(folders, 0);
+                        window.log(tree);
+                        console.log(JSON.stringify(folders, false, 2));
+                        console.log(tree);
                     }
-                    var tree = walkFolders(folders, 0);
-                    window.log(tree);
-                    console.log(JSON.stringify(folders, false, 2));
-                    console.log(tree);
-                }
 
-                client.exec("LOGOUT");
+                    client.exec("LOGOUT");
+                });
             });
         }
+
+        client.connect();
     }
 
     window.log = function(data){
