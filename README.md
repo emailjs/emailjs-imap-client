@@ -96,7 +96,7 @@ Is fired when the user is successfully authenticated
 
 ## List mailboxes
 
-List all mailboxes with `listMailboxes` method
+List all mailboxes with `listMailboxes()` method
 
 ```
 client.listMailboxes(callback)
@@ -161,7 +161,7 @@ Example
 
 ## List namespaces
 
-List available namespaces with `listNamespaces`. If [NAMESPACE](https://tools.ietf.org/html/rfc2342) extension is not supported, the method returns `false`.
+List available namespaces with `listNamespaces()`. If [NAMESPACE](https://tools.ietf.org/html/rfc2342) extension is not supported, the method returns `false`.
 
 ```javascript
 client.listNamespaces(callback)
@@ -171,7 +171,7 @@ Where
 
   * **callback** is the callback function with the following arguments
     * **err** is an error object, only set if the request failed
-    * **namespaces** is an object with the namespace values or false if NAMESPACE is not supported
+    * **namespaces** is an object with the namespace values or `false` if NAMESPACE is not supported
 
 Namespace object is with the following structure
 
@@ -240,7 +240,7 @@ Namespace element object has the following structure
 
 ## Select mailbox
 
-Select specific mailbox by path with `selectMailbox`
+Select specific mailbox by path with `selectMailbox()`
 
 ```javascript
 client.selectMailbox(path[, options], callback)
@@ -282,6 +282,16 @@ Example
     "highestModseq": 3682918
 }
 ```
+
+## Close connection
+
+You can close the connection with `close()`. This method doesn't actually terminate the connection, it sends LOGOUT command to the server.
+
+```javascript
+clisne.close();
+```
+
+Once the connection is actually closed `onclose` event is fired.
 
 ## Screenshots
 

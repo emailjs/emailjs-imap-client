@@ -82,13 +82,13 @@
                                 this.onlog("auth", "Authentication failed");
                                 this.onlog("error", err.message);
                                 this.onerror(new Error(err.message));
-                                this.exec("LOGOUT");
+                                this.close();
                                 return;
                             }
                             this.onauth();
                         }).bind(this));
                     }else{
-                        this.exec("LOGOUT");
+                        this.close();
                     }
 
                 }).bind(this));
@@ -348,6 +348,15 @@
 
             return callback(null, this._parseSELECT(response));
         }).bind(this));
+    };
+
+    BrowserBox.prototype.close = function(callback){
+        this.state = this.STATE_LOGOUT;
+        this.exec("LOGOUT", function(err){
+            if(typeof callback == "function"){
+                callback(err || null);
+            }
+        });
     };
 
     BrowserBox.prototype.exec = function(){
