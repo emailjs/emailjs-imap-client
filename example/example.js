@@ -63,10 +63,10 @@ require(["../browserbox"], function(browserbox) {
             client.listNamespaces(function(err, namespaces){
                 console.log(err || JSON.stringify(namespaces, false, 4));
 
-                client.listFolders(function(err, folders){
+                client.listMailboxes(function(err, mailboxes){
 
-                    if(folders){
-                        var walkFolders = function(branch, level){
+                    if(mailboxes){
+                        var walkMailboxes = function(branch, level){
                             var str = "";
                             level = level || 0;
 
@@ -80,14 +80,14 @@ require(["../browserbox"], function(browserbox) {
                             }
 
                             for(var i = 0; i < branch.children.length; i++){
-                                str += "\n" + walkFolders(branch.children[i], level + 1);
+                                str += "\n" + walkMailboxes(branch.children[i], level + 1);
                             }
 
                             return str;
                         }
-                        var tree = walkFolders(folders, 0);
+                        var tree = walkMailboxes(mailboxes, 0);
                         window.log(tree);
-                        console.log(JSON.stringify(folders, false, 2));
+                        console.log(JSON.stringify(mailboxes, false, 2));
                         console.log(tree);
                     }
 

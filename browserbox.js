@@ -152,6 +152,7 @@
         });
     };
 
+    //https://tools.ietf.org/html/rfc2342
     BrowserBox.prototype.listNamespaces = function(callback){
         if(this.capability.indexOf("NAMESPACE") < 0){
             return callback(null, false);
@@ -259,7 +260,7 @@
         }).bind(this));
     };
 
-    BrowserBox.prototype.listFolders = function(callback){
+    BrowserBox.prototype.listMailboxes = function(callback){
         this.exec({command: "LIST", attributes: ["", "*"]}, "LIST", (function(err, response, next){
             next();
 
@@ -312,6 +313,22 @@
 
                 callback(null, tree);
             }).bind(this));
+        }).bind(this));
+    };
+
+    BrowserBox.prototype.selectMailbox = function(callback){
+        if(this.capability.indexOf("NAMESPACE") < 0){
+            return callback(null, false);
+        }
+
+        this.exec("NAMESPACE", "NAMESPACE", (function(err, response, next){
+            next();
+
+            if(err){
+                return callback(err);
+            }
+
+            return callback(null, this._parseNAMESPACE(response));
         }).bind(this));
     };
 
@@ -396,28 +413,28 @@
         return branch;
     };
 
-    BrowserBox.prototype._checkSpecialUse = function(folder){
+    BrowserBox.prototype._checkSpecialUse = function(mailbox){
         var type, specialFlags = ["\\All", "\\Archive", "\\Drafts", "\\Flagged", "\\Junk", "\\Sent", "\\Trash"];
         if(this.capability.indexOf("SPECIAL-USE") >= 0){
-            if(!folder.flags || !folder.flags.length){
+            if(!mailbox.flags || !mailbox.flags.length){
                 return false;
             }
             for(var i = 0, len = specialFlags.length; i < len; i++){
-                if(folder.flags.indexOf(specialFlags[i]) >= 0){
+                if(mailbox.flags.indexOf(specialFlags[i]) >= 0){
                     type = specialFlags[i];
                     break;
                 }
             }
         }else{
-            if((type = specialUse(folder.name))){
-                folder.flags = [].concat(folder.flags || []).concat(name);
+            if((type = specialUse(mailbox.name))){
+                mailbox.flags = [].concat(mailbox.flags || []).concat(name);
             }
         }
         if(!type){
             return false;
         }
 
-        folder.specialUse = type.substr(1).toLowerCase();
+        mailbox.specialUse = type.substr(1).toLowerCase();
         return type;
     };
 

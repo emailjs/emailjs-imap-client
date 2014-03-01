@@ -94,31 +94,31 @@ client.onerror = function(err){}
 
 Is fired when the user is successfully authenticated
 
-## List folders
+## List mailboxes
 
-List all folders with `listFolders` method
+List all mailboxes with `listMailboxes` method
 
 ```
-client.listFolders(callback)
+client.listMailboxes(callback)
 ```
 
 Where
 
   * **callback** is the callback function with the following arguments
     * **err** is an error object, only set if the request failed
-    * **folders** is an object with the folder structure
+    * **mailboxes** is an object with the mailbox structure
 
-Folder object is with the following structure
+Mailbox object is with the following structure
 
   * **root** (boolean) `true` if the node is root
-  * **name** (string) undecoded name of the folder
-  * **path** (string) full path to the folder
+  * **name** (string) undecoded name of the mailbox
+  * **path** (string) full path to the mailbox
   * **delimiter** (string) path delimiting symbol
-  * **listed** (boolean) folder was found in the LIST response
-  * **subscribed** (boolean) folder was found in the LSUB response
-  * **specialUse** (string) folder was identified as a special use folder ("trash", "sent", "junk" etc. see [RFC6154](http://tools.ietf.org/html/rfc6154#section-2))
+  * **listed** (boolean) mailbox was found in the LIST response
+  * **subscribed** (boolean) mailbox was found in the LSUB response
+  * **specialUse** (string) mailbox was identified as a special use mailbox ("trash", "sent", "junk" etc. see [RFC6154](http://tools.ietf.org/html/rfc6154#section-2))
   * **flags** (array) a list of flags
-  * **children** (array) a list of child folders
+  * **children** (array) a list of child mailboxes
 
 Example
 
