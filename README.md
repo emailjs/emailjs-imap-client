@@ -177,7 +177,59 @@ Namespace object is with the following structure
 
   * **personal** is an array of namespace elements or null for Personal Namespace
   * **users** is an array of namespace elements or null for Other Users' Namespace
-  * **shared** is an array of namespace elements or null for Shared Namespace
+  * **shared** is an array of namespace e
+  ```json
+  {
+    "readOnly": false,
+    "exists": 6596,
+    "flags": [
+        "\\Answered",
+        "\\Flagged",
+        "\\Draft",
+        "\\Deleted",
+        "\\Seen",
+        "$MailFlagBit1",
+        "$MailFlagBit0",
+        "$MailFlagBit2",
+        "NonJunk",
+        "Junk",
+        "$Phishing",
+        "$Forwarded",
+        "$MDNSent",
+        "JunkRecorded",
+        "$NotJunk",
+        "receipt-handled",
+        "NotJunk",
+        "$NotPhishing",
+        "$Junk"
+    ],
+    "permanentFlags": [
+        "\\Answered",
+        "\\Flagged",
+        "\\Draft",
+        "\\Deleted",
+        "\\Seen",
+        "$MailFlagBit1",
+        "$MailFlagBit0",
+        "$MailFlagBit2",
+        "NonJunk",
+        "Junk",
+        "$Phishing",
+        "$Forwarded",
+        "$MDNSent",
+        "JunkRecorded",
+        "$NotJunk",
+        "receipt-handled",
+        "NotJunk",
+        "$NotPhishing",
+        "$Junk",
+        "\\*"
+    ],
+    "uidValidity": 2,
+    "uidNext": 38361,
+    "highestModseq": 3682918
+}
+  ```lements or null for Shared Namespace
 
 Namespace element object has the following structure
 
@@ -185,6 +237,51 @@ Namespace element object has the following structure
   * **delimiter** is the hierarchy delimiter
 
 **NB!** Namespace_Response_Extensions are not supported (extension data is silently skipped)
+
+## Select mailbox
+
+Select specific mailbox by path with `selectMailbox`
+
+```javascript
+client.selectMailbox(path[, options], callback)
+```
+
+Where
+
+  * **path** is the full path to the mailbox (see *path* property with `listMailboxes`)
+  * **options** *optional* options object with the following properties
+    * **condstore** if set to `true` adds (CONDSTORE) option when selecting
+    * **readOnly** if set to `true` uses `EXAMINE` instead of `SELECT`
+  * **callback** is the callback function with the following arguments
+    * **err** is an error object, only set if the request failed
+    * **mailboxInfo** is an object with mailbox properties
+      * **exists** (number) the count of messages in the selected mailbox
+      * **flags** (array) an array of flags used in the selected mailbox
+      * **permanentFlags** (array) an array of permanent flags available to use in the selected mailbox
+      * **readOnly** (boolean) `true` if the mailbox is in read only mode
+      * **uidValidity** (number) UIDValidity value
+      * **uidNext** (number) predicted next UID value
+      * **highestModseq** (number) (with CONDSTORE only) highest modseq value
+
+Example
+
+```json
+{
+    "readOnly": false,
+    "exists": 6596,
+    "flags": [
+        "\\Answered",
+        "\\Flagged"
+    ],
+    "permanentFlags": [
+        "\\Answered",
+        "\\Flagged"
+    ],
+    "uidValidity": 2,
+    "uidNext": 38361,
+    "highestModseq": 3682918
+}
+```
 
 ## Screenshots
 
@@ -195,4 +292,3 @@ Namespace element object has the following structure
 **Chrome**
 
 ![](https://raw2.github.com/Kreata/browserbox/master/example/img/chrome.png)
-

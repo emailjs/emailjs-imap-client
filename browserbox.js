@@ -316,19 +316,37 @@
         }).bind(this));
     };
 
-    BrowserBox.prototype.selectMailbox = function(callback){
-        if(this.capability.indexOf("NAMESPACE") < 0){
-            return callback(null, false);
+    BrowserBox.prototype.selectMailbox = function(path, options, callback){
+        if(!callback && typeof options == "function"){
+            callback = options;
+            options = undefined;
+        }
+        options = options || {};
+
+        var query = {
+            command: options.readOnly ? "EXAMINE" : "SELECT",
+            attributes: [
+                {
+                    type: "STRING",
+                    value: path
+                }
+            ]
+        };
+
+        if(options.condstore && this.capability.indexOf("CONDSTORE") >= 0){
+            query.attributes.push([{type: "ATOM", value: "CONDSTORE"}]);
         }
 
-        this.exec("NAMESPACE", "NAMESPACE", (function(err, response, next){
+        this.exec(query, ["EXISTS", "FLAGS", "OK"], (function(err, response, next){
             next();
 
             if(err){
                 return callback(err);
             }
 
-            return callback(null, this._parseNAMESPACE(response));
+            this.state = this.STATE_SELECTED;
+
+            return callback(null, this._parseSELECT(response));
         }).bind(this));
     };
 
@@ -360,6 +378,49 @@
         this.client.exec.apply(this.client, args);
 
         return this;
+    };
+
+    BrowserBox.prototype._parseSELECT = function(response){
+        if(!response || !response.payload){
+            return;
+        }
+
+        var mailbox = {
+                readOnly: response.code == "READ-ONLY"
+            },
+
+            existsResponse = response.payload.EXISTS && response.payload.EXISTS.pop(),
+            flagsResponse = response.payload.FLAGS && response.payload.FLAGS.pop(),
+            okResponse = response.payload.OK;
+
+        if(existsResponse){
+            mailbox.exists = existsResponse.nr || 0;
+        }
+
+        if(flagsResponse && flagsResponse.attributes && flagsResponse.attributes.length){
+            mailbox.flags = flagsResponse.attributes[0].map(function(flag){
+                return (flag.value || "").toString().trim();
+            });
+        }
+
+        [].concat(okResponse || []).forEach(function(ok){
+            switch(ok && ok.code){
+                case "PERMANENTFLAGS":
+                    mailbox.permanentFlags = [].concat(ok.permanentflags || []);
+                    break;
+                case "UIDVALIDITY":
+                    mailbox.uidValidity = Number(ok.uidvalidity) || 0;
+                    break;
+                case "UIDNEXT":
+                    mailbox.uidNext = Number(ok.uidnext) || 0;
+                    break;
+                case "HIGHESTMODSEQ":
+                    mailbox.highestModseq = Number(ok.highestmodseq) || 0;
+                    break;
+            }
+        });
+
+        return mailbox;
     };
 
     BrowserBox.prototype._parseNAMESPACE = function(response){

@@ -91,7 +91,11 @@ require(["../browserbox"], function(browserbox) {
                         console.log(tree);
                     }
 
-                    client.exec("LOGOUT");
+                    client.selectMailbox("INBOX", {condstore: true}, function(err, data){
+                        console.log(err, JSON.stringify(data, false, 4));
+                        client.exec("LOGOUT");
+                    });
+
                 });
             });
         }
