@@ -59,7 +59,7 @@
         this.client = imap(host, port);
 
         this._enteredIdle = false;
-        this._noopTimeout = false;
+        this._idleTimeout = false;
 
         this._init();
     }
@@ -71,6 +71,23 @@
     BrowserBox.prototype.STATE_AUTHENTICATED = 3;
     BrowserBox.prototype.STATE_SELECTED = 4;
     BrowserBox.prototype.STATE_LOGOUT = 5;
+
+    // Timeout constants
+
+    /**
+     * How much time to wait for the greeting from the server until the connection is considered failed
+     */
+    BrowserBox.prototype.TIMEOUT_CONNECTION = 60 * 1000;
+
+    /**
+     * Time between NOOP commands while idling
+     */
+    BrowserBox.prototype.TIMEOUT_NOOP = 18 * 1000;
+
+    /**
+     * Time until IDLE command is cancelled
+     */
+    BrowserBox.prototype.TIMEOUT_IDLE = 18 * 1000;
 
     /**
      * Initialization method. Setup event handlers and such
@@ -87,6 +104,8 @@
 
         // proxy close events
         this.client.onclose = (function(){
+            clearTimeout(this._connectionTimeout);
+            clearTimeout(this._idleTimeout);
             this.onclose();
         }).bind(this);
 
@@ -97,11 +116,16 @@
         this.client.onidle = this._onIdle.bind(this);
 
         // set default handlers for untagged responses
+        // capability updates
         this.client.setHandler("capability", this._untaggedCapabilityHandler.bind(this));
+        // notifications
         this.client.setHandler("ok", this._untaggedOkHandler.bind(this));
+        // message count has changed
         this.client.setHandler("exists", this._untaggedExistsHandler.bind(this));
+        // message has been deleted
         this.client.setHandler("expunge", this._untaggedExpungeHandler.bind(this));
-        this.client.setHandler("flags", this._untaggedFlagsHandler.bind(this));
+        // message has been updated (eg. flag change), not supported by gmail
+        this.client.setHandler("fetch", this._untaggedFetchHandler.bind(this));
     };
 
     // Event placeholders
@@ -158,12 +182,18 @@
         }).bind(this));
     };
 
+    /**
+     * Indicates that the connection started idling. Initiates a cycle
+     * of NOOPs or IDLEs to receive notifications about updates in the server
+     */
     BrowserBox.prototype._onIdle = function(){
         if(!this.authenticated || this._enteredIdle){
             // No need to IDLE when not logged in or already idling
             return;
         }
-        this.onlog("IDLE", "Idling");
+
+        this.onlog("idle", "Started idling");
+        this.enterIdle();
     };
 
     // Public methods
@@ -176,7 +206,7 @@
 
         // set timeout to fail connection establishing
         clearTimeout(this._connectionTimeout);
-        this._connectionTimeout = setTimeout(this._onTimeout, 60 * 1000);
+        this._connectionTimeout = setTimeout(this._onTimeout, this.TIMEOUT_CONNECTION);
         this.client.connect();
     };
 
@@ -235,27 +265,52 @@
 
     // IMAP macros
 
+    /**
+     * The connection is idling. Sends a NOOP or IDLE command
+     * IDLE: https://tools.ietf.org/html/rfc2177
+     */
     BrowserBox.prototype.enterIdle = function(){
         if(this._enteredIdle){
             return;
         }
         this._enteredIdle = this.capability.indexOf("IDLE") >= 0 ? "IDLE" : "NOOP";
+
+        if(this._enteredIdle == "NOOP"){
+            this._idleTimeout = setTimeout((function(){
+                this.exec("NOOP");
+            }).bind(this), this.TIMEOUT_NOOP);
+        }else if(this._enteredIdle == "IDLE"){
+            this.client.exec({command: "IDLE"}, (function(response, next){
+                next();
+            }).bind(this));
+            this._idleTimeout = setTimeout((function(){
+                this.onlog("client", "DONE");
+                this.client.socket.send(new Uint8Array([0x44, 0x4f, 0x4e, 0x45, 0x0d, 0x0a]).buffer);
+                this._enteredIdle = false;
+            }).bind(this), this.TIMEOUT_IDLE);
+        }
     };
 
     /**
+     * Stops actions related idling, if IDLE is supported, sends DONE to stop it
      *
+     * @param {Function} callback Function to run after required actions are performed
      */
     BrowserBox.prototype.breakIdle = function(callback){
         if(!this._enteredIdle){
             return callback();
         }
 
-        if(this._enteredIdle == "NOOP"){
-            clearTimeout(this._noopTimeout);
-            this._enteredIdle = false;
-            return callback();
+        clearTimeout(this._idleTimeout);
+        if(this._enteredIdle == "IDLE"){
+            this.onlog("client", "DONE");
+            this.client.socket.send(new Uint8Array([0x44, 0x4f, 0x4e, 0x45, 0x0d, 0x0a]).buffer);
         }
+        this._enteredIdle = false;
 
+        this.onlog("idle", "terminated");
+
+        return callback();
     };
 
     /**
@@ -373,7 +428,7 @@
             return callback(null, false);
         }
 
-        var attributes = [];
+        var attributes = [[]];
         if(id){
             if(typeof id == "string"){
                 id = {
@@ -381,8 +436,8 @@
                 };
             }
             Object.keys(id).forEach(function(key){
-                attributes.push(key);
-                attributes.push(id[key]);
+                attributes[0].push(key);
+                attributes[0].push(id[key]);
             });
         }else{
             attributes.push(null);
@@ -587,8 +642,8 @@
      * @param {Object} response Parsed server response
      * @param {Function} next Until called, server responses are not processed
      */
-    BrowserBox.prototype._untaggedFlagsHandler = function(response, next){
-        console.log("FLAGS");
+    BrowserBox.prototype._untaggedFetchHandler = function(response, next){
+        console.log("FETCH");
         console.log(response);
         next();
     };

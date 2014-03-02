@@ -96,12 +96,12 @@ require(["../browserbox"], function(browserbox) {
                             client.selectMailbox("INBOX", {condstore: true}, function(err, data){
                                 setTimeout(function(){
                                     client.close();
-                                }, 1000);
+                                }, 3 * 60 * 1000);
                             });
                         }, 1000);
 
                     });
-                }, 1000);
+                }, 18 * 2 * 1000);
             });
         }
 
