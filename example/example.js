@@ -94,9 +94,11 @@ require(["../browserbox"], function(browserbox) {
 
                         setTimeout(function(){
                             client.selectMailbox("INBOX", {condstore: true}, function(err, data){
-                                setTimeout(function(){
-                                    client.close();
-                                }, 3 * 60 * 1000);
+                                client.listMessages("1:*", {uid: true, flags: true, "body.peek": [{"header.fields":{subject: true}}]}, function(){
+                                    setTimeout(function(){
+                                        client.close();
+                                    }, 3 * 60 * 1000);
+                                });
                             });
                         }, 1000);
 

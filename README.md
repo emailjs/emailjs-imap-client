@@ -175,9 +175,9 @@ Where
 
 Namespace object is with the following structure
 
-  * **personal** is an array of namespace elements or null for Personal Namespace
-  * **users** is an array of namespace elements or null for Other Users' Namespace
-  * **shared** is an array of namespace elements or null for Shared Namespace
+  * **personal** is an array of namespace elements or `false` for Personal Namespace
+  * **users** is an array of namespace elements or `false` for Other Users' Namespace
+  * **shared** is an array of namespace elements or `false` for Shared Namespace
 
 Namespace element object has the following structure
 
@@ -185,6 +185,8 @@ Namespace element object has the following structure
   * **delimiter** is the hierarchy delimiter
 
 **NB!** Namespace_Response_Extensions are not supported (extension data is silently skipped)
+
+Namespaces should be checked before attempting to create new mailboxes - most probably creating mailboxes outside personal namespace fails. For example when the personal namespace is prefixed with "INBOX." you can create "INBOX.Sent Mail" but you can't create "Sent Mail".
 
 Example
 
@@ -198,7 +200,7 @@ Example
     ],
     "users": false,
     "shared": false
-} 
+}
 ```
 
 ## Select mailbox
@@ -245,6 +247,16 @@ Example
     "highestModseq": 3682918
 }
 ```
+
+## List messages
+
+List messages with `listMessages()`
+
+```javascript
+client.listMessages(sequence, query[, options], callback)
+```
+
+TODO: write docs
 
 ## Close connection
 

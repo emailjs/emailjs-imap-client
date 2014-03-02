@@ -347,7 +347,7 @@
      * Runs NAMESPACE command
      * https://tools.ietf.org/html/rfc2342
      *
-     * @param {Function} callback Callback function with the namespae information
+     * @param {Function} callback Callback function with the namespace information
      */
     BrowserBox.prototype.listNamespaces = function(callback){
         if(this.capability.indexOf("NAMESPACE") < 0){
@@ -541,6 +541,49 @@
     };
 
     /**
+     * TODO: Write docs
+     * Runs FETCH command
+     * http://tools.ietf.org/html/rfc3501#section-6.4.5
+     *
+     * CHANGEDSINCE: https://tools.ietf.org/html/rfc4551#section-3.3
+     *
+     * @param {String} sequence Sequence set, eg 1:* for all messages
+     * @param {Object} [items] Message data item names or macro
+     * @param {Object} [options] Query modifiers
+     * @param {Function} callback Callback function with fetched message info
+     */
+    BrowserBox.prototype.listMessages = function(sequence, items, options, callback){
+        if(!callback && typeof options == "function"){
+            callback = options;
+            options = undefined;
+        }
+
+        if(!callback && typeof items == "function"){
+            callback = items;
+            items = undefined;
+        }
+
+        items = items || {
+            fast: true
+        };
+
+        options = options || {};
+
+        var command = this._buildFETCHCommand(sequence, items, options);
+
+        this.exec(command, "FETCH", (function(err, response, next){
+            console.log("FETCH");
+            console.log(JSON.stringify(response, false, 4));
+            if(err){
+                callback(err);
+            }else{
+                callback(null, true);
+            }
+            next();
+        }).bind(this));
+    };
+
+    /**
      * Runs SELECT or EXAMINE to open a mailbox
      * http://tools.ietf.org/html/rfc3501#section-6.3.1
      * http://tools.ietf.org/html/rfc3501#section-6.3.2
@@ -619,7 +662,7 @@
      * @param {Function} next Until called, server responses are not processed
      */
     BrowserBox.prototype._untaggedExistsHandler = function(response, next){
-        console.log("EXISTS");
+        console.log("Untagged EXISTS");
         console.log(response);
         next();
     };
@@ -631,7 +674,7 @@
      * @param {Function} next Until called, server responses are not processed
      */
     BrowserBox.prototype._untaggedExpungeHandler = function(response, next){
-        console.log("EXPUNGE");
+        console.log("Untagged EXPUNGE");
         console.log(response);
         next();
     };
@@ -643,7 +686,7 @@
      * @param {Function} next Until called, server responses are not processed
      */
     BrowserBox.prototype._untaggedFetchHandler = function(response, next){
-        console.log("FETCH");
+        console.log("Untagged FETCH");
         console.log(response);
         next();
     };
@@ -730,6 +773,62 @@
         }
 
         return namespaces;
+    };
+
+    /**
+     * TODO: Write docs.
+     * FIXME: Does not support partials <start.stop>
+     */
+    BrowserBox.prototype._buildFETCHCommand = function(sequence, items, options){
+        var command = {
+                command: options.byUid ? "UID FETCH" : "FETCH",
+                attributes: [
+                    {type: "SEQUENCE", value: sequence}
+                ]
+            },
+
+            query = [],
+
+            walkItems = function(parent, itemBlock){
+                Object.keys(itemBlock).forEach(function(key){
+                    var element = {type: "ATOM", value: key.toUpperCase()},
+                        list;
+
+                    if(Array.isArray(itemBlock[key])){
+                        element.section = [];
+                        itemBlock[key].forEach(function(item){
+                            walkItems(element.section, item);
+                        });
+                    }else if(typeof itemBlock[key] == "object" && itemBlock[key]){
+                        list = [];
+                        walkItems(list, itemBlock[key]);
+                    }else if(["string", "number"].indexOf(typeof itemBlock[key]) >= 0){
+                        list = [itemBlock[key]];
+                    }
+
+                    parent.push(element);
+                    if(list){
+                        parent.push(list);
+                    }
+                });
+            };
+
+        walkItems(query, items);
+
+        if(query.length == 1){
+            query = query.pop();
+        }
+
+        command.attributes.push(query);
+
+        if(options.changedSince){
+            command.attributes.push([
+                {type: "ATOM", value: "CHANGEDSINCE"},
+                options.changedSince
+            ]);
+        }
+
+        return command;
     };
 
     /**
