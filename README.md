@@ -177,59 +177,7 @@ Namespace object is with the following structure
 
   * **personal** is an array of namespace elements or null for Personal Namespace
   * **users** is an array of namespace elements or null for Other Users' Namespace
-  * **shared** is an array of namespace e
-  ```json
-  {
-    "readOnly": false,
-    "exists": 6596,
-    "flags": [
-        "\\Answered",
-        "\\Flagged",
-        "\\Draft",
-        "\\Deleted",
-        "\\Seen",
-        "$MailFlagBit1",
-        "$MailFlagBit0",
-        "$MailFlagBit2",
-        "NonJunk",
-        "Junk",
-        "$Phishing",
-        "$Forwarded",
-        "$MDNSent",
-        "JunkRecorded",
-        "$NotJunk",
-        "receipt-handled",
-        "NotJunk",
-        "$NotPhishing",
-        "$Junk"
-    ],
-    "permanentFlags": [
-        "\\Answered",
-        "\\Flagged",
-        "\\Draft",
-        "\\Deleted",
-        "\\Seen",
-        "$MailFlagBit1",
-        "$MailFlagBit0",
-        "$MailFlagBit2",
-        "NonJunk",
-        "Junk",
-        "$Phishing",
-        "$Forwarded",
-        "$MDNSent",
-        "JunkRecorded",
-        "$NotJunk",
-        "receipt-handled",
-        "NotJunk",
-        "$NotPhishing",
-        "$Junk",
-        "\\*"
-    ],
-    "uidValidity": 2,
-    "uidNext": 38361,
-    "highestModseq": 3682918
-}
-  ```lements or null for Shared Namespace
+  * **shared** is an array of namespace elements or null for Shared Namespace
 
 Namespace element object has the following structure
 
@@ -237,6 +185,21 @@ Namespace element object has the following structure
   * **delimiter** is the hierarchy delimiter
 
 **NB!** Namespace_Response_Extensions are not supported (extension data is silently skipped)
+
+Example
+
+```json
+{
+    "personal": [
+        {
+            "prefix": "",
+            "delimiter": "/"
+        }
+    ],
+    "users": false,
+    "shared": false
+} 
+```
 
 ## Select mailbox
 
