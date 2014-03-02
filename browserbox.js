@@ -58,6 +58,9 @@
          */
         this.client = imap(host, port);
 
+        this._enteredIdle = false;
+        this._noopTimeout = false;
+
         this._init();
     }
 
@@ -90,10 +93,15 @@
         // handle ready event which is fired when server has sent the greeting
         this.client.onready = this._onReady.bind(this);
 
+        // start idling
+        this.client.onidle = this._onIdle.bind(this);
+
         // set default handlers for untagged responses
         this.client.setHandler("capability", this._untaggedCapabilityHandler.bind(this));
         this.client.setHandler("ok", this._untaggedOkHandler.bind(this));
         this.client.setHandler("exists", this._untaggedExistsHandler.bind(this));
+        this.client.setHandler("expunge", this._untaggedExpungeHandler.bind(this));
+        this.client.setHandler("flags", this._untaggedFlagsHandler.bind(this));
     };
 
     // Event placeholders
@@ -125,7 +133,7 @@
 
     /**
      * Connection to the server is established. Method performs initial
-     * tasks like updating capabilities and auhtenticating the user
+     * tasks like updating capabilities and authenticating the user
      *
      * @event
      */
@@ -148,6 +156,14 @@
                 }).bind(this));
             }).bind(this));
         }).bind(this));
+    };
+
+    BrowserBox.prototype._onIdle = function(){
+        if(!this.authenticated || this._enteredIdle){
+            // No need to IDLE when not logged in or already idling
+            return;
+        }
+        this.onlog("IDLE", "Idling");
     };
 
     // Public methods
@@ -187,7 +203,6 @@
     BrowserBox.prototype.exec = function(){
         var args = Array.prototype.slice.call(arguments),
             callback = args.pop();
-
         if(typeof callback != "function"){
             args.push(callback);
             callback = undefined;
@@ -213,13 +228,35 @@
             }
         }).bind(this));
 
-        this.client.exec.apply(this.client, args);
-
-        return this;
+        this.breakIdle((function(){
+            this.client.exec.apply(this.client, args);
+        }).bind(this));
     };
 
     // IMAP macros
 
+    BrowserBox.prototype.enterIdle = function(){
+        if(this._enteredIdle){
+            return;
+        }
+        this._enteredIdle = this.capability.indexOf("IDLE") >= 0 ? "IDLE" : "NOOP";
+    };
+
+    /**
+     *
+     */
+    BrowserBox.prototype.breakIdle = function(callback){
+        if(!this._enteredIdle){
+            return callback();
+        }
+
+        if(this._enteredIdle == "NOOP"){
+            clearTimeout(this._noopTimeout);
+            this._enteredIdle = false;
+            return callback();
+        }
+
+    };
 
     /**
      * Runs CAPABILITY command
@@ -242,13 +279,12 @@
         }
 
         this.exec("CAPABILITY", function(err, response, next){
-            next();
-
             if(err){
                 callback(err);
             }else{
                 callback(null, true);
             }
+            next();
         });
     };
 
@@ -264,13 +300,12 @@
         }
 
         this.exec("NAMESPACE", "NAMESPACE", (function(err, response, next){
-            next();
-
             if(err){
-                return callback(err);
+                callback(err);
+            }else{
+                callback(null, this._parseNAMESPACE(response));
             }
-
-            return callback(null, this._parseNAMESPACE(response));
+            next();
         }).bind(this));
     };
 
@@ -285,14 +320,13 @@
     BrowserBox.prototype.login = function(username, password, callback){
         this.exec({
             command: "login",
-            attributes: [username, password]
+            attributes: [{type: "LITERAL", value: username}, {type: "LITERAL", value: password}]
         }, "capability", (function(err, response, next){
-            next();
-
             var capabilityUpdated = false;
 
             if(err){
-                return callback(err);
+                callback(err);
+                return next();
             }
 
             this.state = this.STATE_AUTHENTICATED;
@@ -321,6 +355,8 @@
                     }
                 });
             }
+
+            next();
         }).bind(this));
     };
 
@@ -353,14 +389,14 @@
         }
 
         this.exec({command: "ID", attributes: attributes}, "ID", (function(err, response, next){
-            next();
-
             if(err){
-                return callback(err);
+                callback(err);
+                return next();
             }
 
             if(!response.payload || !response.payload.ID || !response.payload.ID.length){
-                return callback(null, false);
+                callback(null, false);
+                return next();
             }
 
             this.serverId = {};
@@ -376,7 +412,9 @@
 
             this.onlog("server id", JSON.stringify(this.serverId));
 
-            return callback(null, this.serverId);
+            callback(null, this.serverId);
+
+            next();
         }).bind(this));
     };
 
@@ -389,16 +427,16 @@
      */
     BrowserBox.prototype.listMailboxes = function(callback){
         this.exec({command: "LIST", attributes: ["", "*"]}, "LIST", (function(err, response, next){
-            next();
-
             if(err){
-                return callback(err);
+                callback(err);
+                return next();
             }
 
             var tree = {root: true, children: []};
 
             if(!response.payload || !response.payload.LIST || !response.payload.LIST.length){
-                return callback(null, false);
+                callback(null, false);
+                return next();
             }
 
             response.payload.LIST.forEach((function(item){
@@ -414,14 +452,14 @@
             }).bind(this));
 
             this.exec({command: "LSUB", attributes: ["", "*"]}, "LSUB", (function(err, response, next){
-                next();
-
                 if(err){
-                    return callback(null, tree);
+                    callback(null, tree);
+                    return next();
                 }
 
                 if(!response.payload || !response.payload.LSUB || !response.payload.LSUB.length){
-                    return callback(null, tree);
+                    callback(null, tree);
+                    return next();
                 }
 
                 response.payload.LSUB.forEach((function(item){
@@ -439,7 +477,11 @@
                 }).bind(this));
 
                 callback(null, tree);
+
+                next();
             }).bind(this));
+
+            next();
         }).bind(this));
     };
 
@@ -474,15 +516,16 @@
         }
 
         this.exec(query, ["EXISTS", "FLAGS", "OK"], (function(err, response, next){
-            next();
-
             if(err){
-                return callback(err);
+                callback(err);
+                return next();
             }
 
             this.state = this.STATE_SELECTED;
 
-            return callback(null, this._parseSELECT(response));
+            callback(null, this._parseSELECT(response));
+
+            next();
         }).bind(this));
     };
 
@@ -492,7 +535,7 @@
      * Checks if an untagged OK includes [CAPABILITY] tag and updates capability object
      *
      * @param {Object} response Parsed server response
-     * @param {Function} next Unitl called, server responses are not processed
+     * @param {Function} next Until called, server responses are not processed
      */
     BrowserBox.prototype._untaggedOkHandler = function(response, next){
         if(response && response.capability){
@@ -505,7 +548,7 @@
      * Updates capability object
      *
      * @param {Object} response Parsed server response
-     * @param {Function} next Unitl called, server responses are not processed
+     * @param {Function} next Until called, server responses are not processed
      */
     BrowserBox.prototype._untaggedCapabilityHandler = function(response, next){
         this.capability = [].concat(response && response.attributes || []).map(function(capa){
@@ -518,9 +561,34 @@
      * Updates existing message count
      *
      * @param {Object} response Parsed server response
-     * @param {Function} next Unitl called, server responses are not processed
+     * @param {Function} next Until called, server responses are not processed
      */
     BrowserBox.prototype._untaggedExistsHandler = function(response, next){
+        console.log("EXISTS");
+        console.log(response);
+        next();
+    };
+
+    /**
+     * Indicates a message has been deleted
+     *
+     * @param {Object} response Parsed server response
+     * @param {Function} next Until called, server responses are not processed
+     */
+    BrowserBox.prototype._untaggedExpungeHandler = function(response, next){
+        console.log("EXPUNGE");
+        console.log(response);
+        next();
+    };
+
+    /**
+     * Indicates that flags have been updated for a message
+     *
+     * @param {Object} response Parsed server response
+     * @param {Function} next Until called, server responses are not processed
+     */
+    BrowserBox.prototype._untaggedFlagsHandler = function(response, next){
+        console.log("FLAGS");
         console.log(response);
         next();
     };

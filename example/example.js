@@ -63,39 +63,45 @@ require(["../browserbox"], function(browserbox) {
             client.listNamespaces(function(err, namespaces){
                 console.log(err || JSON.stringify(namespaces, false, 4));
 
-                client.listMailboxes(function(err, mailboxes){
+                setTimeout(function(){
+                    client.listMailboxes(function(err, mailboxes){
 
-                    if(mailboxes){
-                        var walkMailboxes = function(branch, level){
-                            var str = "";
-                            level = level || 0;
+                        if(mailboxes){
+                            var walkMailboxes = function(branch, level){
+                                var str = "";
+                                level = level || 0;
 
-                            if(level){
-                                str += Array(level * 2 - 1).join(" ") + "└ " + branch.name;
-                                if(branch.specialUse){
-                                    str += " (for " + branch.specialUse + " messages)";
+                                if(level){
+                                    str += Array(level * 2 - 1).join(" ") + "└ " + branch.name;
+                                    if(branch.specialUse){
+                                        str += " (for " + branch.specialUse + " messages)";
+                                    }
+                                }else{
+                                    str = "-";
                                 }
-                            }else{
-                                str = "-";
-                            }
 
-                            for(var i = 0; i < branch.children.length; i++){
-                                str += "\n" + walkMailboxes(branch.children[i], level + 1);
-                            }
+                                for(var i = 0; i < branch.children.length; i++){
+                                    str += "\n" + walkMailboxes(branch.children[i], level + 1);
+                                }
 
-                            return str;
+                                return str;
+                            }
+                            var tree = walkMailboxes(mailboxes, 0);
+                            window.log(tree);
+                            console.log(JSON.stringify(mailboxes, false, 2));
+                            console.log(tree);
                         }
-                        var tree = walkMailboxes(mailboxes, 0);
-                        window.log(tree);
-                        console.log(JSON.stringify(mailboxes, false, 2));
-                        console.log(tree);
-                    }
 
-                    client.selectMailbox("INBOX", {condstore: true}, function(err, data){
-                        client.close();
+                        setTimeout(function(){
+                            client.selectMailbox("INBOX", {condstore: true}, function(err, data){
+                                setTimeout(function(){
+                                    client.close();
+                                }, 1000);
+                            });
+                        }, 1000);
+
                     });
-
-                });
+                }, 1000);
             });
         }
 
