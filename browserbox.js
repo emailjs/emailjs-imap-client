@@ -1,5 +1,5 @@
 /* jshint browser: true */
-/* global define: false, imap: false, specialUse: false */
+/* global define: false, imap: false, specialUse: false, utf7: false, imapHandler: false, mimefuncs: false */
 
 // AMD shim
 (function(root, factory) {
@@ -10,13 +10,15 @@
         define([
             "./lib/imap",
             "./lib/specialUse",
-            "./bower_components/utf7/utf7"
+            "./bower_components/utf7/utf7",
+            "./bower_components/imapHandler/imapHandler",
+            "./bower_components/mimefuncs/mimefuncs"
             ], factory);
     } else {
-        root.browserbox = factory(imap, specialUse);
+        root.browserbox = factory(imap, specialUse, utf7, imapHandler, mimefuncs);
     }
 
-}(this, function(imap, specialUse, utf7) {
+}(this, function(imap, specialUse, utf7, imapHandler, mimefuncs) {
 
     "use strict";
 
@@ -388,6 +390,9 @@
             this.authenticated = true;
 
             // update post-auth capabilites
+            // capability list shouldn't contain auth related stuff anymore
+            // but some new extensions might have popped up that do not
+            // make much sense in the non-auth state
             if(response.capability && response.capability.length){
                 // capabilites were listed with the OK [CAPABILITY ...] response
                 this.capability = [].concat(response.capability || []);
@@ -574,6 +579,7 @@
         this.exec(command, "FETCH", (function(err, response, next){
             console.log("FETCH");
             console.log(JSON.stringify(response, false, 4));
+            console.log(JSON.stringify(this._parseFETCH(response), false, 4));
             if(err){
                 callback(err);
             }else{
@@ -829,6 +835,127 @@
         }
 
         return command;
+    };
+
+    /**
+     * Parses FETCH response
+     *
+     * @param {Object} response
+     * @return {Object} Message object
+     */
+    BrowserBox.prototype._parseFETCH = function(response){
+        var list;
+
+        if(!response || !response.payload || !response.payload.FETCH || !response.payload.FETCH.length){
+            return [];
+        }
+
+        list = [].concat(response.payload.FETCH || []).map((function(item){
+            var
+                // ensure the first value is an array
+                params = [].concat([].concat(item.attributes || [])[0] || []),
+                message = {
+                    "#":  item.nr
+                },
+                i, len, key;
+
+            for(i = 0, len = params.length; i < len; i++){
+                if(i % 2 === 0){
+                    key = imapHandler.compiler({attributes: [params[i]]}).toUpperCase().replace(/<\d+>$/, "");
+                    continue;
+                }
+                message[key] = this._parseFetchValue(key, params[i]);
+            }
+
+            return message;
+        }).bind(this));
+
+        return list;
+    };
+
+    /**
+     * Parses a single value from the FETCH response object
+     *
+     * @param {String} key Key name (uppercase)
+     * @param {Mized} value Value for the key
+     * @return {Mixed} Processed value
+     */
+    BrowserBox.prototype._parseFetchValue = function(key, value){
+        if(!value){
+            return null;
+        }
+
+        if(!Array.isArray(value)){
+            switch(key){
+                case "UID":
+                case "MODSEQ":
+                case "RFC822.SIZE":
+                    return Number(value.value) || 0;
+            }
+            return value.value;
+        }
+
+        switch(key){
+            case "FLAGS":
+                value = [].concat(value).map(function(flag){
+                    return flag.value || "";
+                });
+                break;
+            case "ENVELOPE":
+                value = this._parseENVELOPE([].concat(value || []));
+                break;
+            case "BODYSTRUCTURE":
+                value = this._parseBODYSTRUCTURE([].concat(value || []));
+                break;
+        }
+
+        return value;
+    };
+
+    /**
+     * Parses message envelope from FETCH response. All keys in the resulting
+     * object are lowercase. Address fields are all arrays with {name:, address:}
+     * structured values. Unicode strings are automatically decoded.
+     *
+     * @param {Array} value Envelope array
+     * @param {Object} Envelope object
+     */
+    BrowserBox.prototype._parseENVELOPE = function(value){
+        var processAddresses = function(list){
+                return [].concat(list || []).map(function(addr){
+                    return {
+                        name: mimefuncs.mimeWordsDecode(addr[0] && addr[0].value || ""),
+                        address: (addr[2] && addr[2].value || "") + "@" + (addr[3] && addr[3].value || "")
+                    };
+                });
+            },
+            envelope = {
+                date: value[0] && value[0].value,
+                subject: mimefuncs.mimeWordsDecode(value[1] && value[1].value),
+                from: processAddresses(value[2]),
+                sender: processAddresses(value[3]),
+                "reply-to": processAddresses(value[4]),
+                to: processAddresses(value[5]),
+                cc: processAddresses(value[6]),
+                bcc: processAddresses(value[7]),
+                "in-reply-to": value[8] && value[8].value,
+                "message-id": value[9] && value[9].value
+            };
+
+        return envelope;
+    };
+
+    /**
+     * Parses message body structure from FETCH response.
+     *
+     * TODO: implement actual handler
+     *
+     * @param {Array} value BODYSTRUCTURE array
+     * @param {Object} Envelope object
+     */
+    BrowserBox.prototype._parseBODYSTRUCTURE = function(value){
+        // doesn't do anything yet
+        return value;
     };
 
     /**

@@ -61,7 +61,7 @@ require(["../browserbox"], function(browserbox) {
 
         client.onauth = function(){
             client.listNamespaces(function(err, namespaces){
-                console.log(err || JSON.stringify(namespaces, false, 4));
+                window.log(err || JSON.stringify(namespaces, false, 4));
 
                 setTimeout(function(){
                     client.listMailboxes(function(err, mailboxes){
@@ -94,16 +94,32 @@ require(["../browserbox"], function(browserbox) {
 
                         setTimeout(function(){
                             client.selectMailbox("INBOX", {condstore: true}, function(err, data){
-                                client.listMessages("1:*", {uid: true, flags: true, "body.peek": [{"header.fields":{subject: true}}]}, function(){
-                                    setTimeout(function(){
-                                        client.close();
-                                    }, 3 * 60 * 1000);
-                                });
+                                window.log(err || data);
+                                client.listMessages("1:*",
+                                    {
+                                        uid: true,
+                                        flags: true,
+                                        "body.peek": [
+                                            {
+                                                "header.fields":{
+                                                    subject: true,
+                                                    date: true
+                                                }
+                                            }
+                                        ],
+                                        envelope: true,
+                                        bodystructure: true
+                                    },
+                                    function(){
+                                        setTimeout(function(){
+                                            client.close();
+                                        }, 3 * 60 * 1000);
+                                    });
                             });
                         }, 1000);
 
                     });
-                }, 18 * 2 * 1000);
+                }, 5 * 1000);
             });
         }
 

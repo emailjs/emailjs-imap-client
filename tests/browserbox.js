@@ -371,7 +371,7 @@ define(["../browserbox.js"], function(browserbox){
                 command: "FETCH",
                 attributes: [
                     {type: "SEQUENCE", value: "1:*"},
-                    {type: "ATOM", value: "BODY"}
+                    {type: "ATOM", value: "BODY", section:[]}
                 ]
             },
 
