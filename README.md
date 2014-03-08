@@ -23,6 +23,12 @@ Currently only non secure connections are used. If you want to use a secure serv
 
 And use host "localhost" and port "1143" to connect to GMail IMAP.
 
+If you want to connect to another host, for example to *imap-mail.outlook.com*, run
+
+    SMTP_HOST="imap-mail.outlook.com" node example/proxy.js
+
+SSL support for the IMAP client is coming soon but the proxy might be interesting to use in terms of debugging data flow between the client and the server as all communication is logged to console.
+
 ## API
 
 Require [browserbox.js](browserbox.js) as an AMD module to use it. This exposes `browserbox` function.
@@ -39,8 +45,9 @@ Where
   * **port** (optional) is the port to connect to (defaults to 143)
   * **options** (optional) is the options object
     * **auth** is the authentication information object
-      * **user** is the username of the user
+      * **user** is the username of the user (also applies to Oauth2)
       * **pass** is the password of the user
+      * **xoauth2** is the OAuth2 access token to be used instead of password
     * **id** (optional) is the identification object for [RFC2971](http://tools.ietf.org/html/rfc2971#section-3.3) (ex. `{name: "myclient", version: "1"}`)
 
 Example
@@ -116,7 +123,7 @@ Mailbox object is with the following structure
   * **delimiter** (string) path delimiting symbol
   * **listed** (boolean) mailbox was found in the LIST response
   * **subscribed** (boolean) mailbox was found in the LSUB response
-  * **specialUse** (string) mailbox was identified as a special use mailbox ("trash", "sent", "junk" etc. see [RFC6154](http://tools.ietf.org/html/rfc6154#section-2))
+  * **specialUse** (string) mailbox was identified as a special use mailbox ("\Trash", "\Sent", "\Junk" etc. see [RFC6154](http://tools.ietf.org/html/rfc6154#section-2))
   * **flags** (array) a list of flags
   * **children** (array) a list of child mailboxes
 
@@ -150,7 +157,7 @@ Example
           "children": [],
           "flags": ["\\HasNoChildren","\\All"],
           "listed": true,
-          "specialUse": "all",
+          "specialUse": "\\All",
           "subscribed": true
         }
       ]

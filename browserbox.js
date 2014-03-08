@@ -170,7 +170,7 @@
 
         this.updateCapability((function(){
             this.updateId(this.options.id, (function(){
-                this.login(this.options.auth.user, this.options.auth.pass, (function(err){
+                this.login(this.options.auth, (function(err){
                     if(err){
                         // emit an error
                         this.onerror(err);
@@ -367,18 +367,54 @@
     };
 
     /**
-     * Runs LOGIN command
-     * http://tools.ietf.org/html/rfc3501#section-6.2.3
+     * Runs LOGIN or AUTHENTICATE XOAUTH2 command
+     *
+     * LOGIN details:
+     *     http://tools.ietf.org/html/rfc3501#section-6.2.3
+     * XOAUTH2 details:
+     *     https://developers.google.com/gmail/xoauth2_protocol#imap_protocol_exchange
      *
      * @param {String} username
      * @param {String} password
      * @param {Function} callback Returns error if login failed
      */
-    BrowserBox.prototype.login = function(username, password, callback){
-        this.exec({
-            command: "login",
-            attributes: [{type: "LITERAL", value: username}, {type: "LITERAL", value: password}]
-        }, "capability", (function(err, response, next){
+    BrowserBox.prototype.login = function(auth, callback){
+        var command, options = {};
+
+        if(!auth){
+            return callback(new Error("Authentication information not provided"));
+        }
+
+        if(this.capability.indexOf("AUTH=XOAUTH2") >= 0 && auth && auth.xoauth2){
+            command = {
+                command: "AUTHENTICATE",
+                attributes: [
+                    {type: "ATOM", value: "XOAUTH2"},
+                    {type: "ATOM", value: this._buildXOAuth2Token(auth.user, auth.xoauth2)}
+                ]
+            };
+            options.onplustagged = (function(response, next){
+                var payload;
+                if(response && response.payload){
+                    try{
+                        payload = JSON.parse(mimefuncs.base64Decode(response.payload));
+                    }catch(E){}
+                }
+                if(payload){
+                    this.onlog("xoauth2", payload);
+                }
+                // + tagged error response expects an empty line in return
+                this.client.send("\r\n");
+                next();
+            }).bind(this);
+        }else{
+            command = {
+                command: "login",
+                attributes: [{type: "STRING", value: auth.user || ""}, {type: "STRING", value: auth.pass || ""}]
+            };
+        }
+
+        this.exec(command, "capability", options, (function(err, response, next){
             var capabilityUpdated = false;
 
             if(err){
@@ -971,7 +1007,7 @@
         for(i = 0; i < names.length; i++){
             found = false;
             for(j = 0; j < branch.children.length; j++){
-                if(branch.children[j].name == names[i]){
+                if(branch.children[j].name == utf7.imap.decode(names[i])){
                     branch = branch.children[j];
                     found = true;
                     break;
@@ -1017,8 +1053,24 @@
             return false;
         }
 
-        mailbox.specialUse = type.substr(1).toLowerCase();
+        mailbox.specialUse = type;
         return type;
+    };
+
+    /**
+     * Builds a login token for XOAUTH2 authentication command
+     *
+     * @param {String} user E-mail address of the user
+     * @param {String} token Valid access token for the user
+     * @return {String} Base64 formatted login token
+     */
+    BrowserBox.prototype._buildXOAuth2Token = function(user, token){
+        var authData = [
+            "user=" + (user || ""),
+            "auth=Bearer " + token,
+            "",
+            ""];
+        return mimefuncs.base64.encode(authData.join("\x01"));
     };
 
     // Exposed function

@@ -2,7 +2,7 @@ var net = require('net'),
     tls = require('tls'),
     fs = require("fs");
 
-var targetHost = "imap-mail.outlook.com",
+var targetHost = process.env.SMTP_HOST || "imap.gmail.com", //"imap-mail.outlook.com",
     targetPort = "993",
     targetSecure = true,
     logfile = false,
