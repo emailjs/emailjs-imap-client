@@ -131,6 +131,12 @@ Mailbox object is with the following structure
 
 Example
 
+```javascript
+client.listMailboxes(function(err, mailboxes){
+    console.log(err || mailboxes);
+});
+```
+
 ```json
 {
   "root": true,
@@ -199,6 +205,12 @@ Namespaces should be checked before attempting to create new mailboxes - most pr
 
 Example
 
+```javascript
+client.listNamespaces(function(err, namespaces){
+    console.log(err || namespaces);
+});
+```
+
 ```json
 {
     "personal": [
@@ -238,6 +250,10 @@ Where
       * **highestModseq** (number) (with CONDSTORE only) highest modseq value
 
 Example
+
+client.selectMailbox("INBOX", function(err, mailbox){
+    console.log(err || mailbox);
+});
 
 ```json
 {
@@ -280,7 +296,7 @@ Example
 
 ```javascript
 client.listMessages("1:10", ["uid", "flags", "body[]"], function(err, ...){
-
+   ... not entirely implemented
 });
 ```
 
