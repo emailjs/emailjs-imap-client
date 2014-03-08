@@ -15,6 +15,8 @@ If you run the application as a FirefoxOS packaged webapp (using the manifest.we
 
 **NB!** You might need to reinstall bower dependencies when upgrading
 
+**NB!** The build system is going to change from bower to npm + grunt at one point
+
 ## SSL support
 
 Currently only non secure connections are used. If you want to use a secure server, use the man-in-the-middle imap proxy. Run
@@ -118,7 +120,7 @@ Where
 Mailbox object is with the following structure
 
   * **root** (boolean) `true` if the node is root
-  * **name** (string) undecoded name of the mailbox
+  * **name** (string) unicode decoded name of the mailbox
   * **path** (string) full path to the mailbox
   * **delimiter** (string) path delimiting symbol
   * **listed** (boolean) mailbox was found in the LIST response

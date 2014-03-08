@@ -269,7 +269,9 @@
 
     /**
      * The connection is idling. Sends a NOOP or IDLE command
-     * IDLE: https://tools.ietf.org/html/rfc2177
+     *
+     * IDLE details:
+     *   https://tools.ietf.org/html/rfc2177
      */
     BrowserBox.prototype.enterIdle = function(){
         if(this._enteredIdle){
@@ -317,7 +319,10 @@
 
     /**
      * Runs CAPABILITY command
-     * http://tools.ietf.org/html/rfc3501#section-6.1.1
+     *
+     * CAPABILITY details:
+     *   http://tools.ietf.org/html/rfc3501#section-6.1.1
+     *
      * Doesn't register untagged CAPABILITY handler as this is already
      * handled by global handler
      *
@@ -347,7 +352,9 @@
 
     /**
      * Runs NAMESPACE command
-     * https://tools.ietf.org/html/rfc2342
+     *
+     * NAMESPACE details:
+     *   https://tools.ietf.org/html/rfc2342
      *
      * @param {Function} callback Callback function with the namespace information
      */
@@ -370,9 +377,9 @@
      * Runs LOGIN or AUTHENTICATE XOAUTH2 command
      *
      * LOGIN details:
-     *     http://tools.ietf.org/html/rfc3501#section-6.2.3
+     *   http://tools.ietf.org/html/rfc3501#section-6.2.3
      * XOAUTH2 details:
-     *     https://developers.google.com/gmail/xoauth2_protocol#imap_protocol_exchange
+     *   https://developers.google.com/gmail/xoauth2_protocol#imap_protocol_exchange
      *
      * @param {String} username
      * @param {String} password
@@ -458,7 +465,10 @@
 
     /**
      * Runs ID command. Retrieves server ID
-     * http://tools.ietf.org/html/rfc2971
+     *
+     * ID details:
+     *   http://tools.ietf.org/html/rfc2971
+     *
      * Sets this.serverId value
      *
      * @param {Object} id ID as key value pairs. See http://tools.ietf.org/html/rfc2971#section-3.3 for possible values
@@ -516,8 +526,11 @@
 
     /**
      * Runs LIST and LSUB commands. Retrieves a tree of available mailboxes
-     * http://tools.ietf.org/html/rfc3501#section-6.3.8
-     * http://tools.ietf.org/html/rfc3501#section-6.3.9
+     *
+     * LIST details:
+     *   http://tools.ietf.org/html/rfc3501#section-6.3.8
+     * LSUB details:
+     *   http://tools.ietf.org/html/rfc3501#section-6.3.9
      *
      * @param {Function} callback Returns mailbox tree object
      */
@@ -584,9 +597,11 @@
     /**
      * TODO: Write docs
      * Runs FETCH command
-     * http://tools.ietf.org/html/rfc3501#section-6.4.5
      *
-     * CHANGEDSINCE: https://tools.ietf.org/html/rfc4551#section-3.3
+     * FETCH details:
+     *   http://tools.ietf.org/html/rfc3501#section-6.4.5
+     * CHANGEDSINCE details:
+     *   https://tools.ietf.org/html/rfc4551#section-3.3
      *
      * @param {String} sequence Sequence set, eg 1:* for all messages
      * @param {Object} [items] Message data item names or macro
@@ -627,8 +642,11 @@
 
     /**
      * Runs SELECT or EXAMINE to open a mailbox
-     * http://tools.ietf.org/html/rfc3501#section-6.3.1
-     * http://tools.ietf.org/html/rfc3501#section-6.3.2
+     *
+     * SELECT details:
+     *   http://tools.ietf.org/html/rfc3501#section-6.3.1
+     * EXAMINE details:
+     *   http://tools.ietf.org/html/rfc3501#section-6.3.2
      *
      * @param {String} path Full path to mailbox
      * @param {Object} [options] Options object
