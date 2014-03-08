@@ -251,9 +251,11 @@ Where
 
 Example
 
+```javascript
 client.selectMailbox("INBOX", function(err, mailbox){
     console.log(err || mailbox);
 });
+```
 
 ```json
 {
