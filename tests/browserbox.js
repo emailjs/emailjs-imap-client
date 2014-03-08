@@ -174,13 +174,7 @@ define(["../browserbox.js"], function(browserbox){
                 ]
             },
 
-            br._buildFETCHCommand(
-                "1:*",
-                {
-                    all: true
-                },
-                {}
-            )
+            br._buildFETCHCommand("1:*", "all", {})
         );
     });
 
@@ -197,15 +191,9 @@ define(["../browserbox.js"], function(browserbox){
                 ]
             },
 
-            br._buildFETCHCommand(
-                "1:*",
-                {
-                    all: true
-                },
-                {
-                    byUid: true
-                }
-            )
+            br._buildFETCHCommand("1:*", "all", {
+                byUid: true
+            })
         );
     });
 
@@ -225,14 +213,7 @@ define(["../browserbox.js"], function(browserbox){
                 ]
             },
 
-            br._buildFETCHCommand(
-                "1:*",
-                {
-                    uid: true,
-                    envelope: true
-                },
-                {}
-            )
+            br._buildFETCHCommand("1:*", ["uid", "envelope"], {})
         );
     });
 
@@ -247,18 +228,14 @@ define(["../browserbox.js"], function(browserbox){
                     {type: "SEQUENCE", value: "1:*"},
                     [
                         {type: "ATOM", value: "MODSEQ"},
-                        [1234567]
+                        [
+                            {type: "ATOM", value: "1234567"}
+                        ]
                     ]
                 ]
             },
 
-            br._buildFETCHCommand(
-                "1:*",
-                {
-                    modseq: 1234567
-                },
-                {}
-            )
+            br._buildFETCHCommand("1:*", ["modseq (1234567)"], {})
         );
     });
 
@@ -281,15 +258,7 @@ define(["../browserbox.js"], function(browserbox){
                 ]
             },
 
-            br._buildFETCHCommand(
-                "1:*",
-                {
-                    body: [
-                        {text: true}
-                    ]
-                },
-                {}
-            )
+            br._buildFETCHCommand("1:*", "body[text]", {})
         );
     });
 
@@ -316,20 +285,7 @@ define(["../browserbox.js"], function(browserbox){
                 ]
             },
 
-            br._buildFETCHCommand(
-                "1:*",
-                {
-                    body: [
-                        {
-                            "header.fields": {
-                                date: true,
-                                "in-reply-to": true
-                            }
-                        }
-                    ]
-                },
-                {}
-            )
+            br._buildFETCHCommand("1:*", "body[header.fields (date in-reply-to)]", {})
         );
     });
 
@@ -350,15 +306,9 @@ define(["../browserbox.js"], function(browserbox){
                 ]
             },
 
-            br._buildFETCHCommand(
-                "1:*",
-                {
-                    all: true
-                },
-                {
-                    changedSince: 123456
-                }
-            )
+            br._buildFETCHCommand("1:*", "all", {
+                changedSince: 123456
+            })
         );
     });
 
@@ -375,15 +325,7 @@ define(["../browserbox.js"], function(browserbox){
                 ]
             },
 
-            br._buildFETCHCommand(
-                "1:*",
-                {
-                    body: [
-                        {}
-                    ]
-                },
-                {}
-            )
+            br._buildFETCHCommand("1:*", "body[]", {})
         );
     });
 

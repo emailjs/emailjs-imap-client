@@ -100,20 +100,7 @@ require(["../browserbox"], function(browserbox) {
                             client.selectMailbox("INBOX", {condstore: true}, function(err, data){
                                 window.log(err || data);
                                 client.listMessages("1:10",
-                                    {
-                                        uid: true,
-                                        flags: true,
-                                        "body.peek": [
-                                            {
-                                                "header.fields":{
-                                                    subject: true,
-                                                    date: true
-                                                }
-                                            }
-                                        ],
-                                        envelope: true,
-                                        bodystructure: true
-                                    },
+                                    ["uid", "flags", "body.peek[header.fields (subject, date)]", "envelope", "bodystructure"],
                                     function(){
                                         setTimeout(function(){
                                             client.close();

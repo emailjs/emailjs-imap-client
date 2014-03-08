@@ -829,33 +829,26 @@
                 ]
             },
 
-            query = [],
+            query = [];
 
-            walkItems = function(parent, itemBlock){
-                Object.keys(itemBlock).forEach(function(key){
-                    var element = {type: "ATOM", value: key.toUpperCase()},
-                        list;
+        [].concat(items || []).forEach(function(item){
+            var cmd;
+            item = (item || "").toString().toUpperCase().trim();
 
-                    if(Array.isArray(itemBlock[key])){
-                        element.section = [];
-                        itemBlock[key].forEach(function(item){
-                            walkItems(element.section, item);
-                        });
-                    }else if(typeof itemBlock[key] == "object" && itemBlock[key]){
-                        list = [];
-                        walkItems(list, itemBlock[key]);
-                    }else if(["string", "number"].indexOf(typeof itemBlock[key]) >= 0){
-                        list = [itemBlock[key]];
-                    }
-
-                    parent.push(element);
-                    if(list){
-                        parent.push(list);
-                    }
-                });
-            };
-
-        walkItems(query, items);
+            if(/^\w+$/.test(item)){
+                // alphanum strings can be used directly
+                query.push({type: "ATOM", value: item});
+            }else if(item){
+                try{
+                    // parse the value as a fake command, use only the attributes block
+                    cmd = imapHandler.parser("* Z " + item);
+                    query = query.concat(cmd.attributes || []);
+                }catch(E){
+                    // if parse failed, use the original string as one entity
+                    query.push({type: "ATOM", value: item});
+                }
+            }
+        });
 
         if(query.length == 1){
             query = query.pop();
@@ -869,7 +862,6 @@
                 options.changedSince
             ]);
         }
-
         return command;
     };
 
@@ -897,7 +889,7 @@
 
             for(i = 0, len = params.length; i < len; i++){
                 if(i % 2 === 0){
-                    key = imapHandler.compiler({attributes: [params[i]]}).toUpperCase().replace(/<\d+>$/, "");
+                    key = imapHandler.compiler({attributes: [params[i]]}).toLowerCase().replace(/<\d+>$/, "");
                     continue;
                 }
                 message[key] = this._parseFetchValue(key, params[i]);

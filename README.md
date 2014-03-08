@@ -263,7 +263,26 @@ List messages with `listMessages()`
 client.listMessages(sequence, query[, options], callback)
 ```
 
-TODO: write docs
+Where
+
+  * **sequence** defines the range of sequence numbers or UID values (if `byUid` option is set to true). Example: "1", "1:*", "1,2:3,4" etc.
+  * **query** is an array of keys that need to be fetched. Example: ["uid", "flags", "body.peek[headers (date)]"]
+  * **options** is an optional options object
+    * **byUid** if `true` executes `UID FETCH` instead of `FETCH`
+    * **changedSince** is the modseq filter. Only messages with higher modseq value will be returned
+  * **callback** is the callback function to run once all me messages are processed with the following arguments
+    * **err** is an error object, only set if the request failed
+    * .... not implemented
+
+Example
+
+```javascript
+client.listMessages("1:10", ["uid", "flags", "body[]"], function(err, ...){
+
+});
+```
+
+**NB!** this method does not stream the values, you need to handle this by yourself (do not use full "1:*" ranges on mailboxes with unknown size or this might chrash your application).
 
 ## Close connection
 
