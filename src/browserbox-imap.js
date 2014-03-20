@@ -1,23 +1,33 @@
-/* jshint browser: true */
-/* global define: false, imapHandler: false, mimefuncs: false */
+// Copyright (c) 2014 Andris Reinman
 
-// AMD shim
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 (function(root, factory) {
+    'use strict';
 
-    "use strict";
-
-    if (typeof define === "function" && define.amd) {
-        define([
-            "../bower_components/imapHandler/imapHandler",
-            "../bower_components/mimefuncs/mimefuncs"
-            ], factory);
+    if (typeof define === 'function' && define.amd) {
+        define(['imap-handler', 'mimefuncs'], factory);
     } else {
-        root.imap = factory(imapHandler, mimefuncs);
+        root.BrowserboxImap = factory(imapHandler, mimefuncs);
     }
-
 }(this, function(imapHandler, mimefuncs) {
-
-    "use strict";
+    'use strict';
 
     /**
      * Creates a connection object to an IMAP server. Call `connect` method to inititate
@@ -25,24 +35,24 @@
      *
      * @constructor
      *
-     * @param {String} [host="localhost"] Hostname to conenct to
+     * @param {String} [host='localhost'] Hostname to conenct to
      * @param {Number} [port=143] Port number to connect to
      * @param {Object} [options] Optional options object
      * @param {Boolean} [options.useSSL] Set to true, to use encrypted connection
      */
-    function IMAPClient(host, port, options){
+    function IMAPClient(host, port, options) {
 
         this.options = options || {};
 
         this.port = port || (this.options.useSSL ? 993 : 143);
-        this.host = host || "localhost";
+        this.host = host || 'localhost';
 
         /**
          * If set to true, start an encrypted connection instead of the plaintext one
          * (recommended if applicable). If useSSL is not set but the port used is 993,
          * then ecryption is used by default.
          */
-        this.options.useSSL = "useSSL" in this.options ? !!this.options.useSSL : this.port == 993;
+        this.options.useSSL = 'useSSL' in this.options ? !! this.options.useSSL : this.port === 993;
 
         /**
          * Authentication object. If not set, authentication step will be skipped.
@@ -71,7 +81,7 @@
         /**
          * Does the connection use SSL/TLS
          */
-        this._secureMode = !!this.options.useSSL;
+        this._secureMode = !! this.options.useSSL;
 
         /**
          * Is the conection established and greeting is received from the server
@@ -82,8 +92,8 @@
          * As the server sends data in chunks, it needs to be split into
          * separate lines. These variables help with parsing the input.
          */
-        this._remainder = "";
-        this._command = "";
+        this._remainder = '';
+        this._command = '';
         this._literalRemaining = 0;
 
         /**
@@ -144,7 +154,7 @@
      * @event
      * @param {Error} err Error object
      */
-    IMAPClient.prototype.onerror = function(){};
+    IMAPClient.prototype.onerror = function() {};
 
     /**
      * More data can be buffered in the socket. See `waitDrain` property or
@@ -153,28 +163,28 @@
      *
      * @event
      */
-    IMAPClient.prototype.ondrain = function(){};
+    IMAPClient.prototype.ondrain = function() {};
 
     /**
      * The connection to the server has been closed
      *
      * @event
      */
-    IMAPClient.prototype.onclose = function(){};
+    IMAPClient.prototype.onclose = function() {};
 
     /**
      * The connection to the server has been established and greeting is received
      *
      * @event
      */
-    IMAPClient.prototype.onready = function(){};
+    IMAPClient.prototype.onready = function() {};
 
     /**
      * There are no more commands to process
      *
      * @event
      */
-    IMAPClient.prototype.onidle = function(){};
+    IMAPClient.prototype.onidle = function() {};
 
     /**
      * Log something
@@ -182,17 +192,18 @@
      * @param {String} type Indicator
      * @param {String} message Data to be logged
      */
-    IMAPClient.prototype.onlog = function(){};
+    IMAPClient.prototype.onlog = function() {};
 
     // PUBLIC METHODS
 
     /**
      * Initiate a connection to the server. Wait for onready event
      */
-    IMAPClient.prototype.connect = function(){
+    IMAPClient.prototype.connect = function() {
         this.socket = navigator.TCPSocket.open(this.host, this.port, {
-            binaryType: "arraybuffer",
-            useSSL: this._secureMode
+            binaryType: 'arraybuffer',
+            useSSL: this._secureMode,
+            ca: this.options.ca
         });
 
         this.socket.onerror = this._onError.bind(this);
@@ -202,10 +213,10 @@
     /**
      * Closes the connection to the server
      */
-    IMAPClient.prototype.close = function(){
-        if(this.socket && this.socket.readyState === "open"){
+    IMAPClient.prototype.close = function() {
+        if (this.socket && this.socket.readyState === 'open') {
             this.socket.close();
-        }else{
+        } else {
             this._destroy();
         }
     };
@@ -216,7 +227,7 @@
      * Do not provide a tag property, it will be set byt the queue manager.
      *
      * To catch untagged responses use acceptUntagged property. For example, if
-     * the value for it is "FETCH" then the reponse includes "payload.FETCH" property
+     * the value for it is 'FETCH' then the reponse includes 'payload.FETCH' property
      * that is an array including all listed * FETCH responses.
      *
      * Callback function provides 2 arguments, parsed response object and continue callback.
@@ -227,14 +238,16 @@
      *   }
      *
      * @param {Object} request Structured request object
-     * @param {Array} acceptUntagged a list of untagged responses that will be included in "payload" property
+     * @param {Array} acceptUntagged a list of untagged responses that will be included in 'payload' property
      * @param {Object} [options] Optional data for the command payload, eg. {onplustagged: function(response, next){next();}}
      * @param {Function} callback Callback function to run once the command has been processed
      */
-    IMAPClient.prototype.exec = function(request, acceptUntagged, options, callback){
+    IMAPClient.prototype.exec = function(request, acceptUntagged, options, callback) {
 
-        if(typeof request == "string"){
-            request = {command: request};
+        if (typeof request === 'string') {
+            request = {
+                command: request
+            };
         }
         this._addToClientQueue(request, acceptUntagged, options, callback);
         return this;
@@ -245,7 +258,7 @@
      *
      * @param {String} str Payload
      */
-    IMAPClient.prototype.send = function(str){
+    IMAPClient.prototype.send = function(str) {
         this.waitDrain = this.socket.send(mimefuncs.toArrayBuffer(str).buffer);
     };
 
@@ -257,8 +270,8 @@
      * @param {String} command Untagged command name
      * @param {Function} callback Callback function with response object and continue callback function
      */
-    IMAPClient.prototype.setHandler = function(command, callback){
-        this._globalAcceptUntagged[(command || "").toString().toUpperCase().trim()] = callback;
+    IMAPClient.prototype.setHandler = function(command, callback) {
+        this._globalAcceptUntagged[(command || '').toString().toUpperCase().trim()] = callback;
     };
 
     // INTERNAL EVENTS
@@ -269,13 +282,13 @@
      * @event
      * @param {Event} evt Event object. See evt.data for the error
      */
-    IMAPClient.prototype._onError = function(evt){
-        if(this.isError(evt)){
+    IMAPClient.prototype._onError = function(evt) {
+        if (this.isError(evt)) {
             this.onerror(evt);
-        }else if(evt && this.isError(evt.data)){
+        } else if (evt && this.isError(evt.data)) {
             this.onerror(evt.data);
-        }else{
-            this.onerror(new Error(evt && evt.data && evt.data.message || evt.data || evt || "Error"));
+        } else {
+            this.onerror(new Error(evt && evt.data && evt.data.message || evt.data || evt || 'Error'));
         }
 
         this.close();
@@ -284,14 +297,14 @@
     /**
      * Ensures that the connection is closed
      */
-    IMAPClient.prototype._destroy = function(){
+    IMAPClient.prototype._destroy = function() {
         this._serverQueue = [];
         this._clientQueue = [];
         this._currentCommand = false;
 
         clearTimeout(this._idleTimer);
 
-        if(!this.destroyed){
+        if (!this.destroyed) {
             this.destroyed = true;
             this.onclose();
         }
@@ -303,7 +316,7 @@
      * @event
      * @param {Event} evt Event object. Not used
      */
-    IMAPClient.prototype._onClose = function(){
+    IMAPClient.prototype._onClose = function() {
         this._destroy();
     };
 
@@ -313,7 +326,7 @@
      * @event
      * @param {Event} evt Event object. Not used
      */
-    IMAPClient.prototype._onDrain = function(){
+    IMAPClient.prototype._onDrain = function() {
         this.waitDrain = false;
         this.ondrain();
     };
@@ -326,16 +339,16 @@
      *
      * @param {Event} evt
      */
-    IMAPClient.prototype._onData = function(evt){
-        if(!evt || !evt.data){
+    IMAPClient.prototype._onData = function(evt) {
+        if (!evt || !evt.data) {
             return;
         }
 
         var match,
             str = mimefuncs.fromArrayBuffer(evt.data);
 
-        if(this._literalRemaining){
-            if(this._literalRemaining > str.length){
+        if (this._literalRemaining) {
+            if (this._literalRemaining > str.length) {
                 this._literalRemaining -= str.length;
                 this._command += str;
                 return;
@@ -345,18 +358,18 @@
             this._literalRemaining = 0;
         }
         this._remainder = str = this._remainder + str;
-        while((match = str.match(/(\{(\d+)(\+)?\})?\r?\n/))){
+        while ((match = str.match(/(\{(\d+)(\+)?\})?\r?\n/))) {
 
-            if(!match[2]){
+            if (!match[2]) {
                 // Now we have a full command line, so lets do something with it
                 this._addToServerQueue(this._command + str.substr(0, match.index));
 
                 this._remainder = str = str.substr(match.index + match[0].length);
-                this._command = "";
+                this._command = '';
                 continue;
             }
 
-            this._remainder = "";
+            this._remainder = '';
 
             this._command += str.substr(0, match.index + match[0].length);
 
@@ -364,11 +377,11 @@
 
             str = str.substr(match.index + match[0].length);
 
-            if(this._literalRemaining > str.length){
+            if (this._literalRemaining > str.length) {
                 this._command += str;
                 this._literalRemaining -= str.length;
                 return;
-            }else{
+            } else {
                 this._command += str.substr(0, this._literalRemaining);
                 this._remainder = str = str.substr(this._literalRemaining);
                 this._literalRemaining = 0;
@@ -382,7 +395,7 @@
      *
      * @event
      */
-    IMAPClient.prototype._onOpen = function(){
+    IMAPClient.prototype._onOpen = function() {
         this.socket.ondata = this._onData.bind(this);
         this.socket.onclose = this._onClose.bind(this);
         this.socket.ondrain = this._onDrain.bind(this);
@@ -396,10 +409,10 @@
      *
      * @param {String} cmd Command line
      */
-    IMAPClient.prototype._addToServerQueue = function(cmd){
+    IMAPClient.prototype._addToServerQueue = function(cmd) {
         this._serverQueue.push(cmd);
 
-        if(this._processingServerData){
+        if (this._processingServerData) {
             return;
         }
 
@@ -410,47 +423,47 @@
     /**
      * Process a command from the queue. The command is parsed and feeded to a handler
      */
-    IMAPClient.prototype._processServerQueue = function(){
-        if(!this._serverQueue.length){
+    IMAPClient.prototype._processServerQueue = function() {
+        if (!this._serverQueue.length) {
             this._processingServerData = false;
             return;
-        }else{
+        } else {
             this._clearIdle();
         }
 
         var data = this._serverQueue.shift(),
             response;
 
-        this.onlog("server", data);
+        this.onlog('server', data);
 
-        try{
+        try {
             // + tagged response is a special case, do not try to parse it
-            if(/^\+/.test(data)){
+            if (/^\+/.test(data)) {
                 response = {
-                    tag: "+",
-                    payload: data.substr(2) || ""
+                    tag: '+',
+                    payload: data.substr(2) || ''
                 };
-            }else{
+            } else {
                 response = imapHandler.parser(data);
             }
-        }catch(E){
+        } catch (E) {
             return this._onError(E);
         }
 
-        if(response.tag == "*" &&
+        if (response.tag === '*' &&
             /^\d+$/.test(response.command) &&
-            response.attributes && response.attributes.length && response.attributes[0].type == "ATOM"){
+            response.attributes && response.attributes.length && response.attributes[0].type === 'ATOM') {
             response.nr = Number(response.command);
-            response.command = (response.attributes.shift().value || "").toString().toUpperCase().trim();
+            response.command = (response.attributes.shift().value || '').toString().toUpperCase().trim();
         }
 
         // feed the next chunk to the server if a + tagged response was received
-        if(response.tag == "+"){
-            if(this._currentCommand.data.length){
+        if (response.tag === '+') {
+            if (this._currentCommand.data.length) {
                 data = this._currentCommand.data.shift();
-                this.onlog("client", data);
-                this.send(data + (!this._currentCommand.data.length ? "\r\n" : ""));
-            }else if(typeof this._currentCommand.onplustagged == "function"){
+                this.onlog('client', data);
+                this.send(data + (!this._currentCommand.data.length ? '\r\n' : ''));
+            } else if (typeof this._currentCommand.onplustagged === 'function') {
                 this._currentCommand.onplustagged(response, this._processServerQueue.bind(this));
                 return;
             }
@@ -458,25 +471,25 @@
             return;
         }
 
-        this._processServerResponse(response, (function(err){
-            if(err){
+        this._processServerResponse(response, function(err) {
+            if (err) {
                 return this._onError(err);
             }
 
             // first response from the server, connection is now usable
-            if(!this._connectionReady){
+            if (!this._connectionReady) {
                 this._connectionReady = true;
                 this.onready();
                 this._canSend = true;
                 this._sendRequest();
-            }else if(response.tag != "*"){
+            } else if (response.tag !== '*') {
                 // allow sending next command after full response
                 this._canSend = true;
                 this._sendRequest();
             }
 
             setTimeout(this._processServerQueue.bind(this), 0);
-        }).bind(this));
+        }.bind(this));
     };
 
     /**
@@ -485,45 +498,45 @@
      * @param {Object} response Parsed command object
      * @param {Function} callback Continue callback function
      */
-    IMAPClient.prototype._processServerResponse = function(response, callback){
-        var command = (response && response.command || "").toUpperCase().trim();
+    IMAPClient.prototype._processServerResponse = function(response, callback) {
+        var command = (response && response.command || '').toUpperCase().trim();
 
         this._processResponse(response);
 
-        //this.onlog("parsed", JSON.stringify(response, false, 4));
+        //this.onlog('parsed', JSON.stringify(response, false, 4));
         //console.log(JSON.stringify(response, false, 4));
 
-        if(!this._currentCommand){
-            if(response.tag == "*" && command in this._globalAcceptUntagged){
+        if (!this._currentCommand) {
+            if (response.tag === '*' && command in this._globalAcceptUntagged) {
                 return this._globalAcceptUntagged[command](response, callback);
-            }else{
+            } else {
                 return callback();
             }
         }
 
-        if(this._currentCommand.payload && response.tag == "*" && command in this._currentCommand.payload){
+        if (this._currentCommand.payload && response.tag === '*' && command in this._currentCommand.payload) {
 
             this._currentCommand.payload[command].push(response);
             return callback();
 
-        }else if(response.tag == "*" && command in this._globalAcceptUntagged){
+        } else if (response.tag === '*' && command in this._globalAcceptUntagged) {
 
             this._globalAcceptUntagged[command](response, callback);
 
-        }else if(response.tag == this._currentCommand.tag){
+        } else if (response.tag === this._currentCommand.tag) {
 
-            if(typeof this._currentCommand.callback == "function"){
+            if (typeof this._currentCommand.callback === 'function') {
 
-                if(this._currentCommand.payload && Object.keys(this._currentCommand.payload).length){
+                if (this._currentCommand.payload && Object.keys(this._currentCommand.payload).length) {
                     response.payload = this._currentCommand.payload;
                 }
 
                 return this._currentCommand.callback(response, callback);
-            }else{
+            } else {
                 return callback();
             }
 
-        }else{
+        } else {
             // Unexpected response
             return callback();
         }
@@ -534,25 +547,26 @@
      * the command is executed
      *
      * @param {Object} request Structured request object
-     * @param {Array} [acceptUntagged] a list of untagged responses that will be included in "payload" property
+     * @param {Array} [acceptUntagged] a list of untagged responses that will be included in 'payload' property
      * @param {Object} [options] Optional data for the command payload, eg. {onplustagged: function(response, next){next();}}
      * @param {Function} callback Callback function to run once the command has been processed
      */
-    IMAPClient.prototype._addToClientQueue = function(request, acceptUntagged, options, callback){
-        var tag = "W" + (++this._tagCounter), data;
+    IMAPClient.prototype._addToClientQueue = function(request, acceptUntagged, options, callback) {
+        var tag = 'W' + (++this._tagCounter),
+            data;
 
-        if(!callback && typeof options == "function"){
+        if (!callback && typeof options === 'function') {
             callback = options;
             options = undefined;
         }
 
-        if(!callback && typeof acceptUntagged == "function"){
+        if (!callback && typeof acceptUntagged === 'function') {
             callback = acceptUntagged;
             acceptUntagged = undefined;
         }
 
-        acceptUntagged = [].concat(acceptUntagged || []).map(function(untagged){
-            return (untagged || "").toString().toUpperCase().trim();
+        acceptUntagged = [].concat(acceptUntagged || []).map(function(untagged) {
+            return (untagged || '').toString().toUpperCase().trim();
         });
 
         request.tag = tag;
@@ -565,17 +579,17 @@
         };
 
         // apply any additional options to the command
-        Object.keys(options || {}).forEach(function(key){
+        Object.keys(options || {}).forEach(function(key) {
             data[key] = options[key];
         });
 
-        acceptUntagged.forEach(function(command){
+        acceptUntagged.forEach(function(command) {
             data.payload[command] = [];
         });
 
         this._clientQueue.push(data);
 
-        if(this._canSend){
+        if (this._canSend) {
             this._sendRequest();
         }
     };
@@ -583,8 +597,8 @@
     /**
      * Sends a command from command queue to the server.
      */
-    IMAPClient.prototype._sendRequest = function(){
-        if(!this._clientQueue.length){
+    IMAPClient.prototype._sendRequest = function() {
+        if (!this._clientQueue.length) {
             return this._enterIdle();
         }
         this._clearIdle();
@@ -592,32 +606,32 @@
         this._canSend = false;
         this._currentCommand = this._clientQueue.shift();
 
-        try{
+        try {
             this._currentCommand.data = imapHandler.compiler(this._currentCommand.request, true);
-        }catch(E){
+        } catch (E) {
             return this._onError(E);
         }
 
         var data = this._currentCommand.data.shift();
-        this.onlog("client", data);
-        this.send(data + (!this._currentCommand.data.length ? "\r\n" : ""));
+        this.onlog('client', data);
+        this.send(data + (!this._currentCommand.data.length ? '\r\n' : ''));
         return this.waitDrain;
     };
 
     /**
      * Emits onidle, noting to do currently
      */
-    IMAPClient.prototype._enterIdle = function(){
+    IMAPClient.prototype._enterIdle = function() {
         clearTimeout(this._idleTimer);
-        this._idleTimer = setTimeout((function(){
-           this.onidle();
-        }).bind(this), this.TIMEOUT_ENTER_IDLE);
+        this._idleTimer = setTimeout(function() {
+            this.onidle();
+        }.bind(this), this.TIMEOUT_ENTER_IDLE);
     };
 
     /**
      * Cancel idle timer
      */
-    IMAPClient.prototype._clearIdle = function(){
+    IMAPClient.prototype._clearIdle = function() {
         clearTimeout(this._idleTimer);
     };
 
@@ -638,42 +652,42 @@
      *
      * @param {Object} response Parsed response object
      */
-    IMAPClient.prototype._processResponse = function(response){
-        var command = (response && response.command || "").toString().toUpperCase().trim(),
+    IMAPClient.prototype._processResponse = function(response) {
+        var command = (response && response.command || '').toString().toUpperCase().trim(),
             option,
             key;
 
-        if(["OK", "NO", "BAD", "BYE", "PREAUTH"].indexOf(command) >= 0){
+        if (['OK', 'NO', 'BAD', 'BYE', 'PREAUTH'].indexOf(command) >= 0) {
             // Check if the response includes an optional response code
-            if(
+            if (
                 (option = response && response.attributes &&
-                response.attributes.length && response.attributes[0].type == "ATOM" &&
-                response.attributes[0].section && response.attributes[0].section.map(function(key){
-                    if(!key){
-                        return;
-                    }
-                    if(Array.isArray(key)){
-                        return key.map(function(key){
-                            return (key.value || "").toString().trim();
-                        });
-                    }else{
-                        return (key.value || "").toString().toUpperCase().trim();
-                    }
-                }))){
+                    response.attributes.length && response.attributes[0].type === 'ATOM' &&
+                    response.attributes[0].section && response.attributes[0].section.map(function(key) {
+                        if (!key) {
+                            return;
+                        }
+                        if (Array.isArray(key)) {
+                            return key.map(function(key) {
+                                return (key.value || '').toString().trim();
+                            });
+                        } else {
+                            return (key.value || '').toString().toUpperCase().trim();
+                        }
+                    }))) {
 
                 key = option && option.shift();
 
                 response.code = key;
 
-                if(option.length){
+                if (option.length) {
                     option = [].concat(option || []);
-                    response[key.toLowerCase()] = option.length == 1 ? option[0] : option;
+                    response[key.toLowerCase()] = option.length === 1 ? option[0] : option;
                 }
             }
 
             // If last element of the response is TEXT then this is for humans
-            if(response && response.attributes && response.attributes.length &&
-                response.attributes[response.attributes.length - 1].type == "TEXT"){
+            if (response && response.attributes && response.attributes.length &&
+                response.attributes[response.attributes.length - 1].type === 'TEXT') {
 
                 response.humanReadable = response.attributes[response.attributes.length - 1].value;
             }
@@ -686,11 +700,11 @@
      * @param {Mixed} value Value to be checked
      * @return {Boolean} returns true if the value is an Error
      */
-    IMAPClient.prototype.isError = function(value){
+    IMAPClient.prototype.isError = function(value) {
         return !!Object.prototype.toString.call(value).match(/Error\]$/);
     };
 
-    return function(host, port, options){
+    return function(host, port, options) {
         return new IMAPClient(host, port, options);
     };
 }));

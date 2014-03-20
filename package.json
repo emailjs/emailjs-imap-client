@@ -1,0 +1,43 @@
+{
+  "name": "browserbox",
+  "version": "0.1.0",
+  "homepage": "https://github.com/whiteout-io/browserbox",
+  "description": "IMAP client for browsers.",
+  "author": "Andris Reinman <andris@kreata.ee>",
+  "keywords": [
+    "IMAP"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "pretest": "cd node_modules/node-forge/ && npm install && npm run minify && cd ../..",
+    "test": "grunt"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/whiteout-io/browserbox.git"
+  },
+  "main": "src/browserbox",
+  "dependencies": {},
+  "devDependencies": {
+    "chai": "~1.8.1",
+    "grunt": "~0.4.1",
+    "grunt-mocha-phantomjs": "~0.4.0",
+    "grunt-contrib-connect": "~0.6.0",
+    "grunt-contrib-jshint": "~0.8.0",
+    "grunt-contrib-copy": "^0.5.0",
+    "grunt-contrib-clean": "^0.5.0",
+    "grunt-contrib-watch": "^0.6.1",
+    "mocha": "~1.16.2",
+    "phantomjs": "~1.9.7-1",
+    "requirejs": "~2.1.10",
+    "tcp-socket": "https://github.com/whiteout-io/tcp-socket/tarball/0.1.1",
+    "node-forge": "^0.2.33",
+    "stringencoding": "https://github.com/whiteout-io/stringencoding/tarball/0.1.0",
+    "sinon": "^1.9.0",
+    "utf7": "https://github.com/whiteout-io/utf7/tarball/2.0.0",
+    "imap-handler": "https://github.com/whiteout-io/imap-handler/tarball/0.1.8",
+    "mimefuncs": "https://github.com/whiteout-io/mimefuncs/tarball/0.1.5",
+    "arraybuffer-slice": "0.0.2",
+    "hoodiecrow": "^1.1.21"
+  }
+}

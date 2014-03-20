@@ -2,43 +2,54 @@
 
 IMAP client for browsers
 
-## Current status
+[![Build Status](https://travis-ci.org/whiteout-io/browserbox.png?branch=master)](https://travis-ci.org/whiteout-io/browserbox)
 
-If you run the application as a FirefoxOS packaged webapp (using the manifest.webapp file) or as a Chrome packaged app (using manifes.json), you can connect to an non SSL IMAP server. Thats about it for now.
+## StringEncoding API
+
+This module requires `TextEncoder` and `TextDecoder` to exist as part of the StringEncoding API (see: [MDN](https://developer.mozilla.org/en-US/docs/WebAPI/Encoding_API) [whatwg.org](http://encoding.spec.whatwg.org/#api)). Firefox 19+ is basically the only browser that supports this at the time of writing, while [Chromium in canary, not stable](https://code.google.com/p/chromium/issues/detail?id=243354). Luckily, [there is a polyfill](https://github.com/whiteout-io/stringencoding)!
+
+Depending on your browser, you might need [this polyfill for ArrayBuffer #slice](https://github.com/ttaubert/node-arraybuffer-slice), e.g. phantomjs.
+
+## TCPSocket API
+
+There is a [shim](https://github.com/whiteout-io/tcp-socket) that brings [Mozilla-flavored](https://developer.mozilla.org/en-US/docs/WebAPI/TCP_Socket) version of the [Raw Socket API](http://www.w3.org/TR/raw-sockets/) to Chromium.
+
+## Installation
+
+### [Bower](http://bower.io/):
+
+    bower install git@github.com:whiteout-io/browserbox.git#0.1.0
+
+### [npm](https://www.npmjs.org/):
+
+    npm install https://github.com/whiteout-io/browserbox/tarball/0.1.0
 
 ## Usage
 
-  1. Download the source of this repo
-  2. Install dependencies with `bower install imapHandler mimefuncs utf7`
-  3. Add this directory as a packaged app either to FirefoxOS simulato/device or Chrome extensions
-  4. Start the simulator and open browserbox app
+### AMD
 
-**NB!** You might need to reinstall bower dependencies when upgrading
+Require [browserbox.js](src/browserbox.js) as `browserbox`
 
-**NB!** The build system is going to change from bower to npm + grunt at one point
+### Global context
 
-## SSL support
+Include following fileson the page.
 
-Currently only non secure connections are used. If you want to use a secure server, use the man-in-the-middle imap proxy. Run
+```html
+<script src="browserbox.js"></script>
+<script src="browserbox-special-use.js"></script>
+<script src="browserbox-imap.js"></script>
+```
 
-    node example/proxy.js
-
-And use host "localhost" and port "1143" to connect to GMail IMAP.
-
-If you want to connect to another host, for example to *imap-mail.outlook.com*, run
-
-    SMTP_HOST="imap-mail.outlook.com" node example/proxy.js
-
-SSL support for the IMAP client is coming soon but the proxy might be interesting to use in terms of debugging data flow between the client and the server as all communication is logged to console.
+This exposes the constructor `BrowserBox` as a global variable
 
 ## API
 
-Require [browserbox.js](browserbox.js) as an AMD module to use it. This exposes `browserbox` function.
+    var BrowserBox = require('browserbox')
 
 ## Create connection to an IMAP server
 
 ```
-browserbox(host[, port][, options]) → IMAP client object
+new BrowserBox(host[, port][, options]) → IMAP client object
 ```
 
 Where
@@ -51,6 +62,8 @@ Where
       * **pass** is the password of the user
       * **xoauth2** is the OAuth2 access token to be used instead of password
     * **id** (optional) is the identification object for [RFC2971](http://tools.ietf.org/html/rfc2971#section-3.3) (ex. `{name: "myclient", version: "1"}`)
+    * **useSSL** (optional) enables TLS
+    * **ca** (optional) (only in conjunction with this [TCPSocket shim](https://github.com/whiteout-io/tcp-socket)) if you use TLS, pin a PEM-encoded certificate as a string
 
 Example
 
@@ -314,12 +327,35 @@ clisne.close();
 
 Once the connection is actually closed `onclose` event is fired.
 
-## Screenshots
+## Get your hands dirty
 
-**FirefoxOS**
+    git clone git@github.com:whiteout-io/browserbox.git
+    cd browserbox
+    npm install && npm test
 
-![](https://raw2.github.com/Kreata/browserbox/master/example/img/firefoxos.png)
+To run the integration tests against a local smtp server
 
-**Chrome**
+    grunt imap
+    add the test folder as a chrome app (chrome settings -> extensions -> check 'developer mode' -> load unpacked extension)
 
-![](https://raw2.github.com/Kreata/browserbox/master/example/img/chrome.png)
+## License
+
+    Copyright (c) 2014 Andris Reinman
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.

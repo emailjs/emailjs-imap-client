@@ -1,37 +1,44 @@
-/* jshint browser: true */
-/* global define: false, imap: false, specialUse: false, utf7: false, imapHandler: false, mimefuncs: false */
+// Copyright (c) 2014 Andris Reinman
 
-// AMD shim
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 (function(root, factory) {
+    'use strict';
 
-    "use strict";
-
-    if (typeof define === "function" && define.amd) {
-        define([
-            "./lib/imap",
-            "./lib/specialUse",
-            "./bower_components/utf7/utf7",
-            "./bower_components/imapHandler/imapHandler",
-            "./bower_components/mimefuncs/mimefuncs"
-            ], factory);
+    if (typeof define === 'function' && define.amd) {
+        define(['browserbox-imap', 'browserbox-special-use', 'utf7', 'imap-handler', 'mimefuncs'], factory);
     } else {
-        root.browserbox = factory(imap, specialUse, utf7, imapHandler, mimefuncs);
+        root.BrowserBox = factory(BrowserboxImap, BrowserboxSpecialUse, utf7, imapHandler, mimefuncs);
     }
-
 }(this, function(imap, specialUse, utf7, imapHandler, mimefuncs) {
-
-    "use strict";
+    'use strict';
 
     /**
      * High level IMAP client
      *
      * @constructor
      *
-     * @param {String} [host="localhost"] Hostname to conenct to
+     * @param {String} [host='localhost'] Hostname to conenct to
      * @param {Number} [port=143] Port number to connect to
      * @param {Object} [options] Optional options object
      */
-    function BrowserBox(host, port, options){
+    function BrowserBox(host, port, options) {
 
         this.options = options || {};
 
@@ -58,7 +65,7 @@
         /**
          * IMAP client object
          */
-        this.client = imap(host, port);
+        this.client = imap(host, port, this.options);
 
         this._enteredIdle = false;
         this._idleTimeout = false;
@@ -94,22 +101,22 @@
     /**
      * Initialization method. Setup event handlers and such
      */
-    BrowserBox.prototype._init = function(){
-        this.client.onlog = (function(type, payload){
+    BrowserBox.prototype._init = function() {
+        this.client.onlog = function(type, payload) {
             this.onlog(type, payload);
-        }).bind(this);
+        }.bind(this);
 
         // proxy error events
-        this.client.onerror = (function(err){
+        this.client.onerror = function(err) {
             this.onerror(err);
-        }).bind(this);
+        }.bind(this);
 
         // proxy close events
-        this.client.onclose = (function(){
+        this.client.onclose = function() {
             clearTimeout(this._connectionTimeout);
             clearTimeout(this._idleTimeout);
             this.onclose();
-        }).bind(this);
+        }.bind(this);
 
         // handle ready event which is fired when server has sent the greeting
         this.client.onready = this._onReady.bind(this);
@@ -119,21 +126,21 @@
 
         // set default handlers for untagged responses
         // capability updates
-        this.client.setHandler("capability", this._untaggedCapabilityHandler.bind(this));
+        this.client.setHandler('capability', this._untaggedCapabilityHandler.bind(this));
         // notifications
-        this.client.setHandler("ok", this._untaggedOkHandler.bind(this));
+        this.client.setHandler('ok', this._untaggedOkHandler.bind(this));
         // message count has changed
-        this.client.setHandler("exists", this._untaggedExistsHandler.bind(this));
+        this.client.setHandler('exists', this._untaggedExistsHandler.bind(this));
         // message has been deleted
-        this.client.setHandler("expunge", this._untaggedExpungeHandler.bind(this));
+        this.client.setHandler('expunge', this._untaggedExpungeHandler.bind(this));
         // message has been updated (eg. flag change), not supported by gmail
-        this.client.setHandler("fetch", this._untaggedFetchHandler.bind(this));
+        this.client.setHandler('fetch', this._untaggedFetchHandler.bind(this));
     };
 
     // Event placeholders
-    BrowserBox.prototype.onlog = function(type, message){};
-    BrowserBox.prototype.onclose = function(){};
-    BrowserBox.prototype.onauth = function(){};
+    BrowserBox.prototype.onlog = function() {};
+    BrowserBox.prototype.onclose = function() {};
+    BrowserBox.prototype.onauth = function() {};
     /* BrowserBox.prototype.onerror = function(err){}; // not defined by default */
 
     // Event handlers
@@ -143,7 +150,7 @@
      *
      * @event
      */
-    BrowserBox.prototype._onClose = function(){
+    BrowserBox.prototype._onClose = function() {
         this.onclose();
     };
 
@@ -152,10 +159,10 @@
      *
      * @event
      */
-    BrowserBox.prototype._onTimeout = (function(){
-        this.onerror(new Error("Timeout creating connection to the IMAP server"));
+    BrowserBox.prototype._onTimeout = function() {
+        this.onerror(new Error('Timeout creating connection to the IMAP server'));
         this.client._destroy();
-    }).bind(this);
+    }.bind(this);
 
     /**
      * Connection to the server is established. Method performs initial
@@ -163,15 +170,15 @@
      *
      * @event
      */
-    BrowserBox.prototype._onReady = function(){
+    BrowserBox.prototype._onReady = function() {
         clearTimeout(this._connectionTimeout);
-        this.onlog("session", "Connection established");
+        this.onlog('session', 'Connection established');
         this.state = this.STATE_NOT_AUTHENTICATED;
 
-        this.updateCapability((function(){
-            this.updateId(this.options.id, (function(){
-                this.login(this.options.auth, (function(err){
-                    if(err){
+        this.updateCapability(function() {
+            this.updateId(this.options.id, function() {
+                this.login(this.options.auth, function(err) {
+                    if (err) {
                         // emit an error
                         this.onerror(err);
                         this.close();
@@ -179,22 +186,22 @@
                     }
                     // emit
                     this.onauth();
-                }).bind(this));
-            }).bind(this));
-        }).bind(this));
+                }.bind(this));
+            }.bind(this));
+        }.bind(this));
     };
 
     /**
      * Indicates that the connection started idling. Initiates a cycle
      * of NOOPs or IDLEs to receive notifications about updates in the server
      */
-    BrowserBox.prototype._onIdle = function(){
-        if(!this.authenticated || this._enteredIdle){
+    BrowserBox.prototype._onIdle = function() {
+        if (!this.authenticated || this._enteredIdle) {
             // No need to IDLE when not logged in or already idling
             return;
         }
 
-        this.onlog("idle", "Started idling");
+        this.onlog('idle', 'Started idling');
         this.enterIdle();
     };
 
@@ -203,7 +210,7 @@
     /**
      * Initiate connection to the IMAP server
      */
-    BrowserBox.prototype.connect = function(){
+    BrowserBox.prototype.connect = function() {
         this.state = this.STATE_CONNECTING;
 
         // set timeout to fail connection establishing
@@ -215,11 +222,11 @@
     /**
      * Close current connection
      */
-    BrowserBox.prototype.close = function(callback){
+    BrowserBox.prototype.close = function(callback) {
         this.state = this.STATE_LOGOUT;
 
-        this.exec("LOGOUT", function(err){
-            if(typeof callback == "function"){
+        this.exec('LOGOUT', function(err) {
+            if (typeof callback === 'function') {
                 callback(err || null);
             }
         });
@@ -229,40 +236,40 @@
      * Run an IMAP command.
      *
      * @param {Object} request Structured request object
-     * @param {Array} acceptUntagged a list of untagged responses that will be included in "payload" property
+     * @param {Array} acceptUntagged a list of untagged responses that will be included in 'payload' property
      * @param {Function} callback Callback function to run once the command has been processed
      */
-    BrowserBox.prototype.exec = function(){
+    BrowserBox.prototype.exec = function() {
         var args = Array.prototype.slice.call(arguments),
             callback = args.pop();
-        if(typeof callback != "function"){
+        if (typeof callback !== 'function') {
             args.push(callback);
             callback = undefined;
         }
 
-        args.push((function(response, next){
+        args.push(function(response, next) {
             var error = null;
 
-            if(response && response.capability){
+            if (response && response.capability) {
                 this.capability = response.capability;
             }
 
-            if(["NO", "BAD"].indexOf((response && response.command || "").toString().toUpperCase().trim()) >= 0){
-                error = new Error(response.humanReadable || "Error");
-                if(response.code){
+            if (['NO', 'BAD'].indexOf((response && response.command || '').toString().toUpperCase().trim()) >= 0) {
+                error = new Error(response.humanReadable || 'Error');
+                if (response.code) {
                     error.code = response.code;
                 }
             }
-            if(typeof callback == "function"){
+            if (typeof callback === 'function') {
                 callback(error, response, next);
-            }else{
+            } else {
                 next();
             }
-        }).bind(this));
+        }.bind(this));
 
-        this.breakIdle((function(){
+        this.breakIdle(function() {
             this.client.exec.apply(this.client, args);
-        }).bind(this));
+        }.bind(this));
     };
 
     // IMAP macros
@@ -273,25 +280,27 @@
      * IDLE details:
      *   https://tools.ietf.org/html/rfc2177
      */
-    BrowserBox.prototype.enterIdle = function(){
-        if(this._enteredIdle){
+    BrowserBox.prototype.enterIdle = function() {
+        if (this._enteredIdle) {
             return;
         }
-        this._enteredIdle = this.capability.indexOf("IDLE") >= 0 ? "IDLE" : "NOOP";
+        this._enteredIdle = this.capability.indexOf('IDLE') >= 0 ? 'IDLE' : 'NOOP';
 
-        if(this._enteredIdle == "NOOP"){
-            this._idleTimeout = setTimeout((function(){
-                this.exec("NOOP");
-            }).bind(this), this.TIMEOUT_NOOP);
-        }else if(this._enteredIdle == "IDLE"){
-            this.client.exec({command: "IDLE"}, (function(response, next){
+        if (this._enteredIdle === 'NOOP') {
+            this._idleTimeout = setTimeout(function() {
+                this.exec('NOOP');
+            }.bind(this), this.TIMEOUT_NOOP);
+        } else if (this._enteredIdle === 'IDLE') {
+            this.client.exec({
+                command: 'IDLE'
+            }, function(response, next) {
                 next();
-            }).bind(this));
-            this._idleTimeout = setTimeout((function(){
-                this.onlog("client", "DONE");
+            }.bind(this));
+            this._idleTimeout = setTimeout(function() {
+                this.onlog('client', 'DONE');
                 this.client.socket.send(new Uint8Array([0x44, 0x4f, 0x4e, 0x45, 0x0d, 0x0a]).buffer);
                 this._enteredIdle = false;
-            }).bind(this), this.TIMEOUT_IDLE);
+            }.bind(this), this.TIMEOUT_IDLE);
         }
     };
 
@@ -300,19 +309,19 @@
      *
      * @param {Function} callback Function to run after required actions are performed
      */
-    BrowserBox.prototype.breakIdle = function(callback){
-        if(!this._enteredIdle){
+    BrowserBox.prototype.breakIdle = function(callback) {
+        if (!this._enteredIdle) {
             return callback();
         }
 
         clearTimeout(this._idleTimeout);
-        if(this._enteredIdle == "IDLE"){
-            this.onlog("client", "DONE");
+        if (this._enteredIdle === 'IDLE') {
+            this.onlog('client', 'DONE');
             this.client.socket.send(new Uint8Array([0x44, 0x4f, 0x4e, 0x45, 0x0d, 0x0a]).buffer);
         }
         this._enteredIdle = false;
 
-        this.onlog("idle", "terminated");
+        this.onlog('idle', 'terminated');
 
         return callback();
     };
@@ -329,21 +338,21 @@
      * @param {Boolean} [forced] By default the command is not run if capability is already listed. Set to true to skip this validation
      * @param {Function} callback Callback function
      */
-    BrowserBox.prototype.updateCapability = function(forced, callback){
-        if(!callback && typeof forced == "function"){
+    BrowserBox.prototype.updateCapability = function(forced, callback) {
+        if (!callback && typeof forced === 'function') {
             callback = forced;
             forced = undefined;
         }
 
         // skip request, if not forced update and capabilities are already loaded
-        if(!forced && this.capability.length){
+        if (!forced && this.capability.length) {
             return callback(null, false);
         }
 
-        this.exec("CAPABILITY", function(err, response, next){
-            if(err){
+        this.exec('CAPABILITY', function(err, response, next) {
+            if (err) {
                 callback(err);
-            }else{
+            } else {
                 callback(null, true);
             }
             next();
@@ -358,19 +367,19 @@
      *
      * @param {Function} callback Callback function with the namespace information
      */
-    BrowserBox.prototype.listNamespaces = function(callback){
-        if(this.capability.indexOf("NAMESPACE") < 0){
+    BrowserBox.prototype.listNamespaces = function(callback) {
+        if (this.capability.indexOf('NAMESPACE') < 0) {
             return callback(null, false);
         }
 
-        this.exec("NAMESPACE", "NAMESPACE", (function(err, response, next){
-            if(err){
+        this.exec('NAMESPACE', 'NAMESPACE', function(err, response, next) {
+            if (err) {
                 callback(err);
-            }else{
+            } else {
                 callback(null, this._parseNAMESPACE(response));
             }
             next();
-        }).bind(this));
+        }.bind(this));
     };
 
     /**
@@ -385,46 +394,55 @@
      * @param {String} password
      * @param {Function} callback Returns error if login failed
      */
-    BrowserBox.prototype.login = function(auth, callback){
+    BrowserBox.prototype.login = function(auth, callback) {
         var command, options = {};
 
-        if(!auth){
-            return callback(new Error("Authentication information not provided"));
+        if (!auth) {
+            return callback(new Error('Authentication information not provided'));
         }
 
-        if(this.capability.indexOf("AUTH=XOAUTH2") >= 0 && auth && auth.xoauth2){
+        if (this.capability.indexOf('AUTH=XOAUTH2') >= 0 && auth && auth.xoauth2) {
             command = {
-                command: "AUTHENTICATE",
-                attributes: [
-                    {type: "ATOM", value: "XOAUTH2"},
-                    {type: "ATOM", value: this._buildXOAuth2Token(auth.user, auth.xoauth2)}
-                ]
+                command: 'AUTHENTICATE',
+                attributes: [{
+                    type: 'ATOM',
+                    value: 'XOAUTH2'
+                }, {
+                    type: 'ATOM',
+                    value: this._buildXOAuth2Token(auth.user, auth.xoauth2)
+                }]
             };
-            options.onplustagged = (function(response, next){
+            options.onplustagged = function(response, next) {
                 var payload;
-                if(response && response.payload){
-                    try{
+                if (response && response.payload) {
+                    try {
                         payload = JSON.parse(mimefuncs.base64Decode(response.payload));
-                    }catch(E){}
+                    } catch (E) {}
                 }
-                if(payload){
-                    this.onlog("xoauth2", payload);
+                if (payload) {
+                    this.onlog('xoauth2', payload);
                 }
                 // + tagged error response expects an empty line in return
-                this.client.send("\r\n");
+                this.client.send('\r\n');
                 next();
-            }).bind(this);
-        }else{
+            }.bind(this);
+        } else {
             command = {
-                command: "login",
-                attributes: [{type: "STRING", value: auth.user || ""}, {type: "STRING", value: auth.pass || ""}]
+                command: 'login',
+                attributes: [{
+                    type: 'STRING',
+                    value: auth.user || ''
+                }, {
+                    type: 'STRING',
+                    value: auth.pass || ''
+                }]
             };
         }
 
-        this.exec(command, "capability", options, (function(err, response, next){
+        this.exec(command, 'capability', options, function(err, response, next) {
             var capabilityUpdated = false;
 
-            if(err){
+            if (err) {
                 callback(err);
                 return next();
             }
@@ -436,31 +454,31 @@
             // capability list shouldn't contain auth related stuff anymore
             // but some new extensions might have popped up that do not
             // make much sense in the non-auth state
-            if(response.capability && response.capability.length){
+            if (response.capability && response.capability.length) {
                 // capabilites were listed with the OK [CAPABILITY ...] response
                 this.capability = [].concat(response.capability || []);
                 capabilityUpdated = true;
                 callback(null, true);
-            }else if(response.payload && response.payload.CAPABILITY && response.payload.CAPABILITY.length){
+            } else if (response.payload && response.payload.CAPABILITY && response.payload.CAPABILITY.length) {
                 // capabilites were listed with * CAPABILITY ... response
-                this.capability = [].concat(response.payload.CAPABILITY.pop().attributes || []).map(function(capa){
-                    return (capa.value || "").toString().toUpperCase().trim();
+                this.capability = [].concat(response.payload.CAPABILITY.pop().attributes || []).map(function(capa) {
+                    return (capa.value || '').toString().toUpperCase().trim();
                 });
                 capabilityUpdated = true;
                 callback(null, true);
-            }else{
+            } else {
                 // capabilities were not automatically listed, reload
-                this.updateCapability(true, function(err){
-                    if(err){
+                this.updateCapability(true, function(err) {
+                    if (err) {
                         callback(err);
-                    }else{
+                    } else {
                         callback(null, true);
                     }
                 });
             }
 
             next();
-        }).bind(this));
+        }.bind(this));
     };
 
     /**
@@ -474,33 +492,38 @@
      * @param {Object} id ID as key value pairs. See http://tools.ietf.org/html/rfc2971#section-3.3 for possible values
      * @param {Function} callback
      */
-    BrowserBox.prototype.updateId = function(id, callback){
-        if(this.capability.indexOf("ID") < 0){
+    BrowserBox.prototype.updateId = function(id, callback) {
+        if (this.capability.indexOf('ID') < 0) {
             return callback(null, false);
         }
 
-        var attributes = [[]];
-        if(id){
-            if(typeof id == "string"){
+        var attributes = [
+            []
+        ];
+        if (id) {
+            if (typeof id === 'string') {
                 id = {
                     name: id
                 };
             }
-            Object.keys(id).forEach(function(key){
+            Object.keys(id).forEach(function(key) {
                 attributes[0].push(key);
                 attributes[0].push(id[key]);
             });
-        }else{
+        } else {
             attributes.push(null);
         }
 
-        this.exec({command: "ID", attributes: attributes}, "ID", (function(err, response, next){
-            if(err){
+        this.exec({
+            command: 'ID',
+            attributes: attributes
+        }, 'ID', function(err, response, next) {
+            if (err) {
                 callback(err);
                 return next();
             }
 
-            if(!response.payload || !response.payload.ID || !response.payload.ID.length){
+            if (!response.payload || !response.payload.ID || !response.payload.ID.length) {
                 callback(null, false);
                 return next();
             }
@@ -508,20 +531,20 @@
             this.serverId = {};
 
             var key;
-            [].concat([].concat(response.payload.ID.shift().attributes || []).shift() || []).forEach((function(val, i){
-                if(i % 2 === 0){
-                    key = (val.value || "").toString().toLowerCase().trim();
-                }else{
-                    this.serverId[key] = (val.value || "").toString();
+            [].concat([].concat(response.payload.ID.shift().attributes || []).shift() || []).forEach(function(val, i) {
+                if (i % 2 === 0) {
+                    key = (val.value || '').toString().toLowerCase().trim();
+                } else {
+                    this.serverId[key] = (val.value || '').toString();
                 }
-            }).bind(this));
+            }.bind(this));
 
-            this.onlog("server id", JSON.stringify(this.serverId));
+            this.onlog('server id', JSON.stringify(this.serverId));
 
             callback(null, this.serverId);
 
             next();
-        }).bind(this));
+        }.bind(this));
     };
 
     /**
@@ -534,64 +557,73 @@
      *
      * @param {Function} callback Returns mailbox tree object
      */
-    BrowserBox.prototype.listMailboxes = function(callback){
-        this.exec({command: "LIST", attributes: ["", "*"]}, "LIST", (function(err, response, next){
-            if(err){
+    BrowserBox.prototype.listMailboxes = function(callback) {
+        this.exec({
+            command: 'LIST',
+            attributes: ['', '*']
+        }, 'LIST', function(err, response, next) {
+            if (err) {
                 callback(err);
                 return next();
             }
 
-            var tree = {root: true, children: []};
+            var tree = {
+                root: true,
+                children: []
+            };
 
-            if(!response.payload || !response.payload.LIST || !response.payload.LIST.length){
+            if (!response.payload || !response.payload.LIST || !response.payload.LIST.length) {
                 callback(null, false);
                 return next();
             }
 
-            response.payload.LIST.forEach((function(item){
-                if(!item || !item.attributes || item.attributes.length < 3){
+            response.payload.LIST.forEach(function(item) {
+                if (!item || !item.attributes || item.attributes.length < 3) {
                     return;
                 }
-                var branch = this._ensurePath(tree, (item.attributes[2].value || "").toString(), (item.attributes[1].value).toString());
-                branch.flags = [].concat(item.attributes[0] || []).map(function(flag){
-                    return (flag.value || "").toString();
+                var branch = this._ensurePath(tree, (item.attributes[2].value || '').toString(), (item.attributes[1].value).toString());
+                branch.flags = [].concat(item.attributes[0] || []).map(function(flag) {
+                    return (flag.value || '').toString();
                 });
                 branch.listed = true;
                 this._checkSpecialUse(branch);
-            }).bind(this));
+            }.bind(this));
 
-            this.exec({command: "LSUB", attributes: ["", "*"]}, "LSUB", (function(err, response, next){
-                if(err){
+            this.exec({
+                command: 'LSUB',
+                attributes: ['', '*']
+            }, 'LSUB', function(err, response, next) {
+                if (err) {
                     callback(null, tree);
                     return next();
                 }
 
-                if(!response.payload || !response.payload.LSUB || !response.payload.LSUB.length){
+                if (!response.payload || !response.payload.LSUB || !response.payload.LSUB.length) {
                     callback(null, tree);
                     return next();
                 }
 
-                response.payload.LSUB.forEach((function(item){
-                    if(!item || !item.attributes || item.attributes.length < 3){
+                response.payload.LSUB.forEach(function(item) {
+                    if (!item || !item.attributes || item.attributes.length < 3) {
                         return;
                     }
-                    var branch = this._ensurePath(tree, (item.attributes[2].value || "").toString(), (item.attributes[1].value).toString());
-                    [].concat(item.attributes[0] || []).map(function(flag){
-                        flag = (flag.value || "").toString();
-                        if(!branch.flags || branch.flags.indexOf(flag) < 0){
+                    var branch = this._ensurePath(tree, (item.attributes[2].value || '').toString(), (item.attributes[1].value).toString());
+                    [].concat(item.attributes[0] || []).map(function(flag) {
+                        flag = (flag.value || '').toString();
+                        if (!branch.flags || branch.flags.indexOf(flag) < 0) {
                             branch.flags = [].concat(branch.flags || []).concat(flag);
                         }
                     });
                     branch.subscribed = true;
-                }).bind(this));
+                }.bind(this));
 
                 callback(null, tree);
 
                 next();
-            }).bind(this));
+            }.bind(this));
 
             next();
-        }).bind(this));
+        }.bind(this));
     };
 
     /**
@@ -608,13 +640,13 @@
      * @param {Object} [options] Query modifiers
      * @param {Function} callback Callback function with fetched message info
      */
-    BrowserBox.prototype.listMessages = function(sequence, items, options, callback){
-        if(!callback && typeof options == "function"){
+    BrowserBox.prototype.listMessages = function(sequence, items, options, callback) {
+        if (!callback && typeof options === 'function') {
             callback = options;
             options = undefined;
         }
 
-        if(!callback && typeof items == "function"){
+        if (!callback && typeof items === 'function') {
             callback = items;
             items = undefined;
         }
@@ -627,17 +659,17 @@
 
         var command = this._buildFETCHCommand(sequence, items, options);
 
-        this.exec(command, "FETCH", (function(err, response, next){
-            console.log("FETCH");
+        this.exec(command, 'FETCH', function(err, response, next) {
+            console.log('FETCH');
             console.log(JSON.stringify(response, false, 4));
             console.log(JSON.stringify(this._parseFETCH(response), false, 4));
-            if(err){
+            if (err) {
                 callback(err);
-            }else{
+            } else {
                 callback(null, true);
             }
             next();
-        }).bind(this));
+        }.bind(this));
     };
 
     /**
@@ -652,29 +684,30 @@
      * @param {Object} [options] Options object
      * @param {Function} callback Return information about selected mailbox
      */
-    BrowserBox.prototype.selectMailbox = function(path, options, callback){
-        if(!callback && typeof options == "function"){
+    BrowserBox.prototype.selectMailbox = function(path, options, callback) {
+        if (!callback && typeof options === 'function') {
             callback = options;
             options = undefined;
         }
         options = options || {};
 
         var query = {
-            command: options.readOnly ? "EXAMINE" : "SELECT",
-            attributes: [
-                {
-                    type: "STRING",
-                    value: path
-                }
-            ]
+            command: options.readOnly ? 'EXAMINE' : 'SELECT',
+            attributes: [{
+                type: 'STRING',
+                value: path
+            }]
         };
 
-        if(options.condstore && this.capability.indexOf("CONDSTORE") >= 0){
-            query.attributes.push([{type: "ATOM", value: "CONDSTORE"}]);
+        if (options.condstore && this.capability.indexOf('CONDSTORE') >= 0) {
+            query.attributes.push([{
+                type: 'ATOM',
+                value: 'CONDSTORE'
+            }]);
         }
 
-        this.exec(query, ["EXISTS", "FLAGS", "OK"], (function(err, response, next){
-            if(err){
+        this.exec(query, ['EXISTS', 'FLAGS', 'OK'], function(err, response, next) {
+            if (err) {
                 callback(err);
                 return next();
             }
@@ -684,7 +717,7 @@
             callback(null, this._parseSELECT(response));
 
             next();
-        }).bind(this));
+        }.bind(this));
     };
 
     // Default handlers for untagged responses
@@ -695,8 +728,8 @@
      * @param {Object} response Parsed server response
      * @param {Function} next Until called, server responses are not processed
      */
-    BrowserBox.prototype._untaggedOkHandler = function(response, next){
-        if(response && response.capability){
+    BrowserBox.prototype._untaggedOkHandler = function(response, next) {
+        if (response && response.capability) {
             this.capability = response.capability;
         }
         next();
@@ -708,9 +741,9 @@
      * @param {Object} response Parsed server response
      * @param {Function} next Until called, server responses are not processed
      */
-    BrowserBox.prototype._untaggedCapabilityHandler = function(response, next){
-        this.capability = [].concat(response && response.attributes || []).map(function(capa){
-            return (capa.value || "").toString().toUpperCase().trim();
+    BrowserBox.prototype._untaggedCapabilityHandler = function(response, next) {
+        this.capability = [].concat(response && response.attributes || []).map(function(capa) {
+            return (capa.value || '').toString().toUpperCase().trim();
         });
         next();
     };
@@ -721,8 +754,8 @@
      * @param {Object} response Parsed server response
      * @param {Function} next Until called, server responses are not processed
      */
-    BrowserBox.prototype._untaggedExistsHandler = function(response, next){
-        console.log("Untagged EXISTS");
+    BrowserBox.prototype._untaggedExistsHandler = function(response, next) {
+        console.log('Untagged EXISTS');
         console.log(response);
         next();
     };
@@ -733,8 +766,8 @@
      * @param {Object} response Parsed server response
      * @param {Function} next Until called, server responses are not processed
      */
-    BrowserBox.prototype._untaggedExpungeHandler = function(response, next){
-        console.log("Untagged EXPUNGE");
+    BrowserBox.prototype._untaggedExpungeHandler = function(response, next) {
+        console.log('Untagged EXPUNGE');
         console.log(response);
         next();
     };
@@ -745,8 +778,8 @@
      * @param {Object} response Parsed server response
      * @param {Function} next Until called, server responses are not processed
      */
-    BrowserBox.prototype._untaggedFetchHandler = function(response, next){
-        console.log("Untagged FETCH");
+    BrowserBox.prototype._untaggedFetchHandler = function(response, next) {
+        console.log('Untagged FETCH');
         console.log(response);
         next();
     };
@@ -759,41 +792,41 @@
      * @param {Object} response
      * @return {Object} Mailbox information object
      */
-    BrowserBox.prototype._parseSELECT = function(response){
-        if(!response || !response.payload){
+    BrowserBox.prototype._parseSELECT = function(response) {
+        if (!response || !response.payload) {
             return;
         }
 
         var mailbox = {
-                readOnly: response.code == "READ-ONLY"
-            },
+            readOnly: response.code === 'READ-ONLY'
+        },
 
             existsResponse = response.payload.EXISTS && response.payload.EXISTS.pop(),
             flagsResponse = response.payload.FLAGS && response.payload.FLAGS.pop(),
             okResponse = response.payload.OK;
 
-        if(existsResponse){
+        if (existsResponse) {
             mailbox.exists = existsResponse.nr || 0;
         }
 
-        if(flagsResponse && flagsResponse.attributes && flagsResponse.attributes.length){
-            mailbox.flags = flagsResponse.attributes[0].map(function(flag){
-                return (flag.value || "").toString().trim();
+        if (flagsResponse && flagsResponse.attributes && flagsResponse.attributes.length) {
+            mailbox.flags = flagsResponse.attributes[0].map(function(flag) {
+                return (flag.value || '').toString().trim();
             });
         }
 
-        [].concat(okResponse || []).forEach(function(ok){
-            switch(ok && ok.code){
-                case "PERMANENTFLAGS":
+        [].concat(okResponse || []).forEach(function(ok) {
+            switch (ok && ok.code) {
+                case 'PERMANENTFLAGS':
                     mailbox.permanentFlags = [].concat(ok.permanentflags || []);
                     break;
-                case "UIDVALIDITY":
+                case 'UIDVALIDITY':
                     mailbox.uidValidity = Number(ok.uidvalidity) || 0;
                     break;
-                case "UIDNEXT":
+                case 'UIDNEXT':
                     mailbox.uidNext = Number(ok.uidnext) || 0;
                     break;
-                case "HIGHESTMODSEQ":
+                case 'HIGHESTMODSEQ':
                     mailbox.highestModseq = Number(ok.highestmodseq) || 0;
                     break;
             }
@@ -808,11 +841,11 @@
      * @param {Object} response
      * @return {Object} Namespaces object
      */
-    BrowserBox.prototype._parseNAMESPACE = function(response){
+    BrowserBox.prototype._parseNAMESPACE = function(response) {
         var attributes,
             namespaces = false,
-            parseNsElement = function(arr){
-                return !arr ? false : [].concat(arr || []).map(function(ns){
+            parseNsElement = function(arr) {
+                return !arr ? false : [].concat(arr || []).map(function(ns) {
                     return !ns || !ns.length ? false : {
                         prefix: ns[0].value,
                         delimiter: ns[1].value
@@ -820,10 +853,10 @@
                 });
             };
 
-        if(response.payload &&
+        if (response.payload &&
             response.payload.NAMESPACE &&
             response.payload.NAMESPACE.length &&
-            (attributes = [].concat(response.payload.NAMESPACE.pop().attributes || [])).length){
+            (attributes = [].concat(response.payload.NAMESPACE.pop().attributes || [])).length) {
 
             namespaces = {
                 personal: parseNsElement(attributes[0]),
@@ -839,44 +872,53 @@
      * TODO: Write docs.
      * FIXME: Does not support partials <start.stop>
      */
-    BrowserBox.prototype._buildFETCHCommand = function(sequence, items, options){
+    BrowserBox.prototype._buildFETCHCommand = function(sequence, items, options) {
         var command = {
-                command: options.byUid ? "UID FETCH" : "FETCH",
-                attributes: [
-                    {type: "SEQUENCE", value: sequence}
-                ]
-            },
+            command: options.byUid ? 'UID FETCH' : 'FETCH',
+            attributes: [{
+                type: 'SEQUENCE',
+                value: sequence
+            }]
+        },
 
             query = [];
 
-        [].concat(items || []).forEach(function(item){
-            var cmd;
-            item = (item || "").toString().toUpperCase().trim();
+        [].concat(items || []).forEach(function(item) {
+                var cmd;
+                item = (item || '').toString().toUpperCase().trim();
 
-            if(/^\w+$/.test(item)){
-                // alphanum strings can be used directly
-                query.push({type: "ATOM", value: item});
-            }else if(item){
-                try{
-                    // parse the value as a fake command, use only the attributes block
-                    cmd = imapHandler.parser("* Z " + item);
-                    query = query.concat(cmd.attributes || []);
-                }catch(E){
-                    // if parse failed, use the original string as one entity
-                    query.push({type: "ATOM", value: item});
+                if (/^\w+$/.test(item)) {
+                    // alphanum strings can be used directly
+                    query.push({
+                        type: 'ATOM',
+                        value: item
+                    });
+                } else if (item) {
+                    try {
+                        // parse the value as a fake command, use only the attributes block
+                        cmd = imapHandler.parser('* Z ' + item);
+                        query = query.concat(cmd.attributes || []);
+                    } catch (E) {
+                        // if parse failed, use the original string as one entity
+                        query.push({
+                            type: 'ATOM',
+                            value: item
+                        });
+                    }
                 }
-            }
-        });
+            });
 
-        if(query.length == 1){
+        if (query.length === 1) {
             query = query.pop();
         }
 
         command.attributes.push(query);
 
-        if(options.changedSince){
-            command.attributes.push([
-                {type: "ATOM", value: "CHANGEDSINCE"},
+        if (options.changedSince) {
+            command.attributes.push([{
+                    type: 'ATOM',
+                    value: 'CHANGEDSINCE'
+                },
                 options.changedSince
             ]);
         }
@@ -889,32 +931,34 @@
      * @param {Object} response
      * @return {Object} Message object
      */
-    BrowserBox.prototype._parseFETCH = function(response){
+    BrowserBox.prototype._parseFETCH = function(response) {
         var list;
 
-        if(!response || !response.payload || !response.payload.FETCH || !response.payload.FETCH.length){
+        if (!response || !response.payload || !response.payload.FETCH || !response.payload.FETCH.length) {
             return [];
         }
 
-        list = [].concat(response.payload.FETCH || []).map((function(item){
+        list = [].concat(response.payload.FETCH || []).map(function(item) {
             var
-                // ensure the first value is an array
-                params = [].concat([].concat(item.attributes || [])[0] || []),
+            // ensure the first value is an array
+            params = [].concat([].concat(item.attributes || [])[0] || []),
                 message = {
-                    "#":  item.nr
+                    '#': item.nr
                 },
                 i, len, key;
 
-            for(i = 0, len = params.length; i < len; i++){
-                if(i % 2 === 0){
-                    key = imapHandler.compiler({attributes: [params[i]]}).toLowerCase().replace(/<\d+>$/, "");
+            for (i = 0, len = params.length; i < len; i++) {
+                if (i % 2 === 0) {
+                    key = imapHandler.compiler({
+                        attributes: [params[i]]
+                    }).toLowerCase().replace(/<\d+>$/, '');
                     continue;
                 }
                 message[key] = this._parseFetchValue(key, params[i]);
             }
 
             return message;
-        }).bind(this));
+        }.bind(this));
 
         return list;
     };
@@ -926,31 +970,31 @@
      * @param {Mized} value Value for the key
      * @return {Mixed} Processed value
      */
-    BrowserBox.prototype._parseFetchValue = function(key, value){
-        if(!value){
+    BrowserBox.prototype._parseFetchValue = function(key, value) {
+        if (!value) {
             return null;
         }
 
-        if(!Array.isArray(value)){
-            switch(key){
-                case "UID":
-                case "MODSEQ":
-                case "RFC822.SIZE":
+        if (!Array.isArray(value)) {
+            switch (key) {
+                case 'UID':
+                case 'MODSEQ':
+                case 'RFC822.SIZE':
                     return Number(value.value) || 0;
             }
             return value.value;
         }
 
-        switch(key){
-            case "FLAGS":
-                value = [].concat(value).map(function(flag){
-                    return flag.value || "";
+        switch (key) {
+            case 'FLAGS':
+                value = [].concat(value).map(function(flag) {
+                    return flag.value || '';
                 });
                 break;
-            case "ENVELOPE":
+            case 'ENVELOPE':
                 value = this._parseENVELOPE([].concat(value || []));
                 break;
-            case "BODYSTRUCTURE":
+            case 'BODYSTRUCTURE':
                 value = this._parseBODYSTRUCTURE([].concat(value || []));
                 break;
         }
@@ -966,26 +1010,26 @@
      * @param {Array} value Envelope array
      * @param {Object} Envelope object
      */
-    BrowserBox.prototype._parseENVELOPE = function(value){
-        var processAddresses = function(list){
-                return [].concat(list || []).map(function(addr){
-                    return {
-                        name: mimefuncs.mimeWordsDecode(addr[0] && addr[0].value || ""),
-                        address: (addr[2] && addr[2].value || "") + "@" + (addr[3] && addr[3].value || "")
-                    };
-                });
-            },
+    BrowserBox.prototype._parseENVELOPE = function(value) {
+        var processAddresses = function(list) {
+            return [].concat(list || []).map(function(addr) {
+                return {
+                    name: mimefuncs.mimeWordsDecode(addr[0] && addr[0].value || ''),
+                    address: (addr[2] && addr[2].value || '') + '@' + (addr[3] && addr[3].value || '')
+                };
+            });
+        },
             envelope = {
                 date: value[0] && value[0].value,
                 subject: mimefuncs.mimeWordsDecode(value[1] && value[1].value),
                 from: processAddresses(value[2]),
                 sender: processAddresses(value[3]),
-                "reply-to": processAddresses(value[4]),
+                'reply-to': processAddresses(value[4]),
                 to: processAddresses(value[5]),
                 cc: processAddresses(value[6]),
                 bcc: processAddresses(value[7]),
-                "in-reply-to": value[8] && value[8].value,
-                "message-id": value[9] && value[9].value
+                'in-reply-to': value[8] && value[8].value,
+                'message-id': value[9] && value[9].value
             };
 
         return envelope;
@@ -999,7 +1043,7 @@
      * @param {Array} value BODYSTRUCTURE array
      * @param {Object} Envelope object
      */
-    BrowserBox.prototype._parseBODYSTRUCTURE = function(value){
+    BrowserBox.prototype._parseBODYSTRUCTURE = function(value) {
         // doesn't do anything yet
         return value;
     };
@@ -1012,18 +1056,20 @@
      * @param {String} delimiter
      * @return {Object} branch for used path
      */
-    BrowserBox.prototype._ensurePath = function(tree, path, delimiter){
-        var names = path.split(delimiter), branch = tree, i, j, found;
-        for(i = 0; i < names.length; i++){
+    BrowserBox.prototype._ensurePath = function(tree, path, delimiter) {
+        var names = path.split(delimiter),
+            branch = tree,
+            i, j, found;
+        for (i = 0; i < names.length; i++) {
             found = false;
-            for(j = 0; j < branch.children.length; j++){
-                if(branch.children[j].name == utf7.imap.decode(names[i])){
+            for (j = 0; j < branch.children.length; j++) {
+                if (branch.children[j].name === utf7.imap.decode(names[i])) {
                     branch = branch.children[j];
                     found = true;
                     break;
                 }
             }
-            if(!found){
+            if (!found) {
                 branch.children.push({
                     name: utf7.imap.decode(names[i]),
                     delimiter: delimiter,
@@ -1042,24 +1088,24 @@
      * @param {Object} mailbox
      * @return {String|Boolean} Special use flag (if detected) or false
      */
-    BrowserBox.prototype._checkSpecialUse = function(mailbox){
-        var type, specialFlags = ["\\All", "\\Archive", "\\Drafts", "\\Flagged", "\\Junk", "\\Sent", "\\Trash"];
-        if(this.capability.indexOf("SPECIAL-USE") >= 0){
-            if(!mailbox.flags || !mailbox.flags.length){
+    BrowserBox.prototype._checkSpecialUse = function(mailbox) {
+        var type, specialFlags = ['\\All', '\\Archive', '\\Drafts', '\\Flagged', '\\Junk', '\\Sent', '\\Trash'];
+        if (this.capability.indexOf('SPECIAL-USE') >= 0) {
+            if (!mailbox.flags || !mailbox.flags.length) {
                 return false;
             }
-            for(var i = 0, len = specialFlags.length; i < len; i++){
-                if(mailbox.flags.indexOf(specialFlags[i]) >= 0){
+            for (var i = 0, len = specialFlags.length; i < len; i++) {
+                if (mailbox.flags.indexOf(specialFlags[i]) >= 0) {
                     type = specialFlags[i];
                     break;
                 }
             }
-        }else{
-            if((type = specialUse(mailbox.name))){
+        } else {
+            if ((type = specialUse(mailbox.name))) {
                 mailbox.flags = [].concat(mailbox.flags || []).concat(name);
             }
         }
-        if(!type){
+        if (!type) {
             return false;
         }
 
@@ -1074,17 +1120,16 @@
      * @param {String} token Valid access token for the user
      * @return {String} Base64 formatted login token
      */
-    BrowserBox.prototype._buildXOAuth2Token = function(user, token){
+    BrowserBox.prototype._buildXOAuth2Token = function(user, token) {
         var authData = [
-            "user=" + (user || ""),
-            "auth=Bearer " + token,
-            "",
-            ""];
-        return mimefuncs.base64.encode(authData.join("\x01"));
+            'user=' + (user || ''),
+            'auth=Bearer ' + token,
+            '',
+            ''
+        ];
+        return mimefuncs.base64.encode(authData.join('\x01'));
     };
 
     // Exposed function
-    return function(host, port, options){
-        return new BrowserBox(host, port, options);
-    };
+    return BrowserBox;
 }));

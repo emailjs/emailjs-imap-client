@@ -1,0 +1,25 @@
+{
+    "name": "browserbox",
+    "main": "src/browserbox.js",
+    "version": "0.1.0",
+    "homepage": "https://github.com/whiteout-io/browserbox",
+    "authors": [
+        "Andris Reinman <andris@kreata.ee>"
+    ],
+    "description": "IMAP client for browsers.",
+    "keywords": ["IMAP"],
+    "license": "MIT",
+    "ignore": [
+        "node_modules",
+        "bower_components",
+        "example",
+        "test",
+        ".gitignore",
+        ".jshintrc",
+        ".travis.yml",
+        "Gruntfile.js",
+        "LICENSE",
+        "package.json",
+        "README.md"
+    ]
+}
