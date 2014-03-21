@@ -24,7 +24,7 @@
     if (typeof define === 'function' && define.amd) {
         define(['imap-handler', 'mimefuncs'], factory);
     } else {
-        root.BrowserboxImap = factory(imapHandler, mimefuncs);
+        root.BrowserboxImapClient = factory(imapHandler, mimefuncs);
     }
 }(this, function(imapHandler, mimefuncs) {
     'use strict';
@@ -40,7 +40,7 @@
      * @param {Object} [options] Optional options object
      * @param {Boolean} [options.useSSL] Set to true, to use encrypted connection
      */
-    function IMAPClient(host, port, options) {
+    function ImapClient(host, port, options) {
 
         this.options = options || {};
 
@@ -142,7 +142,7 @@
     /**
      * How much time to wait since the last response until the connection is considered idling
      */
-    IMAPClient.prototype.TIMEOUT_ENTER_IDLE = 1000;
+    ImapClient.prototype.TIMEOUT_ENTER_IDLE = 1000;
 
     // PUBLIC EVENTS
     // Event functions should be overriden, these are just placeholders
@@ -154,7 +154,7 @@
      * @event
      * @param {Error} err Error object
      */
-    IMAPClient.prototype.onerror = function() {};
+    ImapClient.prototype.onerror = function() {};
 
     /**
      * More data can be buffered in the socket. See `waitDrain` property or
@@ -163,28 +163,28 @@
      *
      * @event
      */
-    IMAPClient.prototype.ondrain = function() {};
+    ImapClient.prototype.ondrain = function() {};
 
     /**
      * The connection to the server has been closed
      *
      * @event
      */
-    IMAPClient.prototype.onclose = function() {};
+    ImapClient.prototype.onclose = function() {};
 
     /**
      * The connection to the server has been established and greeting is received
      *
      * @event
      */
-    IMAPClient.prototype.onready = function() {};
+    ImapClient.prototype.onready = function() {};
 
     /**
      * There are no more commands to process
      *
      * @event
      */
-    IMAPClient.prototype.onidle = function() {};
+    ImapClient.prototype.onidle = function() {};
 
     /**
      * Log something
@@ -192,14 +192,14 @@
      * @param {String} type Indicator
      * @param {String} message Data to be logged
      */
-    IMAPClient.prototype.onlog = function() {};
+    ImapClient.prototype.onlog = function() {};
 
     // PUBLIC METHODS
 
     /**
      * Initiate a connection to the server. Wait for onready event
      */
-    IMAPClient.prototype.connect = function() {
+    ImapClient.prototype.connect = function() {
         this.socket = navigator.TCPSocket.open(this.host, this.port, {
             binaryType: 'arraybuffer',
             useSSL: this._secureMode,
@@ -213,7 +213,7 @@
     /**
      * Closes the connection to the server
      */
-    IMAPClient.prototype.close = function() {
+    ImapClient.prototype.close = function() {
         if (this.socket && this.socket.readyState === 'open') {
             this.socket.close();
         } else {
@@ -242,7 +242,7 @@
      * @param {Object} [options] Optional data for the command payload, eg. {onplustagged: function(response, next){next();}}
      * @param {Function} callback Callback function to run once the command has been processed
      */
-    IMAPClient.prototype.exec = function(request, acceptUntagged, options, callback) {
+    ImapClient.prototype.exec = function(request, acceptUntagged, options, callback) {
 
         if (typeof request === 'string') {
             request = {
@@ -258,7 +258,7 @@
      *
      * @param {String} str Payload
      */
-    IMAPClient.prototype.send = function(str) {
+    ImapClient.prototype.send = function(str) {
         this.waitDrain = this.socket.send(mimefuncs.toArrayBuffer(str).buffer);
     };
 
@@ -270,7 +270,7 @@
      * @param {String} command Untagged command name
      * @param {Function} callback Callback function with response object and continue callback function
      */
-    IMAPClient.prototype.setHandler = function(command, callback) {
+    ImapClient.prototype.setHandler = function(command, callback) {
         this._globalAcceptUntagged[(command || '').toString().toUpperCase().trim()] = callback;
     };
 
@@ -282,7 +282,7 @@
      * @event
      * @param {Event} evt Event object. See evt.data for the error
      */
-    IMAPClient.prototype._onError = function(evt) {
+    ImapClient.prototype._onError = function(evt) {
         if (this.isError(evt)) {
             this.onerror(evt);
         } else if (evt && this.isError(evt.data)) {
@@ -297,7 +297,7 @@
     /**
      * Ensures that the connection is closed
      */
-    IMAPClient.prototype._destroy = function() {
+    ImapClient.prototype._destroy = function() {
         this._serverQueue = [];
         this._clientQueue = [];
         this._currentCommand = false;
@@ -316,7 +316,7 @@
      * @event
      * @param {Event} evt Event object. Not used
      */
-    IMAPClient.prototype._onClose = function() {
+    ImapClient.prototype._onClose = function() {
         this._destroy();
     };
 
@@ -326,7 +326,7 @@
      * @event
      * @param {Event} evt Event object. Not used
      */
-    IMAPClient.prototype._onDrain = function() {
+    ImapClient.prototype._onDrain = function() {
         this.waitDrain = false;
         this.ondrain();
     };
@@ -339,7 +339,7 @@
      *
      * @param {Event} evt
      */
-    IMAPClient.prototype._onData = function(evt) {
+    ImapClient.prototype._onData = function(evt) {
         if (!evt || !evt.data) {
             return;
         }
@@ -395,7 +395,7 @@
      *
      * @event
      */
-    IMAPClient.prototype._onOpen = function() {
+    ImapClient.prototype._onOpen = function() {
         this.socket.ondata = this._onData.bind(this);
         this.socket.onclose = this._onClose.bind(this);
         this.socket.ondrain = this._onDrain.bind(this);
@@ -409,7 +409,7 @@
      *
      * @param {String} cmd Command line
      */
-    IMAPClient.prototype._addToServerQueue = function(cmd) {
+    ImapClient.prototype._addToServerQueue = function(cmd) {
         this._serverQueue.push(cmd);
 
         if (this._processingServerData) {
@@ -423,7 +423,7 @@
     /**
      * Process a command from the queue. The command is parsed and feeded to a handler
      */
-    IMAPClient.prototype._processServerQueue = function() {
+    ImapClient.prototype._processServerQueue = function() {
         if (!this._serverQueue.length) {
             this._processingServerData = false;
             return;
@@ -498,7 +498,7 @@
      * @param {Object} response Parsed command object
      * @param {Function} callback Continue callback function
      */
-    IMAPClient.prototype._processServerResponse = function(response, callback) {
+    ImapClient.prototype._processServerResponse = function(response, callback) {
         var command = (response && response.command || '').toUpperCase().trim();
 
         this._processResponse(response);
@@ -551,7 +551,7 @@
      * @param {Object} [options] Optional data for the command payload, eg. {onplustagged: function(response, next){next();}}
      * @param {Function} callback Callback function to run once the command has been processed
      */
-    IMAPClient.prototype._addToClientQueue = function(request, acceptUntagged, options, callback) {
+    ImapClient.prototype._addToClientQueue = function(request, acceptUntagged, options, callback) {
         var tag = 'W' + (++this._tagCounter),
             data;
 
@@ -597,7 +597,7 @@
     /**
      * Sends a command from command queue to the server.
      */
-    IMAPClient.prototype._sendRequest = function() {
+    ImapClient.prototype._sendRequest = function() {
         if (!this._clientQueue.length) {
             return this._enterIdle();
         }
@@ -621,7 +621,7 @@
     /**
      * Emits onidle, noting to do currently
      */
-    IMAPClient.prototype._enterIdle = function() {
+    ImapClient.prototype._enterIdle = function() {
         clearTimeout(this._idleTimer);
         this._idleTimer = setTimeout(function() {
             this.onidle();
@@ -631,7 +631,7 @@
     /**
      * Cancel idle timer
      */
-    IMAPClient.prototype._clearIdle = function() {
+    ImapClient.prototype._clearIdle = function() {
         clearTimeout(this._idleTimer);
     };
 
@@ -652,7 +652,7 @@
      *
      * @param {Object} response Parsed response object
      */
-    IMAPClient.prototype._processResponse = function(response) {
+    ImapClient.prototype._processResponse = function(response) {
         var command = (response && response.command || '').toString().toUpperCase().trim(),
             option,
             key;
@@ -700,11 +700,9 @@
      * @param {Mixed} value Value to be checked
      * @return {Boolean} returns true if the value is an Error
      */
-    IMAPClient.prototype.isError = function(value) {
+    ImapClient.prototype.isError = function(value) {
         return !!Object.prototype.toString.call(value).match(/Error\]$/);
     };
 
-    return function(host, port, options) {
-        return new IMAPClient(host, port, options);
-    };
+    return ImapClient;
 }));
