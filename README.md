@@ -67,7 +67,7 @@ Where
 Example
 
 ```javascript
-var client = browserbox("localhost", 143, {
+var client = new BrowserBox("localhost", 143, {
     auth: {
         user: "testuser",
         pass: "testpass"
