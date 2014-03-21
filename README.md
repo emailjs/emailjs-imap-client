@@ -36,7 +36,6 @@ Include following fileson the page.
 
 ```html
 <script src="browserbox.js"></script>
-<script src="browserbox-special-use.js"></script>
 <script src="browserbox-imap.js"></script>
 ```
 
