@@ -141,6 +141,7 @@
     BrowserBox.prototype.onlog = function() {};
     BrowserBox.prototype.onclose = function() {};
     BrowserBox.prototype.onauth = function() {};
+    BrowserBox.prototype.onupdate = function() {};
     /* BrowserBox.prototype.onerror = function(err){}; // not defined by default */
 
     // Event handlers
@@ -751,8 +752,9 @@
      * @param {Function} next Until called, server responses are not processed
      */
     BrowserBox.prototype._untaggedExistsHandler = function(response, next) {
-        console.log('Untagged EXISTS');
-        console.log(response);
+        if (response && response.hasOwnProperty('nr')) {
+            this.onupdate('exists', response.nr);
+        }
         next();
     };
 
@@ -763,8 +765,9 @@
      * @param {Function} next Until called, server responses are not processed
      */
     BrowserBox.prototype._untaggedExpungeHandler = function(response, next) {
-        console.log('Untagged EXPUNGE');
-        console.log(response);
+        if (response && response.hasOwnProperty('nr')) {
+            this.onupdate('expunge', response.nr);
+        }
         next();
     };
 
@@ -775,8 +778,7 @@
      * @param {Function} next Until called, server responses are not processed
      */
     BrowserBox.prototype._untaggedFetchHandler = function(response, next) {
-        console.log('Untagged FETCH');
-        console.log(response);
+        this.onupdate('fetch', [].concat(this._parseFETCH({payload:{FETCH: [response]}}) || []).shift());
         next();
     };
 
@@ -992,6 +994,9 @@
                 break;
             case 'bodystructure':
                 value = this._parseBODYSTRUCTURE([].concat(value || []));
+                break;
+            case 'modseq':
+                value = Number((value.shift() || {}).value) || 0;
                 break;
         }
 

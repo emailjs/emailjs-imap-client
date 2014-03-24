@@ -426,6 +426,42 @@ define(['chai', 'sinon', 'browserbox', './fixtures/mime-torture-bodystructure'],
             });
         });
 
+        describe('untagged updates', function() {
+            it('should receive information about untagged exists', function(done) {
+                br.client._connectionReady = true;
+                br.onupdate = function(type, value){
+                    expect(type).to.equal('exists');
+                    expect(value).to.equal(123);
+                    done();
+                };
+                br.client._addToServerQueue('* 123 EXISTS');
+            });
+
+            it('should receive information about untagged expunge', function(done) {
+                br.client._connectionReady = true;
+                br.onupdate = function(type, value){
+                    expect(type).to.equal('expunge');
+                    expect(value).to.equal(456);
+                    done();
+                };
+                br.client._addToServerQueue('* 456 EXPUNGE');
+            });
+
+            it('should receive information about untagged fetch', function(done) {
+                br.client._connectionReady = true;
+                br.onupdate = function(type, value){
+                    expect(type).to.equal('fetch');
+                    expect(value).to.deep.equal({
+                        '#': 123,
+                        'flags': ['\\Seen'],
+                        'modseq': 4
+                    });
+                    done();
+                };
+                br.client._addToServerQueue('* 123 FETCH (FLAGS (\\Seen) MODSEQ (4))');
+            });
+        });
+
         /* jshint indent:false */
 
     });
