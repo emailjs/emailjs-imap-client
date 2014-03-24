@@ -38,5 +38,18 @@ define(['chai', 'browserbox'], function(chai, BrowserBox) {
                 });
             });
         });
+
+        describe('#listMessages', function() {
+            it('should succeed', function(done) {
+                imap.selectMailbox("inbox", function(err){
+                    expect(err).to.not.exist;
+                    imap.listMessages("1:*", ["uid", "flags", "envelope", "bodystructure", "body.peek[]"], function(err, messages) {
+                        expect(err).to.not.exist;
+                        expect(messages).to.not.be.empty;
+                        done();
+                    });
+                });
+            });
+        });
     });
 });

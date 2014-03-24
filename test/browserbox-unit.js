@@ -1,4 +1,4 @@
-define(['chai', 'sinon', 'browserbox'], function(chai, sinon, BrowserBox) {
+define(['chai', 'sinon', 'browserbox', './fixtures/mime-torture-bodystructure'], function(chai, sinon, BrowserBox, mimeTorture) {
     'use strict';
 
     var expect = chai.expect;
@@ -417,6 +417,12 @@ define(['chai', 'sinon', 'browserbox'], function(chai, sinon, BrowserBox) {
                         section: []
                     }]
                 });
+            });
+        });
+
+        describe('#_parseBODYSTRUCTURE', function() {
+            it('should parse bodystructure object', function() {
+                expect(br._parseBODYSTRUCTURE(mimeTorture.source)).to.deep.equal(mimeTorture.parsed);
             });
         });
 
