@@ -533,9 +533,9 @@
             var key;
             [].concat([].concat(response.payload.ID.shift().attributes || []).shift() || []).forEach(function(val, i) {
                 if (i % 2 === 0) {
-                    key = (val.value || '').toString().toLowerCase().trim();
+                    key = (val && val.value || '').toString().toLowerCase().trim();
                 } else {
-                    this.serverId[key] = (val.value || '').toString();
+                    this.serverId[key] = (val && val.value || '').toString();
                 }
             }.bind(this));
 
@@ -1045,7 +1045,181 @@
      */
     BrowserBox.prototype._parseBODYSTRUCTURE = function(value) {
         // doesn't do anything yet
-        return value;
+
+        var that = this;
+        var processNode = function(node, path){
+            path = path || [];
+
+            var curNode = {}, i = 0, key, part = 0;
+
+            if (path.length) {
+                curNode.part = path.join('.');
+            }
+
+            // multipart
+            if (Array.isArray(node[0])) {
+                curNode.childNodes = [];
+                while (Array.isArray(node[i])) {
+                    curNode.childNodes.push(processNode(node[i], path.concat(++part)));
+                    i++;
+                }
+
+                // multipart type
+                curNode.type = 'multipart/' + ((node[i++] || {}).value || '').toString().toLowerCase();
+
+                // extension data (not available for BODY requests)
+
+                // body parameter parenthesized list
+                if (i < node.length - 1) {
+                    if (node[i]) {
+                        curNode.parameters = {};
+                        [].concat(node[i] || []).forEach(function(val, j){
+                            if (j % 2) {
+                                curNode.parameters[key] = (val && val.value || '').toString();
+                            } else {
+                                key = (val && val.value || '').toString().toLowerCase();
+                            }
+                        });
+                    }
+                    i++;
+                }
+            } else {
+
+                // content type
+                curNode.type = [
+                        ((node[i++] || {}).value || '').toString().toLowerCase(),
+                        ((node[i++] || {}).value || '').toString().toLowerCase()
+                    ].join('/');
+
+                // body parameter parenthesized list
+                if (node[i]) {
+                    curNode.parameters = {};
+                    [].concat(node[i] || []).forEach(function(val, j){
+                        if (j % 2) {
+                            curNode.parameters[key] = (val && val.value || '').toString();
+                        } else {
+                            key = (val && val.value || '').toString().toLowerCase();
+                        }
+                    });
+                }
+                i++;
+
+                // id
+                if (node[i]) {
+                    curNode.id = ((node[i] || {}).value || '').toString().toLowerCase();
+                }
+                i++;
+
+                // description
+                if (node[i]) {
+                    curNode.description = ((node[i] || {}).value || '').toString().toLowerCase();
+                }
+                i++;
+
+                // encoding
+                if (node[i]) {
+                    curNode.encoding = ((node[i] || {}).value || '').toString().toLowerCase();
+                }
+                i++;
+
+                // size
+                if (node[i]) {
+                    curNode.size = Number((node[i] || {}).value || 0) || 0;
+                }
+                i++;
+
+                if (curNode.type === 'message/rfc822') {
+                    // message/rfc adds additional envelope, bodystructure and line count values
+
+                    // envelope
+                    if (node[i]) {
+                        curNode.envelope = that._parseENVELOPE([].concat(node[i] || []));
+                    }
+                    i++;
+
+                    if (node[i]) {
+                        curNode.childNodes = [
+                            // rfc822 bodyparts share the same path, difference is between MIME and HEADER
+                            // path.MIME returns message/rfc822 header
+                            // path.HEADER returns inlined message header
+                            processNode(node[i], path)
+                        ];
+                    }
+                    i++;
+
+                    // line count
+                    if (node[i]) {
+                        curNode.lineCount = Number((node[i] || {}).value || 0) || 0;
+                    }
+                    i++;
+
+                } else if (/^text\//.test(curNode.type)) {
+                    // text/* adds additional line count values
+
+                    // line count
+                    if (node[i]) {
+                        curNode.lineCount = Number((node[i] || {}).value || 0) || 0;
+                    }
+                    i++;
+
+                }
+
+                // extension data (not available for BODY requests)
+
+                // md5
+                if (i < node.length - 1) {
+                    if (node[i]) {
+                        curNode.md5 = ((node[i] || {}).value || '').toString().toLowerCase();
+                    }
+                    i++;
+                }
+            }
+
+            // the following are shared extension values (for both multipart and non-multipart parts)
+            // not available for BODY requests
+
+            // body disposition
+            if (i < node.length - 1) {
+                if (Array.isArray(node[i]) && node[i].length) {
+                    curNode.disposition = ((node[i][0] || {}).value || '').toString().toLowerCase();
+                    if(Array.isArray(node[i][1])){
+                        curNode.dispositionParameters = {};
+                        [].concat(node[i][1] || []).forEach(function(val, j){
+                            if (j % 2) {
+                                curNode.dispositionParameters[key] = (val && val.value || '').toString();
+                            } else {
+                                key = (val && val.value || '').toString().toLowerCase();
+                            }
+                        });
+                    }
+                }
+                i++;
+            }
+
+            // body language
+            if (i < node.length - 1) {
+                if (node[i]) {
+                    curNode.language = [].concat(node[i] || []).map(function(val){
+                        return (val && val.value || '').toString().toLowerCase();
+                    });
+                }
+                i++;
+            }
+
+            // body location
+            // NB! defined as a "string list" in RFC3501 but replaced in errata document with "string"
+            // Errata: http://www.rfc-editor.org/errata_search.php?rfc=3501
+            if (i < node.length - 1) {
+                if (node[i]) {
+                    curNode.location = ((node[i] || {}).value || '').toString().toLowerCase();
+                }
+                i++;
+            }
+
+            return curNode;
+        };
+
+        return processNode(value);
     };
 
     /**
