@@ -18,11 +18,11 @@ There is a [shim](https://github.com/whiteout-io/tcp-socket) that brings [Mozill
 
 ### [Bower](http://bower.io/):
 
-    bower install git@github.com:whiteout-io/browserbox.git#0.1.0
+    bower install git@github.com:whiteout-io/browserbox.git#0.1.1
 
 ### [npm](https://www.npmjs.org/):
 
-    npm install https://github.com/whiteout-io/browserbox/tarball/0.1.0
+    npm install https://github.com/whiteout-io/browserbox/tarball/0.1.1
 
 ## Usage
 
