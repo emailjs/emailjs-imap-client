@@ -428,6 +428,26 @@ multipart/mixed
 }
 ```
 
+## Update notifications
+
+Message updates can be listened for by setting the `onupdate` handler. First argument for the callback defines the update type, and the second one is the new value.
+
+**Example**
+
+```javascript
+client.onupdate = function(type, value){
+    if (type == 'exists') {
+        console.log(value + ' messages exists in selected mailbox');
+    }
+}
+```
+
+Possible types:
+
+  * **exists** is emitted on untagged `EXISTS` response, `value` is the argument number used
+  * **expunge** is emitted on untagged `EXPUNGE` response, `value` is the sequence number of the deleted message
+  * **fetch** is emitted on flag change. `value` includes the parsed message object (probably includes only the sequence number `#` and `flags` array)
+
 ## Close connection
 
 You can close the connection with `close()`. This method doesn't actually terminate the connection, it sends LOGOUT command to the server.
