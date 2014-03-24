@@ -2611,7 +2611,7 @@ define([], function() {
                 {
                     "part": "2",
                     "type": "message/rfc822",
-                    "description": "i'll be whatever i wanna do. --fry",
+                    "description": "I'll be whatever I wanna do. --Fry",
                     "encoding": "7bit",
                     "size": 582,
                     "envelope": {
@@ -2641,9 +2641,6 @@ define([], function() {
                                 "address": "bob@domain.dom"
                             }
                         ],
-                        "cc": [],
-                        "bcc": [],
-                        "in-reply-to": null,
                         "message-id": "<1066973156.4264.42.camel@localhost>"
                     },
                     "childNodes": [
@@ -2664,7 +2661,7 @@ define([], function() {
                 {
                     "part": "3",
                     "type": "message/rfc822",
-                    "description": "would you kindly shut your noise-hole? --bender",
+                    "description": "Would you kindly shut your noise-hole? --Bender",
                     "encoding": "7bit",
                     "size": 1460,
                     "envelope": {
@@ -2694,9 +2691,6 @@ define([], function() {
                                 "address": "bob@domain.dom"
                             }
                         ],
-                        "cc": [],
-                        "bcc": [],
-                        "in-reply-to": null,
                         "message-id": "<1066976111.4263.74.camel@localhost>"
                     },
                     "childNodes": [
@@ -2716,7 +2710,7 @@ define([], function() {
                                 {
                                     "part": "3.2",
                                     "type": "message/rfc822",
-                                    "description": "at the risk of sounding negative, no. --leela",
+                                    "description": "At the risk of sounding negative, no. --Leela",
                                     "encoding": "7bit",
                                     "size": 697,
                                     "envelope": {
@@ -2746,9 +2740,6 @@ define([], function() {
                                                 "address": "bob@domain.dom"
                                             }
                                         ],
-                                        "cc": [],
-                                        "bcc": [],
-                                        "in-reply-to": null,
                                         "message-id": "<1066975745.4263.70.camel@localhost>"
                                     },
                                     "childNodes": [
@@ -2801,7 +2792,7 @@ define([], function() {
                 {
                     "part": "4",
                     "type": "message/rfc822",
-                    "description": "dirt doesn't need luck! --professor",
+                    "description": "Dirt doesn't need luck! --Professor",
                     "encoding": "7bit",
                     "size": 817,
                     "envelope": {
@@ -2831,9 +2822,6 @@ define([], function() {
                                 "address": "bob@domain.dom"
                             }
                         ],
-                        "cc": [],
-                        "bcc": [],
-                        "in-reply-to": null,
                         "message-id": "<1066974048.4264.62.camel@localhost>"
                     },
                     "childNodes": [
@@ -2843,7 +2831,7 @@ define([], function() {
                             "parameters": {
                                 "name": "blah.gz"
                             },
-                            "description": "attachment has identical content to above foo.gz",
+                            "description": "Attachment has identical content to above foo.gz",
                             "encoding": "base64",
                             "size": 396,
                             "disposition": "attachment",
@@ -2858,7 +2846,7 @@ define([], function() {
                 {
                     "part": "5",
                     "type": "message/rfc822",
-                    "description": "hold still, i don't have good depth perception! --leela",
+                    "description": "Hold still, I don't have good depth perception! --Leela",
                     "encoding": "7bit",
                     "size": 1045,
                     "envelope": {
@@ -2888,9 +2876,6 @@ define([], function() {
                                 "address": "bob@domain.dom"
                             }
                         ],
-                        "cc": [],
-                        "bcc": [],
-                        "in-reply-to": null,
                         "message-id": "<1066975756.4263.70.camel@localhost>"
                     },
                     "childNodes": [
@@ -2934,7 +2919,7 @@ define([], function() {
                 {
                     "part": "6",
                     "type": "message/rfc822",
-                    "description": "hello little man.  i will destroy you! --moro",
+                    "description": "Hello little man.  I WILL DESTROY YOU! --Moro",
                     "encoding": "7bit",
                     "size": 1149,
                     "envelope": {
@@ -2964,9 +2949,6 @@ define([], function() {
                                 "address": "bob@domain.dom"
                             }
                         ],
-                        "cc": [],
-                        "bcc": [],
-                        "in-reply-to": null,
                         "message-id": "<1066975761.4263.70.camel@localhost>"
                     },
                     "childNodes": [
@@ -2986,7 +2968,7 @@ define([], function() {
                                 {
                                     "part": "6.2",
                                     "type": "application/x-gzip",
-                                    "description": "i'm getting sick of witty things to say",
+                                    "description": "I'm getting sick of witty things to say",
                                     "encoding": "base64",
                                     "size": 58,
                                     "disposition": "attachment"
@@ -3004,7 +2986,7 @@ define([], function() {
                 {
                     "part": "7",
                     "type": "message/rfc822",
-                    "description": "friends! help! a guinea pig tricked me! --zoidberg",
+                    "description": "Friends! Help! A guinea pig tricked me! --Zoidberg",
                     "encoding": "7bit",
                     "size": 896,
                     "envelope": {
@@ -3034,9 +3016,6 @@ define([], function() {
                                 "address": "bob@domain.dom"
                             }
                         ],
-                        "cc": [],
-                        "bcc": [],
-                        "in-reply-to": null,
                         "message-id": "<1066974044.4264.62.camel@localhost>"
                     },
                     "childNodes": [
@@ -3076,7 +3055,7 @@ define([], function() {
                 {
                     "part": "8",
                     "type": "message/rfc822",
-                    "description": "smeesh! --amy",
+                    "description": "Smeesh! --Amy",
                     "encoding": "7bit",
                     "size": 642,
                     "envelope": {
@@ -3106,9 +3085,6 @@ define([], function() {
                                 "address": "bob@domain.dom"
                             }
                         ],
-                        "cc": [],
-                        "bcc": [],
-                        "in-reply-to": null,
                         "message-id": "<1066974089.4265.64.camel@localhost>"
                     },
                     "childNodes": [
@@ -3148,7 +3124,7 @@ define([], function() {
                 {
                     "part": "9",
                     "type": "message/rfc822",
-                    "description": "that's not a cigar. uh... and it's not mine. --hermes",
+                    "description": "That's not a cigar. Uh... and it's not mine. --Hermes",
                     "encoding": "7bit",
                     "size": 1515,
                     "envelope": {
@@ -3178,9 +3154,6 @@ define([], function() {
                                 "address": "bob@domain.dom"
                             }
                         ],
-                        "cc": [],
-                        "bcc": [],
-                        "in-reply-to": null,
                         "message-id": "<1066973957.4263.59.camel@localhost>"
                     },
                     "childNodes": [
@@ -3225,7 +3198,7 @@ define([], function() {
                 {
                     "part": "10",
                     "type": "message/rfc822",
-                    "description": "the spirit is willing, but the flesh is spongy, and    bruised. --zapp",
+                    "description": "The spirit is willing, but the flesh is spongy, and    bruised. --Zapp",
                     "encoding": "7bit",
                     "size": 6643,
                     "envelope": {
@@ -3255,9 +3228,6 @@ define([], function() {
                                 "address": "bob@domain.dom"
                             }
                         ],
-                        "cc": [],
-                        "bcc": [],
-                        "in-reply-to": null,
                         "message-id": "<1066972996.4264.39.camel@localhost>"
                     },
                     "childNodes": [
@@ -3342,7 +3312,7 @@ define([], function() {
                                     "parameters": {
                                         "name": "signature.asc"
                                     },
-                                    "description": "this is a digitally signed message part",
+                                    "description": "This is a digitally signed message part",
                                     "encoding": "7bit",
                                     "size": 196
                                 }
@@ -3361,7 +3331,7 @@ define([], function() {
                 {
                     "part": "11",
                     "type": "message/rfc822",
-                    "description": "kittens give morbo gas. --morbo",
+                    "description": "Kittens give Morbo gas. --Morbo",
                     "encoding": "7bit",
                     "size": 3088,
                     "envelope": {
@@ -3391,9 +3361,6 @@ define([], function() {
                                 "address": "bob@domain.dom"
                             }
                         ],
-                        "cc": [],
-                        "bcc": [],
-                        "in-reply-to": null,
                         "message-id": "<1066973557.4265.51.camel@localhost>"
                     },
                     "childNodes": [

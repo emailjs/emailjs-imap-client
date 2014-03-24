@@ -658,15 +658,11 @@
         options = options || {};
 
         var command = this._buildFETCHCommand(sequence, items, options);
-
         this.exec(command, 'FETCH', function(err, response, next) {
-            console.log('FETCH');
-            console.log(JSON.stringify(response, false, 4));
-            console.log(JSON.stringify(this._parseFETCH(response), false, 4));
             if (err) {
                 callback(err);
             } else {
-                callback(null, true);
+                callback(null, this._parseFETCH(response));
             }
             next();
         }.bind(this));
@@ -977,24 +973,24 @@
 
         if (!Array.isArray(value)) {
             switch (key) {
-                case 'UID':
-                case 'MODSEQ':
-                case 'RFC822.SIZE':
+                case 'uid':
+                case 'modseq':
+                case 'rfc822.size':
                     return Number(value.value) || 0;
             }
             return value.value;
         }
 
         switch (key) {
-            case 'FLAGS':
+            case 'flags':
                 value = [].concat(value).map(function(flag) {
                     return flag.value || '';
                 });
                 break;
-            case 'ENVELOPE':
+            case 'envelope':
                 value = this._parseENVELOPE([].concat(value || []));
                 break;
-            case 'BODYSTRUCTURE':
+            case 'bodystructure':
                 value = this._parseBODYSTRUCTURE([].concat(value || []));
                 break;
         }
@@ -1019,18 +1015,47 @@
                 };
             });
         },
-            envelope = {
-                date: value[0] && value[0].value,
-                subject: mimefuncs.mimeWordsDecode(value[1] && value[1].value),
-                from: processAddresses(value[2]),
-                sender: processAddresses(value[3]),
-                'reply-to': processAddresses(value[4]),
-                to: processAddresses(value[5]),
-                cc: processAddresses(value[6]),
-                bcc: processAddresses(value[7]),
-                'in-reply-to': value[8] && value[8].value,
-                'message-id': value[9] && value[9].value
-            };
+            envelope = {};
+
+        if (value[0] && value[0].value) {
+            envelope.date = value[0].value;
+        }
+
+        if (value[1] && value[1].value) {
+            envelope.subject = mimefuncs.mimeWordsDecode(value[1] && value[1].value);
+        }
+
+        if (value[2] && value[2].length) {
+            envelope.from = processAddresses(value[2]);
+        }
+
+        if (value[3] && value[3].length) {
+            envelope.sender = processAddresses(value[3]);
+        }
+
+        if (value[4] && value[4].length) {
+            envelope['reply-to'] = processAddresses(value[4]);
+        }
+
+        if (value[5] && value[5].length) {
+            envelope.to = processAddresses(value[5]);
+        }
+
+        if (value[6] && value[6].length) {
+            envelope.cc = processAddresses(value[6]);
+        }
+
+        if (value[7] && value[7].length) {
+            envelope.bcc = processAddresses(value[7]);
+        }
+
+        if (value[8] && value[8].value) {
+            envelope['in-reply-to'] = value[8].value;
+        }
+
+        if (value[9] && value[9].value) {
+            envelope['message-id'] = value[9].value;
+        }
 
         return envelope;
     };
@@ -1106,13 +1131,13 @@
 
                 // id
                 if (node[i]) {
-                    curNode.id = ((node[i] || {}).value || '').toString().toLowerCase();
+                    curNode.id = ((node[i] || {}).value || '').toString();
                 }
                 i++;
 
                 // description
                 if (node[i]) {
-                    curNode.description = ((node[i] || {}).value || '').toString().toLowerCase();
+                    curNode.description = ((node[i] || {}).value || '').toString();
                 }
                 i++;
 
@@ -1211,7 +1236,7 @@
             // Errata: http://www.rfc-editor.org/errata_search.php?rfc=3501
             if (i < node.length - 1) {
                 if (node[i]) {
-                    curNode.location = ((node[i] || {}).value || '').toString().toLowerCase();
+                    curNode.location = ((node[i] || {}).value || '').toString();
                 }
                 i++;
             }

@@ -421,7 +421,7 @@ define(['chai', 'sinon', 'browserbox', './fixtures/mime-torture-bodystructure'],
         });
 
         describe('#_parseBODYSTRUCTURE', function() {
-            it('should ', function() {
+            it('should parse bodystructure object', function() {
                 expect(br._parseBODYSTRUCTURE(mimeTorture.source)).to.deep.equal(mimeTorture.parsed);
             });
         });

@@ -304,24 +304,136 @@ Where
     * **changedSince** is the modseq filter. Only messages with higher modseq value will be returned
   * **callback** is the callback function to run once all me messages are processed with the following arguments
     * **err** is an error object, only set if the request failed
-    * .... not implemented
+    * **messages** is an array of messages from the provided sequence range
+
+> **A note about sequence ranges** – using `*` as a range selector might be a really bad idea. If the mailbox contains thousands of messages and you are running a `1:*` query, it might choke your application. Additionally, remember that `*` stands for the sequence number of _the last message_ in the mailbox. This means that if you have 10 messages in a mailbox and you run a query for a range of `5000:*` you still get a match as the query is treated as `10:5000` by the server
 
 Example
 
 ```javascript
-client.listMessages("1:10", ["uid", "flags", "body[]"], function(err, ...){
-   ... not entirely implemented
+client.listMessages("1:10", ["uid", "flags", "body[]"], function(err, messages){
+    messages.forEach(function(message){
+        console.log("Flags for " + message.uid + ": " + message.flags.join(", "));
+    });
 });
 ```
 
-**NB!** this method does not stream the values, you need to handle this by yourself (do not use full "1:*" ranges on mailboxes with unknown size or this might chrash your application).
+**NB!** this method does not stream the values, you need to handle this by yourself by using reasonable sized sequence ranges
+
+### Message item
+
+A listed message item includes (but is not limited to), the selected fields from the `query` argument (all keys are lowercase). Additionally the argument order and even argument names might not match. For example, when requesting for `body.peek` you get `body` back instead. Additionally the message includes a special key `#` which stands for the sequence number of the message.
+
+Most arguments return strings (eg. `body[]`) and numbers (eg. `uid`) while `flags` return an array, `envelope` and `bodystructure` return a processed object.
+
+```json
+{
+    "#": 123,
+    "uid": 456,
+    "flags": ["\\Seen", "$MyFlag"],
+    "envelope": {
+        "date": "Fri, 13 Sep 2013 15:01:00 +0300",
+        "subject": "hello 4",
+        "from": [{"name": "sender name", "address": "sender@example.com"}],
+        "to": [{"name": "Receiver name", "address": "receiver@example.com"}],
+        "message-id": "<abcde>"
+    }
+}
+```
+
+> **Special keys** - if a special key is used, eg. `BODY.PEEK[HEADER (Date Subject)]`, the response key is lowercase and in the form how the server responded it, eg. `body[header (date subject)]`
+
+### Envelope object
+
+An envelope includes the following fields (a value is only included in the response if it is set).
+
+  * **date** is a date (string) of the message
+  * **subject** is the subject of the message
+  * **from** is an array of addresses from the `from` header
+  * **sender** is an array of addresses from the `sender` header
+  * **reply-to** is an array of addresses from the `reply-to` header
+  * **to** is an array of addresses from the `to` header
+  * **cc** is an array of addresses from the `cc` header
+  * **bcc** is an array of addresses from the `bcc` header
+  * **in-reply-to** is the message-id of the message is message is replying to
+  * **message-id** is the message-id of the message
+
+All address fields are in the following format:
+
+```
+[
+    {
+        "name": "MIME decoded name",
+        "address": "email@address"
+    }
+]
+```
+
+### Bodystructure object
+
+A bodystructure object includes the following fields (all values are lowercase, unless the value might be case sensitive, eg. Content-Id value):
+
+  * **part** is the sub-part selector for `BODY[x.x.x]`, eg. "4.1.1" (this value is not set for the root object)
+  * **type** is the Content-Type of the body part
+  * **parameters** is an object defining extra arguments for Content-Type, example: `{border: "abc"}`
+  * **disposition** is the Content-Disposition value (without arguments)
+  * **dispositionParameters** is an object defining extra arguments for Content-Disposition, example: `{filename: "foo.gif"}`
+  * **language** is an array of language codes (hardly ever used)
+  * **location** is a string for body content URI (hardly ever used)
+  * **id** is the Content-Id value
+  * **description** is the Content-Description value
+  * **encoding** is the Content-Transfer-Encoding value
+  * **size** is the body size in octets
+  * **lineCount** (applies to `text/*` and `message/rfc822`) is the count of lines in the body
+  * **envelope** (applies to `message/rfc822`) is the envelope object of the sub-part
+  * **md5** is the MD5 hash of the message (hardly ever used)
+  * **childNodes** (applies to `multipart/*` and `message/rfc822`) is an array of embedded bodystructure objects
+
+**Example**
+
+Bodystructure for the following sample message structure:
+
+```
+multipart/mixed
+    text/plain
+    multipart/alternative
+        text/plain
+```
+
+```
+{
+    "type": "multipart/mixed",
+    "childNodes": [
+        {
+            "part": "1"
+            "type": "text/plain",
+            "encoding": "7bit",
+            "size": 8,
+            "lineCount": 1
+        },
+        {
+            "part": "2",
+            "type": "multipart/alternative",
+            "childNodes": [
+                {
+                    "part": "2.1",
+                    "type": "text/plain",
+                    "encoding": "7bit",
+                    "size": 8,
+                    "lineCount": 1
+                }
+            ]
+        }
+    ]
+}
+```
 
 ## Close connection
 
 You can close the connection with `close()`. This method doesn't actually terminate the connection, it sends LOGOUT command to the server.
 
 ```javascript
-clisne.close();
+client.close();
 ```
 
 Once the connection is actually closed `onclose` event is fired.
