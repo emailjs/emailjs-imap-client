@@ -1,7 +1,7 @@
 {
     "name": "browserbox",
     "main": "src/browserbox.js",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "homepage": "https://github.com/whiteout-io/browserbox",
     "authors": [
         "Andris Reinman <andris@kreata.ee>"
