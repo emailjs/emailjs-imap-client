@@ -18,9 +18,9 @@
     },
     "main": "src/browserbox",
     "dependencies": {
-        "utf7": "https://github.com/whiteout-io/utf7/tarball/2.0.0",
-        "imap-handler": "https://github.com/whiteout-io/imap-handler/tarball/0.1.8",
-        "mimefuncs": "https://github.com/whiteout-io/mimefuncs/tarball/0.1.5"
+        "utf7": "https://github.com/whiteout-io/utf7/tarball/v2.0.0",
+        "imap-handler": "https://github.com/whiteout-io/imap-handler/tarball/v0.1.8",
+        "mimefuncs": "https://github.com/whiteout-io/mimefuncs/tarball/v0.1.5"
     },
     "devDependencies": {
         "chai": "~1.8.1",
