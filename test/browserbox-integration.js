@@ -51,5 +51,40 @@ define(['chai', 'browserbox'], function(chai, BrowserBox) {
                 });
             });
         });
+
+        describe('#search', function() {
+            it('should return a sequence number', function(done) {
+                imap.selectMailbox('inbox', function(err){
+                    expect(err).to.not.exist;
+                    imap.search({header: ['subject', 'hello 3']}, function(err, result) {
+                        expect(err).to.not.exist;
+                        expect(result).to.deep.equal([3]);
+                        done();
+                    });
+                });
+            });
+
+            it('should return an uid', function(done) {
+                imap.selectMailbox('inbox', function(err){
+                    expect(err).to.not.exist;
+                    imap.search({header: ['subject', 'hello 3']}, {byUid: true}, function(err, result) {
+                        expect(err).to.not.exist;
+                        expect(result).to.deep.equal([555]);
+                        done();
+                    });
+                });
+            });
+
+            it('should work with complex queries', function(done) {
+                imap.selectMailbox('inbox', function(err){
+                    expect(err).to.not.exist;
+                    imap.search({header: ['subject', 'hello'], seen: true}, function(err, result) {
+                        expect(err).to.not.exist;
+                        expect(result).to.deep.equal([2]);
+                        done();
+                    });
+                });
+            });
+        });
     });
 });
