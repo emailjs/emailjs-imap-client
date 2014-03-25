@@ -462,6 +462,41 @@ define(['chai', 'sinon', 'browserbox', './fixtures/mime-torture-bodystructure'],
             });
         });
 
+        describe('#_buildSEARCHCommand', function() {
+            it('should compose a search command', function(){
+                expect(br._buildSEARCHCommand({
+                    unseen: true,
+                    header: ["subject", "hello world"],
+                    or: {
+                        unseen: true,
+                        seen: true
+                    },
+                    not: {
+                        seen: true
+                    },
+                    sentbefore: new Date(2011, 1, 3, 12, 0, 0),
+                    since: new Date(2011, 11, 23, 12, 0, 0)
+                }, {})).to.deep.equal({
+                    command: "SEARCH",
+                    attributes: [
+                        {"type":"atom","value":"UNSEEN"},
+                        {"type":"atom","value":"HEADER"},
+                        {"type":"string","value":"subject"},
+                        {"type":"string","value":"hello world"},
+                        {"type":"atom","value":"OR"},
+                        {"type":"atom","value":"UNSEEN"},
+                        {"type":"atom","value":"SEEN"},
+                        {"type":"atom","value":"NOT"},
+                        {"type":"atom","value":"SEEN"},
+                        {"type":"atom","value":"SENTBEFORE"},
+                        {"type":"string","value":"3-Feb-2011"},
+                        {"type":"atom","value":"SINCE"},
+                        {"type":"string","value":"23-Dec-2011"}
+                    ]
+                });
+            });
+        });
+
         /* jshint indent:false */
 
     });

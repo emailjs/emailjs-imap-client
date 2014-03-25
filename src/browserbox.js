@@ -628,7 +628,6 @@
     };
 
     /**
-     * TODO: Write docs
      * Runs FETCH command
      *
      * FETCH details:
@@ -664,6 +663,35 @@
                 callback(err);
             } else {
                 callback(null, this._parseFETCH(response));
+            }
+            next();
+        }.bind(this));
+    };
+
+    /**
+     * Runs SEARCH command
+     *
+     * SEARCH details:
+     *   http://tools.ietf.org/html/rfc3501#section-6.4.4
+     *
+     * @param {Object} query Search terms
+     * @param {Object} [options] Query modifiers
+     * @param {Function} callback Callback function with the array of matching seq. or uid numbers
+     */
+    BrowserBox.prototype.search = function(query, options, callback) {
+        if (!callback && typeof options === 'function') {
+            callback = options;
+            options = undefined;
+        }
+
+        options = options || {};
+
+        var command = this._buildSEARCHCommand(query, options);
+        this.exec(command, 'SEARCH', function(err, response, next) {
+            if (err) {
+                callback(err);
+            } else {
+                callback(null, this._parseSEARCH(response));
             }
             next();
         }.bind(this));
@@ -1250,6 +1278,110 @@
         };
 
         return processNode(value);
+    };
+
+    /**
+     * Compiles a search query into an IMAP command. Queries are composed as objects
+     * where keys are search terms and values are term arguments. Only strings,
+     * numbers and Dates are used. If the value is an array, the members of it
+     * are processed separately (use this for terms that require multiple params).
+     * If the value is a Date, it is converted to the form of "01-Jan-1970".
+     * Subqueries (OR, NOT) are made up of objects
+     *
+     *    {unseen: true, header: ["subject", "hello world"]};
+     *    SEARCH UNSEEN HEADER "subject" "hello world"
+     *
+     * @param {Object} query Search query
+     * @param {Object} [options] Option object
+     * @param {Boolean} [options.byUid] If ture, use UID SEARCH instead of SEARCH
+     * @return {Object} IMAP command object
+     */
+    BrowserBox.prototype._buildSEARCHCommand = function(query, options) {
+        var command = {
+            command: options.byUid ? 'UID SEARCH' : 'SEARCH'
+        };
+
+        var buildTerm = function(query){
+            var list = [];
+
+            Object.keys(query).forEach(function(key){
+                var params = [],
+
+                    formatDate = function(date){
+                        return date.toUTCString().replace(/^\w+, 0?(\d+) (\w+) (\d+).*/, "$1-$2-$3");
+                    },
+
+                    escapeParam = function(param){
+                        if (typeof param === "number") {
+                            return {
+                                type: "number",
+                                value: param
+                            };
+                        } else if (typeof param === "string") {
+                            return {
+                                type: "string",
+                                value: param
+                            };
+                        } else if (Object.prototype.toString.call(param) === "[object Date]") {
+                            return {
+                                type: "string",
+                                value: formatDate(param)
+                            };
+                        } else if(Array.isArray(param)) {
+                            return param.map(escapeParam);
+                        } else if(typeof param === "object") {
+                            return buildTerm(param);
+                        }
+                    };
+
+                params.push({type: "atom", value: key.toUpperCase()});
+
+                [].concat(query[key] || []).forEach(function(param) {
+                    param = escapeParam(param);
+                    if(param){
+                        params = params.concat(param || []);
+                    }
+                });
+                list = list.concat(params || []);
+            });
+
+            return list;
+        };
+
+        command.attributes = [].concat(buildTerm(query || {}) || []);
+
+        return command;
+    };
+
+    /**
+     * Parses SEARCH response. Gathers all untagged SEARCH responses, fetched seq./uid numbers
+     * and compiles these into a sorted array.
+     *
+     * @param {Object} response
+     * @return {Object} Message object
+     * @param {Array} Seq./UID number list
+     */
+    BrowserBox.prototype._parseSEARCH = function(response) {
+        var list = [];
+
+        if (!response || !response.payload || !response.payload.SEARCH || !response.payload.SEARCH.length) {
+            return [];
+        }
+
+        [].concat(response.payload.SEARCH || []).forEach(function(result) {
+            result.attributes.forEach(function(nr){
+                nr = Number(nr && nr.value || nr || 0) || 0;
+                if(list.indexOf(nr) < 0){
+                    list.push(nr);
+                }
+            });
+        }.bind(this));
+
+        list.sort(function(a, b){
+            return a - b;
+        });
+
+        return list;
     };
 
     /**

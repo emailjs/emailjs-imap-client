@@ -428,6 +428,56 @@ multipart/mixed
 }
 ```
 
+## Searching
+
+Search for messages with `search()`
+
+```javascript
+client.search(query[, options], callback)
+```
+
+Where
+
+  * **query** defines the search terms, see below
+  * **options** is an optional options object
+    * **byUid** if `true` executes `UID SEARCH` instead of `SEARCH`
+  * **callback** is the callback function to run once all me messages are processed with the following arguments
+    * **err** is an error object, only set if the request failed
+    * **results** is an array of sorted and unique message sequence numbers or uid numbers that match the specified search query
+
+Queries are composed as objects where keys are search terms and values are term arguments.
+Only strings, numbers and Date values are used as arguments.
+If the value is an array, the members of it are processed separately (use this for terms that require multiple params).
+If the value is a Date, it is converted to the form of '01-Jan-1970'.
+Subqueries (OR, NOT) are made up of objects.
+
+Examples:
+
+```javascript
+// SEARCH UNSEEN
+query = {unseen: true}
+// SEARCH KEYWORD 'flagname'
+query = {keyword: 'flagname'}
+// SEARCH HEADER 'subject' 'hello world'
+query = {header: ['subject', 'hello world']};
+// SEARCH UNSEEN HEADER 'subject' 'hello world'
+query = {unseen: true, header: ['subject', 'hello world']};
+// SEARCH OR UNSEEN SEEN
+query = {or: {unseen: true, seen: true}};
+// SEARCH UNSEEN NOT SEEN
+query = {unseen: true, not: {seen: true}}
+```
+
+Example
+
+```javascript
+client.search({unseen: true}, {byUid: true}, function(err, result){
+    result.forEach(function(uid){
+        console.log('Message ' + uid + ' is unread');
+    });
+});
+```
+
 ## Update notifications
 
 Message updates can be listened for by setting the `onupdate` handler. First argument for the callback defines the update type, and the second one is the new value.
