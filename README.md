@@ -297,8 +297,8 @@ client.listMessages(sequence, query[, options], callback)
 
 Where
 
-  * **sequence** defines the range of sequence numbers or UID values (if `byUid` option is set to true). Example: "1", "1:*", "1,2:3,4" etc.
-  * **query** is an array of keys that need to be fetched. Example: ["uid", "flags", "body.peek[headers (date)]"]
+  * **sequence** defines the range of sequence numbers or UID values (if `byUid` option is set to true). Example: '1', '1:*', '1,2:3,4' etc.
+  * **query** is an array of keys that need to be fetched. Example: ['uid', 'flags', 'body.peek[headers (date)]']
   * **options** is an optional options object
     * **byUid** if `true` executes `UID FETCH` instead of `FETCH`
     * **changedSince** is the modseq filter. Only messages with higher modseq value will be returned
@@ -311,9 +311,9 @@ Where
 Example
 
 ```javascript
-client.listMessages("1:10", ["uid", "flags", "body[]"], function(err, messages){
+client.listMessages('1:10', ['uid', 'flags', 'body[]'], function(err, messages){
     messages.forEach(function(message){
-        console.log("Flags for " + message.uid + ": " + message.flags.join(", "));
+        console.log('Flags for ' + message.uid + ': ' + message.flags.join(', '));
     });
 });
 ```
@@ -443,12 +443,12 @@ Where
     * **byUid** if `true` executes `UID SEARCH` instead of `SEARCH`
   * **callback** is the callback function to run once all me messages are processed with the following arguments
     * **err** is an error object, only set if the request failed
-    * **results** is an array of sorted and unique message sequence numbers or uid numbers that match the specified search query
+    * **results** is an array of sorted and unique message sequence numbers or UID numbers that match the specified search query
 
 Queries are composed as objects where keys are search terms and values are term arguments.
 Only strings, numbers and Date values are used as arguments.
 If the value is an array, the members of it are processed separately (use this for terms that require multiple params).
-If the value is a Date, it is converted to the form of '01-Jan-1970'.
+If the value is a Date, it is converted to the form of '1-Jan-1970'.
 Subqueries (OR, NOT) are made up of objects.
 
 Examples:
@@ -468,13 +468,48 @@ query = {or: {unseen: true, seen: true}};
 query = {unseen: true, not: {seen: true}}
 ```
 
-Example
+### Example
 
 ```javascript
 client.search({unseen: true}, {byUid: true}, function(err, result){
     result.forEach(function(uid){
         console.log('Message ' + uid + ' is unread');
     });
+});
+```
+
+## Update flags
+
+Update message flags with `setFlags()`
+
+```javascript
+client.setFlags(sequence, flags[, options], callback)
+```
+
+Where
+
+  * **sequence** defines the range of sequence numbers or UID values (if `byUid` option is set to true). Example: '1', '1:*', '1,2:3,4' etc.
+  * **flags** is an object defining flag updates, see below for details
+  * **options** is an optional options object
+    * **byUid** if `true` executes `UID SEARCH` instead of `SEARCH`
+    * **silent** if `true` does not return anything. Useful when updating large range of messages at once (`'1:*'`)
+  * **callback** is the callback function to run once all me messages are processed with the following arguments
+    * **err** is an error object, only set if the request failed
+    * **messages** is an array of messages from the provided sequence range (or empty when `silent:true` option is set). Includes `flags` property and `uid` if `byUid:true` option was used.
+
+### Flag update object
+
+  * **{set: arrFlags}** for setting flags
+  * **{add: arrFlags}** for adding new flags
+  * **{remove: arrFlags}** for removing specified flags
+
+Where `arrFlags` is an array containing flag strings
+
+### Example
+
+```javascript
+client.setFlags('1', {add: ['\\Seen']}, function(err, result){
+    console.log('New flags for message: ' + result[0].flags.join(', '));
 });
 ```
 

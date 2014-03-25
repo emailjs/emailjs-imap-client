@@ -698,6 +698,36 @@
     };
 
     /**
+     * Runs STORE command
+     *
+     * STORE details:
+     *   http://tools.ietf.org/html/rfc3501#section-6.4.6
+     *
+     * @param {String} sequence Message selector which the flag change is applied to
+     * @param {Array} flags
+     * @param {Object} [options] Query modifiers
+     * @param {Function} callback Callback function with the array of matching seq. or uid numbers
+     */
+    BrowserBox.prototype.setFlags = function(sequence, flags, options, callback) {
+        if (!callback && typeof options === 'function') {
+            callback = options;
+            options = undefined;
+        }
+
+        options = options || {};
+
+        var command = this._buildSTORECommand(sequence, flags, options);
+        this.exec(command, 'FETCH', function(err, response, next) {
+            if (err) {
+                callback(err);
+            } else {
+                callback(null, this._parseFETCH(response));
+            }
+            next();
+        }.bind(this));
+    };
+
+    /**
      * Runs SELECT or EXAMINE to open a mailbox
      *
      * SELECT details:
@@ -1382,6 +1412,46 @@
         });
 
         return list;
+    };
+
+    /**
+     * Creates an IMAP STORE command from the selected arguments
+     */
+    BrowserBox.prototype._buildSTORECommand = function(sequence, flags, options) {
+        var command = {
+            command: options.byUid ? 'UID STORE' : 'STORE',
+            attributes: [{type: 'sequence', value: sequence}]
+        },
+            key = '', list = [];
+
+        if (Array.isArray(flags) || typeof flags !== 'object') {
+            flags = {set: flags};
+        }
+
+        if (flags.add) {
+            list = [].concat(flags.add || []);
+            key = '+';
+        } else if (flags.set) {
+            key = '';
+            list = [].concat(flags.set || []);
+        } else if (flags.remove) {
+            key = '-';
+            list = [].concat(flags.remove || []);
+        }
+
+        command.attributes.push({
+            type: 'atom',
+            value: key + 'FLAGS' + (options.silent ? '.SILENT' : '')
+        });
+
+        command.attributes.push(list.map(function(flag){
+            return {
+                type: 'atom',
+                value: flag
+            };
+        }));
+
+        return command;
     };
 
     /**

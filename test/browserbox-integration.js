@@ -86,5 +86,51 @@ define(['chai', 'browserbox'], function(chai, BrowserBox) {
                 });
             });
         });
+
+        describe('#setFlags', function() {
+            it('should set flags for a message', function(done) {
+                imap.selectMailbox('inbox', function(err) {
+                    expect(err).to.not.exist;
+                    imap.setFlags('1', ['\\Seen', '$MyFlag'], function(err, result) {
+                        expect(err).to.not.exist;
+                        expect(result).to.deep.equal([{
+                            '#': 1,
+                            'flags': ['\\Seen', '$MyFlag']
+                        }]);
+
+                        done();
+                    });
+                });
+            });
+            it('should add flags to a message', function(done) {
+                imap.selectMailbox('inbox', function(err) {
+                    expect(err).to.not.exist;
+                    imap.setFlags('2', {add: ['$MyFlag']}, function(err, result) {
+                        expect(err).to.not.exist;
+                        expect(result).to.deep.equal([{
+                            '#': 2,
+                            'flags': ['\\Seen', '$MyFlag']
+                        }]);
+
+                        done();
+                    });
+                });
+            });
+            it('should remove flags from a message', function(done) {
+                imap.selectMailbox('inbox', function(err) {
+                    expect(err).to.not.exist;
+                    imap.setFlags('557', {remove: ['\\Deleted']}, {byUid: true}, function(err, result) {
+                        expect(err).to.not.exist;
+                        expect(result).to.deep.equal([{
+                            '#': 5,
+                            'flags': ['$MyFlag'],
+                            'uid': 557
+                        }]);
+
+                        done();
+                    });
+                });
+            });
+        });
     });
 });

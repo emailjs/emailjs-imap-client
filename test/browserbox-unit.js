@@ -497,6 +497,107 @@ define(['chai', 'sinon', 'browserbox', './fixtures/mime-torture-bodystructure'],
             });
         });
 
+        describe('#_buildSTORECommand', function() {
+
+            it('should compose a store command from a string', function(){
+                expect(br._buildSTORECommand('1,2,3', 'a', {})).to.deep.equal({
+                    command: "STORE",
+                    attributes: [
+                        {"type":"sequence","value":"1,2,3"},
+                        {"type":"atom","value":"FLAGS"},
+                        [
+                            {"type":"atom","value":"a"}
+                        ]
+                    ]
+                });
+            });
+
+            it('should compose a store command from an array', function(){
+                expect(br._buildSTORECommand('1,2,3', ['a', 'b'], {})).to.deep.equal({
+                    command: "STORE",
+                    attributes: [
+                        {"type":"sequence","value":"1,2,3"},
+                        {"type":"atom","value":"FLAGS"},
+                        [
+                            {"type":"atom","value":"a"},
+                            {"type":"atom","value":"b"}
+                        ]
+                    ]
+                });
+            });
+
+            it('should compose a store set flags command', function(){
+                expect(br._buildSTORECommand('1,2,3', {set: ['a', 'b']}, {})).to.deep.equal({
+                    command: "STORE",
+                    attributes: [
+                        {"type":"sequence","value":"1,2,3"},
+                        {"type":"atom","value":"FLAGS"},
+                        [
+                            {"type":"atom","value":"a"},
+                            {"type":"atom","value":"b"}
+                        ]
+                    ]
+                });
+            });
+
+            it('should compose a store add flags command', function(){
+                expect(br._buildSTORECommand('1,2,3', {add: ['a', 'b']}, {})).to.deep.equal({
+                    command: "STORE",
+                    attributes: [
+                        {"type":"sequence","value":"1,2,3"},
+                        {"type":"atom","value":"+FLAGS"},
+                        [
+                            {"type":"atom","value":"a"},
+                            {"type":"atom","value":"b"}
+                        ]
+                    ]
+                });
+            });
+
+            it('should compose a store remove flags command', function(){
+                expect(br._buildSTORECommand('1,2,3', {remove: ['a', 'b']}, {})).to.deep.equal({
+                    command: "STORE",
+                    attributes: [
+                        {"type":"sequence","value":"1,2,3"},
+                        {"type":"atom","value":"-FLAGS"},
+                        [
+                            {"type":"atom","value":"a"},
+                            {"type":"atom","value":"b"}
+                        ]
+                    ]
+                });
+            });
+
+            it('should compose a store remove silent flags command', function(){
+                expect(br._buildSTORECommand('1,2,3', {remove: ['a', 'b']}, {silent: true})).to.deep.equal({
+                    command: "STORE",
+                    attributes: [
+                        {"type":"sequence","value":"1,2,3"},
+                        {"type":"atom","value":"-FLAGS.SILENT"},
+                        [
+                            {"type":"atom","value":"a"},
+                            {"type":"atom","value":"b"}
+                        ]
+                    ]
+                });
+            });
+
+            it('should compose a uid store flags command', function(){
+                expect(br._buildSTORECommand('1,2,3', {set: ['a', 'b']}, {byUid: true})).to.deep.equal({
+                    command: "UID STORE",
+                    attributes: [
+                        {"type":"sequence","value":"1,2,3"},
+                        {"type":"atom","value":"FLAGS"},
+                        [
+                            {"type":"atom","value":"a"},
+                            {"type":"atom","value":"b"}
+                        ]
+                    ]
+                });
+            });
+
+        });
+
         /* jshint indent:false */
 
     });
