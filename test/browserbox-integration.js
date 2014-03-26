@@ -102,6 +102,7 @@ define(['chai', 'browserbox'], function(chai, BrowserBox) {
                     });
                 });
             });
+
             it('should add flags to a message', function(done) {
                 imap.selectMailbox('inbox', function(err) {
                     expect(err).to.not.exist;
@@ -116,6 +117,7 @@ define(['chai', 'browserbox'], function(chai, BrowserBox) {
                     });
                 });
             });
+
             it('should remove flags from a message', function(done) {
                 imap.selectMailbox('inbox', function(err) {
                     expect(err).to.not.exist;
@@ -126,6 +128,18 @@ define(['chai', 'browserbox'], function(chai, BrowserBox) {
                             'flags': ['$MyFlag'],
                             'uid': 557
                         }]);
+
+                        done();
+                    });
+                });
+            });
+
+            it('should not return anything on silent mode', function(done) {
+                imap.selectMailbox('inbox', function(err) {
+                    expect(err).to.not.exist;
+                    imap.setFlags('1', ['$MyFlag2'], {silent: true}, function(err, result) {
+                        expect(err).to.not.exist;
+                        expect(result).to.deep.equal([]);
 
                         done();
                     });
