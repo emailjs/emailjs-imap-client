@@ -104,7 +104,7 @@ module.exports = function(grunt) {
                         {raw: "Subject: hello 2\r\n\r\nWorld 2!", flags: ["\\Seen"]},
                         {raw: "Subject: hello 3\r\n\r\nWorld 3!", uid: 555},
                         {raw: "From: sender name <sender@example.com>\r\nTo: Receiver name <receiver@example.com>\r\nSubject: hello 4\r\nMessage-Id: <abcde>\r\nDate: Fri, 13 Sep 2013 15:01:00 +0300\r\n\r\nWorld 4!"},
-                        {raw: "Subject: hello 5\r\n\r\nWorld 5!"},
+                        {raw: "Subject: hello 5\r\n\r\nWorld 5!", flags: ["$MyFlag", "\\Deleted"], uid: 557},
                         {raw: "Subject: hello 6\r\n\r\nWorld 6!"}
                     ]
                 },
