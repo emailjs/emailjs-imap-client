@@ -497,13 +497,17 @@ Where
     * **err** is an error object, only set if the request failed
     * **messages** is an array of messages from the provided sequence range (or empty when `silent:true` option is set). Includes `flags` property and `uid` if `byUid:true` option was used.
 
+### Reading flags
+
+You can check the flags for a message or a range of messages with `listMessages` - use `['flags']` as the query object.
+
 ### Flag update object
 
-  * **{set: arrFlags}** for setting flags
-  * **{add: arrFlags}** for adding new flags
-  * **{remove: arrFlags}** for removing specified flags
+  * `{ set: arrFlags }` for setting flags
+  * `{ add: arrFlags }` for adding new flags
+  * `{ remove: arrFlags }` for removing specified flags
 
-Where `arrFlags` is an array containing flag strings
+Where `arrFlags` is an array containing flag strings, ie. `['\\Seen', '$MyFlag']`
 
 ### Example
 
