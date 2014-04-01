@@ -50,8 +50,7 @@ module.exports = function(grunt) {
                     'tcp-socket/src/tcp-socket.js',
                     'node-forge/js/forge.min.js',
                     'arraybuffer-slice/index.js',
-                    'stringencoding/encoding-indexes.js',
-                    'stringencoding/encoding.js',
+                    'stringencoding/dist/stringencoding.js',
                     'utf7/src/utf7.js',
                     'imap-handler/src/*.js',
                     'mimefuncs/src/mimefuncs.js'
