@@ -728,6 +728,53 @@
     };
 
     /**
+     * Deletes messages from a selected mailbox
+     *
+     * EXPUNGE details:
+     *   http://tools.ietf.org/html/rfc3501#section-6.4.3
+     * UID EXPUNGE details:
+     *   https://tools.ietf.org/html/rfc4315#section-2.1
+     *
+     * If possible (byUid:true and UIDPLUS extension supported), uses UID EXPUNGE
+     * command to delete a range of messages, otherwise falls back to EXPUNGE.
+     *
+     * NB! This method might be destructive - if EXPUNGE is used, then any messages
+     * with \Deleted flag set are deleted
+     *
+     * @param {String} sequence Message range to be deleted
+     * @param {Object} [options] Query modifiers
+     * @param {Function} callback Callback function with the array of expunged messages
+     */
+    BrowserBox.prototype.deleteMessages = function(sequence, options, callback) {
+        if (!callback && typeof options === 'function') {
+            callback = options;
+            options = undefined;
+        }
+
+        options = options || {};
+
+        // add \Deleted flag to the messages and run EXPUNGE or UID EXPUNGE
+        this.setFlags(sequence, {add: '\\Deleted'}, options, function(err){
+            if (err) {
+                return callback(err);
+            }
+
+            this.exec(
+                options.byUid && this.capability.indexOf('UIDPLUS') >= 0 ?
+                {command: 'UID EXPUNGE',attributes: [{type: 'sequence', value: sequence}]} : 'EXPUNGE',
+                'EXPUNGE',
+                function(err, response, next) {
+                if (err) {
+                    callback(err);
+                } else {
+                    callback(null, this._parseEXPUNGE(response));
+                }
+                next();
+            }.bind(this));
+        }.bind(this));
+    };
+
+    /**
      * Runs SELECT or EXAMINE to open a mailbox
      *
      * SELECT details:
@@ -1412,6 +1459,22 @@
         });
 
         return list;
+    };
+
+    /**
+     * Parses EXPUNGE response
+     *
+     * @param {Object} response
+     * @return {Object} Message object
+     */
+    BrowserBox.prototype._parseEXPUNGE = function(response) {
+        if (!response || !response.payload || !response.payload.EXPUNGE || !response.payload.EXPUNGE.length) {
+            return [];
+        }
+
+        return [].concat(response.payload.EXPUNGE || []).map(function(message) {
+            return message.nr;
+        });
     };
 
     /**

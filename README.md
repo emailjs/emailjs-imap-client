@@ -517,6 +517,36 @@ client.setFlags('1', {add: ['\\Seen']}, function(err, result){
 });
 ```
 
+## Delete messages
+
+Delete messages with `deleteMessages()`
+
+```javascript
+client.deleteMessages(sequence[, options], callback)
+```
+
+Where
+
+  * **sequence** defines the range of sequence numbers or UID values (if `byUid` option is set to true). Example: '1', '1:*', '1,2:3,4' etc.
+  * **options** is an optional options object
+    * **byUid** if `true` uses UID values instead of sequence numbers to define the range
+  * **callback** is the callback function to run once all me messages are processed with the following arguments
+    * **err** is an error object, only set if the request failed
+    * **result** is an array of message sequence numbers that were deleted in the order they appeared, eg. when deleting a range of 3:5, you get `[3, 3, 3]` as the result
+
+If possible (`byUid:true` is set and UIDPLUS extension is supported by the server) uses `UID EXPUNGE`
+otherwise falls back to EXPUNGE to delete the messages – which means that this method might be
+destructive. If `EXPUNGE` is used, then any messages with `\Deleted` flag set are deleted even if these
+messages are not included in the specified sequence range.
+
+### Example
+
+```javascript
+client.deleteMessages('1:5', function(err, result){
+    console.log(result.length + ' messages were deleted');
+});
+```
+
 ## Update notifications
 
 Message updates can be listened for by setting the `onupdate` handler. First argument for the callback defines the update type, and the second one is the new value.

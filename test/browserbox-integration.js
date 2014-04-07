@@ -146,5 +146,19 @@ define(['chai', 'browserbox'], function(chai, BrowserBox) {
                 });
             });
         });
+
+        describe('#deleteMessages', function() {
+            it('should delete a message and return sequence number', function(done) {
+                imap.selectMailbox('inbox', function(err) {
+                    expect(err).to.not.exist;
+                    imap.deleteMessages(557, {byUid: true}, function(err, result) {
+                        expect(err).to.not.exist;
+                        expect(result).to.deep.equal([5]);
+
+                        done();
+                    });
+                });
+            });
+        });
     });
 });
