@@ -4,7 +4,7 @@ module.exports = function(grunt) {
     // Project configuration.
     grunt.initConfig({
         jshint: {
-            all: ['*.js', 'src/*.js', 'test/*.js'],
+            all: ['*.js', 'src/*.js', 'test/unit/*.js', 'test/integration/*.js', 'test/chrome/*.js'],
             options: {
                 jshintrc: '.jshintrc'
             }
@@ -20,12 +20,21 @@ module.exports = function(grunt) {
             }
         },
 
+        mochaTest: {
+            test: {
+                options: {
+                    reporter: 'spec'
+                },
+                src: ['test/integration/*.js']
+            }
+        },
+
         mocha_phantomjs: {
             all: {
                 options: {
                     reporter: 'spec'
                 },
-                src: ['test/unit.html']
+                src: ['test/unit/unit.html']
             }
         },
 
@@ -84,6 +93,7 @@ module.exports = function(grunt) {
     grunt.loadNpmTasks('grunt-contrib-watch');
     grunt.loadNpmTasks('grunt-contrib-copy');
     grunt.loadNpmTasks('grunt-contrib-clean');
+    grunt.loadNpmTasks('grunt-mocha-test');
 
     // Tasks
     grunt.registerTask('hoodiecrow', function() {
@@ -154,5 +164,6 @@ module.exports = function(grunt) {
     grunt.registerTask('imap', ['deps', 'hoodiecrow']);
     grunt.registerTask('dev', ['jshint', 'deps', 'connect']);
     grunt.registerTask('deps', ['clean', 'copy']);
-    grunt.registerTask('default', ['jshint', 'deps', 'mocha_phantomjs']);
+    grunt.registerTask('test', ['jshint', 'mocha_phantomjs', 'mochaTest']);
+    grunt.registerTask('default', ['deps', 'test']);
 };

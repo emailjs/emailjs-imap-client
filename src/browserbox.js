@@ -22,9 +22,14 @@
     'use strict';
 
     if (typeof define === 'function' && define.amd) {
-        define(['browserbox-imap', 'utf7', 'imap-handler', 'mimefuncs'], factory);
+        define(['browserbox-imap', 'utf7', 'imap-handler', 'mimefuncs'], function(ImapClient, utf7, imapHandler, mimefuncs) {
+            return factory(ImapClient, utf7, imapHandler, mimefuncs);
+        });
+    } else if (typeof exports === 'object') {
+
+        module.exports = factory(require('./browserbox-imap'), require('utf7'), require('imap-handler'), require('mimefuncs'));
     } else {
-        root.BrowserBox = factory(BrowserboxImapClient, utf7, imapHandler, mimefuncs);
+        root.BrowserBox = factory(root.ImapClient, root.utf7, root.imapHandler, root.mimefuncs);
     }
 }(this, function(ImapClient, utf7, imapHandler, mimefuncs) {
     'use strict';
@@ -161,6 +166,7 @@
      * @event
      */
     BrowserBox.prototype._onTimeout = function() {
+        clearTimeout(this._connectionTimeout);
         this.onerror(new Error('Timeout creating connection to the IMAP server'));
         this.client._destroy();
     };
@@ -728,6 +734,154 @@
     };
 
     /**
+     * Deletes messages from a selected mailbox
+     *
+     * EXPUNGE details:
+     *   http://tools.ietf.org/html/rfc3501#section-6.4.3
+     * UID EXPUNGE details:
+     *   https://tools.ietf.org/html/rfc4315#section-2.1
+     *
+     * If possible (byUid:true and UIDPLUS extension supported), uses UID EXPUNGE
+     * command to delete a range of messages, otherwise falls back to EXPUNGE.
+     *
+     * NB! This method might be destructive - if EXPUNGE is used, then any messages
+     * with \Deleted flag set are deleted
+     *
+     * @param {String} sequence Message range to be deleted
+     * @param {Object} [options] Query modifiers
+     * @param {Function} callback Callback function with the array of expunged messages
+     */
+    BrowserBox.prototype.deleteMessages = function(sequence, options, callback) {
+        if (!callback && typeof options === 'function') {
+            callback = options;
+            options = undefined;
+        }
+
+        options = options || {};
+
+        // add \Deleted flag to the messages and run EXPUNGE or UID EXPUNGE
+        this.setFlags(sequence, {
+            add: '\\Deleted'
+        }, options, function(err) {
+            if (err) {
+                return callback(err);
+            }
+
+            this.exec(
+                options.byUid && this.capability.indexOf('UIDPLUS') >= 0 ? {
+                    command: 'UID EXPUNGE',
+                    attributes: [{
+                        type: 'sequence',
+                        value: sequence
+                    }]
+                } : 'EXPUNGE',
+                'EXPUNGE',
+                function(err, response, next) {
+                    if (err) {
+                        callback(err);
+                    } else {
+                        callback(null, this._parseEXPUNGE(response));
+                    }
+                    next();
+                }.bind(this));
+        }.bind(this));
+    };
+
+    /**
+     * Copies a range of messages from the active mailbox to the destination mailbox.
+     * Silent method (unless an error occurs), by default returns no information.
+     *
+     * COPY details:
+     *   http://tools.ietf.org/html/rfc3501#section-6.4.7
+     *
+     * @param {String} sequence Message range to be copied
+     * @param {String} destination Destination mailbox path
+     * @param {Object} [options] Query modifiers
+     * @param {Boolean} [options.byUid] If true, uses UID COPY instead of COPY
+     * @param {Function} callback Callback function
+     */
+    BrowserBox.prototype.copyMessages = function(sequence, destination, options, callback) {
+        if (!callback && typeof options === 'function') {
+            callback = options;
+            options = undefined;
+        }
+
+        options = options || {};
+
+        this.exec({
+                command: options.byUid ? 'UID COPY' : 'COPY',
+                attributes: [{
+                    type: 'sequence',
+                    value: sequence
+                }, {
+                    type: 'atom',
+                    value: destination
+                }]
+            },
+            function(err, response, next) {
+                if (err) {
+                    callback(err);
+                } else {
+                    callback(null, response.humanReadable || 'COPY completed');
+                }
+                next();
+            }.bind(this));
+    };
+
+    /**
+     * Moves a range of messages from the active mailbox to the destination mailbox.
+     * Prefers the MOVE extension but if not available, falls back to
+     * COPY + EXPUNGE
+     *
+     * MOVE details:
+     *   http://tools.ietf.org/html/rfc6851
+     *
+     * Callback returns the list of sequence numbers that were deleted from the current folder
+     *
+     * @param {String} sequence Message range to be moved
+     * @param {String} destination Destination mailbox path
+     * @param {Object} [options] Query modifiers
+     * @param {Function} callback Callback function
+     */
+    BrowserBox.prototype.moveMessages = function(sequence, destination, options, callback) {
+        if (!callback && typeof options === 'function') {
+            callback = options;
+            options = undefined;
+        }
+
+        options = options || {};
+        if (this.capability.indexOf('MOVE') >= 0) {
+            // If possible, use MOVE
+            this.exec({
+                    command: options.byUid ? 'UID MOVE' : 'MOVE',
+                    attributes: [{
+                        type: 'sequence',
+                        value: sequence
+                    }, {
+                        type: 'atom',
+                        value: destination
+                    }]
+                }, ['EXPUNGE', 'OK'],
+                function(err, response, next) {
+                    if (err) {
+                        callback(err);
+                    } else {
+                        callback(null, this._parseEXPUNGE(response));
+                    }
+                    next();
+                }.bind(this));
+        } else {
+            // Fallback to COPY + EXPUNGE
+            this.copyMessages(sequence, destination, options, function(err) {
+                if (err) {
+                    return callback(err);
+                }
+                this.deleteMessages(sequence, options, callback);
+            }.bind(this));
+        }
+    };
+
+    /**
      * Runs SELECT or EXAMINE to open a mailbox
      *
      * SELECT details:
@@ -836,7 +990,11 @@
      * @param {Function} next Until called, server responses are not processed
      */
     BrowserBox.prototype._untaggedFetchHandler = function(response, next) {
-        this.onupdate('fetch', [].concat(this._parseFETCH({payload:{FETCH: [response]}}) || []).shift());
+        this.onupdate('fetch', [].concat(this._parseFETCH({
+            payload: {
+                FETCH: [response]
+            }
+        }) || []).shift());
         next();
     };
 
@@ -925,8 +1083,12 @@
     };
 
     /**
-     * TODO: Write docs.
-     * FIXME: Does not support partials <start.stop>
+     * Builds a FETCH command
+     *
+     * @param {String} sequence Message range selector
+     * @param {Array} items List of elements to fetch (eg. `['uid', 'envelope']`).
+     * @param {Object} [options] Optional options object. Use `{byUid:true}` for `UID FETCH`
+     * @returns {Object} Structured IMAP command
      */
     BrowserBox.prototype._buildFETCHCommand = function(sequence, items, options) {
         var command = {
@@ -1135,10 +1297,11 @@
         // doesn't do anything yet
 
         var that = this;
-        var processNode = function(node, path){
+        var processNode = function(node, path) {
             path = path || [];
 
-            var curNode = {}, i = 0, key, part = 0;
+            var curNode = {}, i = 0,
+                key, part = 0;
 
             if (path.length) {
                 curNode.part = path.join('.');
@@ -1161,7 +1324,7 @@
                 if (i < node.length - 1) {
                     if (node[i]) {
                         curNode.parameters = {};
-                        [].concat(node[i] || []).forEach(function(val, j){
+                        [].concat(node[i] || []).forEach(function(val, j) {
                             if (j % 2) {
                                 curNode.parameters[key] = (val && val.value || '').toString();
                             } else {
@@ -1175,14 +1338,13 @@
 
                 // content type
                 curNode.type = [
-                        ((node[i++] || {}).value || '').toString().toLowerCase(),
-                        ((node[i++] || {}).value || '').toString().toLowerCase()
-                    ].join('/');
+                    ((node[i++] || {}).value || '').toString().toLowerCase(), ((node[i++] || {}).value || '').toString().toLowerCase()
+                ].join('/');
 
                 // body parameter parenthesized list
                 if (node[i]) {
                     curNode.parameters = {};
-                    [].concat(node[i] || []).forEach(function(val, j){
+                    [].concat(node[i] || []).forEach(function(val, j) {
                         if (j % 2) {
                             curNode.parameters[key] = (val && val.value || '').toString();
                         } else {
@@ -1270,9 +1432,9 @@
             if (i < node.length - 1) {
                 if (Array.isArray(node[i]) && node[i].length) {
                     curNode.disposition = ((node[i][0] || {}).value || '').toString().toLowerCase();
-                    if(Array.isArray(node[i][1])){
+                    if (Array.isArray(node[i][1])) {
                         curNode.dispositionParameters = {};
-                        [].concat(node[i][1] || []).forEach(function(val, j){
+                        [].concat(node[i][1] || []).forEach(function(val, j) {
                             if (j % 2) {
                                 curNode.dispositionParameters[key] = (val && val.value || '').toString();
                             } else {
@@ -1287,7 +1449,7 @@
             // body language
             if (i < node.length - 1) {
                 if (node[i]) {
-                    curNode.language = [].concat(node[i] || []).map(function(val){
+                    curNode.language = [].concat(node[i] || []).map(function(val) {
                         return (val && val.value || '').toString().toLowerCase();
                     });
                 }
@@ -1331,17 +1493,17 @@
             command: options.byUid ? 'UID SEARCH' : 'SEARCH'
         };
 
-        var buildTerm = function(query){
+        var buildTerm = function(query) {
             var list = [];
 
-            Object.keys(query).forEach(function(key){
+            Object.keys(query).forEach(function(key) {
                 var params = [],
 
-                    formatDate = function(date){
+                    formatDate = function(date) {
                         return date.toUTCString().replace(/^\w+, 0?(\d+) (\w+) (\d+).*/, "$1-$2-$3");
                     },
 
-                    escapeParam = function(param){
+                    escapeParam = function(param) {
                         if (typeof param === "number") {
                             return {
                                 type: "number",
@@ -1357,18 +1519,21 @@
                                 type: "string",
                                 value: formatDate(param)
                             };
-                        } else if(Array.isArray(param)) {
+                        } else if (Array.isArray(param)) {
                             return param.map(escapeParam);
-                        } else if(typeof param === "object") {
+                        } else if (typeof param === "object") {
                             return buildTerm(param);
                         }
                     };
 
-                params.push({type: "atom", value: key.toUpperCase()});
+                params.push({
+                    type: "atom",
+                    value: key.toUpperCase()
+                });
 
                 [].concat(query[key] || []).forEach(function(param) {
                     param = escapeParam(param);
-                    if(param){
+                    if (param) {
                         params = params.concat(param || []);
                     }
                 });
@@ -1389,7 +1554,7 @@
      *
      * @param {Object} response
      * @return {Object} Message object
-     * @param {Array} Seq./UID number list
+     * @param {Array} Sorted Seq./UID number list
      */
     BrowserBox.prototype._parseSEARCH = function(response) {
         var list = [];
@@ -1399,19 +1564,35 @@
         }
 
         [].concat(response.payload.SEARCH || []).forEach(function(result) {
-            result.attributes.forEach(function(nr){
+            result.attributes.forEach(function(nr) {
                 nr = Number(nr && nr.value || nr || 0) || 0;
-                if(list.indexOf(nr) < 0){
+                if (list.indexOf(nr) < 0) {
                     list.push(nr);
                 }
             });
         }.bind(this));
 
-        list.sort(function(a, b){
+        list.sort(function(a, b) {
             return a - b;
         });
 
         return list;
+    };
+
+    /**
+     * Parses EXPUNGE response
+     *
+     * @param {Object} response
+     * @return {Object} Unsorted list of sequence numbers
+     */
+    BrowserBox.prototype._parseEXPUNGE = function(response) {
+        if (!response || !response.payload || !response.payload.EXPUNGE || !response.payload.EXPUNGE.length) {
+            return [];
+        }
+
+        return [].concat(response.payload.EXPUNGE || []).map(function(message) {
+            return message.nr;
+        });
     };
 
     /**
@@ -1420,12 +1601,18 @@
     BrowserBox.prototype._buildSTORECommand = function(sequence, flags, options) {
         var command = {
             command: options.byUid ? 'UID STORE' : 'STORE',
-            attributes: [{type: 'sequence', value: sequence}]
+            attributes: [{
+                type: 'sequence',
+                value: sequence
+            }]
         },
-            key = '', list = [];
+            key = '',
+            list = [];
 
         if (Array.isArray(flags) || typeof flags !== 'object') {
-            flags = {set: flags};
+            flags = {
+                set: flags
+            };
         }
 
         if (flags.add) {
@@ -1444,7 +1631,7 @@
             value: key + 'FLAGS' + (options.silent ? '.SILENT' : '')
         });
 
-        command.attributes.push(list.map(function(flag){
+        command.attributes.push(list.map(function(flag) {
             return {
                 type: 'atom',
                 value: flag
@@ -1508,7 +1695,7 @@
             }
         } else {
             if ((type = this._specialUseType(mailbox.name))) {
-                mailbox.flags = [].concat(mailbox.flags || []).concat(name);
+                mailbox.flags = [].concat(mailbox.flags || []).concat(type);
             }
         }
         if (!type) {
@@ -1523,7 +1710,7 @@
         var boxnames, boxtypes;
         boxnames = {
             '\\Sent': ['aika', 'bidaliak', 'bidalita', 'dihantar', 'e rometsweng', 'e tindami', 'elküldött', 'elküldöttek', 'enviadas', 'enviadas', 'enviados', 'enviats', 'envoyés', 'ethunyelweyo', 'expediate', 'ezipuru', 'gesendete', 'gestuur', 'gönderilmiş öğeler', 'göndərilənlər', 'iberilen', 'inviati', 'išsiųstieji', 'kuthunyelwe', 'lasa', 'lähetetyt', 'messages envoyés', 'naipadala', 'nalefa', 'napadala', 'nosūtītās ziņas', 'odeslané', 'padala', 'poslane', 'poslano', 'poslano', 'poslané', 'poslato', 'saadetud', 'saadetud kirjad', 'sendt', 'sendt', 'sent', 'sent items', 'sent messages', 'sända poster', 'sänt', 'terkirim', 'ti fi ranṣẹ', 'të dërguara', 'verzonden', 'vilivyotumwa', 'wysłane', 'đã gửi', 'σταλθέντα', 'жиберилген', 'жіберілгендер', 'изпратени', 'илгээсэн', 'ирсол шуд', 'испратено', 'надіслані', 'отправленные', 'пасланыя', 'юборилган', 'ուղարկված', 'נשלחו', 'פריטים שנשלחו', 'المرسلة', 'بھیجے گئے', 'سوزمژہ', 'لېګل شوی', 'موارد ارسال شده', 'पाठविले', 'पाठविलेले', 'प्रेषित', 'भेजा गया', 'প্রেরিত', 'প্রেরিত', 'প্ৰেৰিত', 'ਭੇਜੇ', 'મોકલેલા', 'ପଠାଗଲା', 'அனுப்பியவை', 'పంపించబడింది', 'ಕಳುಹಿಸಲಾದ', 'അയച്ചു', 'යැවු පණිවුඩ', 'ส่งแล้ว', 'გაგზავნილი', 'የተላኩ', 'បាន​ផ្ញើ', '寄件備份', '寄件備份', '已发信息', '送信済みﾒｰﾙ', '발신 메시지', '보낸 편지함'],
-            '\\Trash': ['articole șterse', 'bin', 'borttagna objekt', 'deleted', 'deleted items', 'deleted messages', 'elementi eliminati', 'elementos borrados', 'elementos eliminados', 'gelöschte objekte', 'item dipadam', 'itens apagados', 'itens excluídos', 'mục đã xóa', 'odstraněné položky', 'pesan terhapus', 'poistetut', 'praht', 'silinmiş öğeler', 'slettede beskeder', 'slettede elementer', 'trash', 'törölt elemek', 'usunięte wiadomości', 'verwijderde items', 'vymazané správy', 'éléments supprimés', 'видалені', 'жойылғандар', 'удаленные', 'פריטים שנמחקו', 'العناصر المحذوفة', 'موارد حذف شده', 'รายการที่ลบ', '已删除邮件', '已刪除項目', '已刪除項目'],
+            '\\Trash': ['articole șterse', 'bin', 'borttagna objekt', 'deleted', 'deleted items', 'deleted messages', 'elementi eliminati', 'elementos borrados', 'elementos eliminados', 'gelöschte objekte', 'item dipadam', 'itens apagados', 'itens excluídos', 'mục đã xóa', 'odstraněné položky', 'pesan terhapus', 'poistetut', 'praht', 'prügikast', 'silinmiş öğeler', 'slettede beskeder', 'slettede elementer', 'trash', 'törölt elemek', 'usunięte wiadomości', 'verwijderde items', 'vymazané správy', 'éléments supprimés', 'видалені', 'жойылғандар', 'удаленные', 'פריטים שנמחקו', 'العناصر المحذوفة', 'موارد حذف شده', 'รายการที่ลบ', '已删除邮件', '已刪除項目', '已刪除項目'],
             '\\Junk': ['bulk mail', 'correo no deseado', 'courrier indésirable', 'istenmeyen', 'istenmeyen e-posta', 'junk', 'levélszemét', 'nevyžiadaná pošta', 'nevyžádaná pošta', 'no deseado', 'posta indesiderata', 'pourriel', 'roskaposti', 'skräppost', 'spam', 'spam', 'spamowanie', 'søppelpost', 'thư rác', 'спам', 'דואר זבל', 'الرسائل العشوائية', 'هرزنامه', 'สแปม', '‎垃圾郵件', '垃圾邮件', '垃圾電郵'],
             '\\Drafts': ['ba brouillon', 'borrador', 'borrador', 'borradores', 'bozze', 'brouillons', 'bản thảo', 'ciorne', 'concepten', 'draf', 'drafts', 'drög', 'entwürfe', 'esborranys', 'garalamalar', 'ihe edeturu', 'iidrafti', 'izinhlaka', 'juodraščiai', 'kladd', 'kladder', 'koncepty', 'koncepty', 'konsep', 'konsepte', 'kopie robocze', 'layihələr', 'luonnokset', 'melnraksti', 'meralo', 'mesazhe të padërguara', 'mga draft', 'mustandid', 'nacrti', 'nacrti', 'osnutki', 'piszkozatok', 'rascunhos', 'rasimu', 'skice', 'taslaklar', 'tsararrun saƙonni', 'utkast', 'vakiraoka', 'vázlatok', 'zirriborroak', 'àwọn àkọpamọ́', 'πρόχειρα', 'жобалар', 'нацрти', 'нооргууд', 'сиёҳнавис', 'хомаки хатлар', 'чарнавікі', 'чернетки', 'чернови', 'черновики', 'черновиктер', 'սևագրեր', 'טיוטות', 'مسودات', 'مسودات', 'موسودې', 'پیش نویسها', 'ڈرافٹ/', 'ड्राफ़्ट', 'प्रारूप', 'খসড়া', 'খসড়া', 'ড্ৰাফ্ট', 'ਡ੍ਰਾਫਟ', 'ડ્રાફ્ટસ', 'ଡ୍ରାଫ୍ଟ', 'வரைவுகள்', 'చిత్తు ప్రతులు', 'ಕರಡುಗಳು', 'കരടുകള്‍', 'කෙටුම් පත්', 'ฉบับร่าง', 'მონახაზები', 'ረቂቆች', 'សារព្រាង', '下書き', '草稿', '草稿', '草稿', '임시 보관함']
         };

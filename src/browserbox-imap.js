@@ -22,11 +22,16 @@
     'use strict';
 
     if (typeof define === 'function' && define.amd) {
-        define(['imap-handler', 'mimefuncs'], factory);
+        define(['tcp-socket', 'imap-handler', 'mimefuncs'], function(TCPSocket, imapHandler, mimefuncs) {
+            return factory(TCPSocket, imapHandler, mimefuncs);
+        });
+    } else if (typeof exports === 'object') {
+        module.exports = factory(require('tcp-socket'), require('imap-handler'), require('mimefuncs'));
     } else {
-        root.BrowserboxImapClient = factory(imapHandler, mimefuncs);
+        navigator.TCPSocket = navigator.TCPSocket || navigator.mozTCPSocket;
+        root.SmtpClient = factory(navigator.TCPSocket, root.imapHandler, root.mimefuncs);
     }
-}(this, function(imapHandler, mimefuncs) {
+}(this, function(TCPSocket, imapHandler, mimefuncs) {
     'use strict';
 
     /**
@@ -41,6 +46,7 @@
      * @param {Boolean} [options.useSSL] Set to true, to use encrypted connection
      */
     function ImapClient(host, port, options) {
+        this._TCPSocket = TCPSocket;
 
         this.options = options || {};
 
@@ -200,7 +206,7 @@
      * Initiate a connection to the server. Wait for onready event
      */
     ImapClient.prototype.connect = function() {
-        this.socket = navigator.TCPSocket.open(this.host, this.port, {
+        this.socket = this._TCPSocket.open(this.host, this.port, {
             binaryType: 'arraybuffer',
             useSSL: this._secureMode,
             ca: this.options.ca
@@ -343,7 +349,6 @@
         if (!evt || !evt.data) {
             return;
         }
-
         var match,
             str = mimefuncs.fromArrayBuffer(evt.data);
 
@@ -502,9 +507,6 @@
         var command = (response && response.command || '').toUpperCase().trim();
 
         this._processResponse(response);
-
-        //this.onlog('parsed', JSON.stringify(response, false, 4));
-        //console.log(JSON.stringify(response, false, 4));
 
         if (!this._currentCommand) {
             if (response.tag === '*' && command in this._globalAcceptUntagged) {
