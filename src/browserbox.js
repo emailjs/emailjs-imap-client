@@ -29,7 +29,7 @@
 
         module.exports = factory(require('./browserbox-imap'), require('utf7'), require('imap-handler'), require('mimefuncs'));
     } else {
-        root.BrowserBox = factory(root.ImapClient, root.utf7, root.imapHandler, root.mimefuncs);
+        root.BrowserBox = factory(root.BrowserboxImapClient, root.utf7, root.imapHandler, root.mimefuncs);
     }
 }(this, function(ImapClient, utf7, imapHandler, mimefuncs) {
     'use strict';
