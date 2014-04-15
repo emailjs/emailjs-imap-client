@@ -1583,7 +1583,11 @@
      * Parses EXPUNGE response
      *
      * @param {Object} response
+<<<<<<< HEAD
      * @return {Object} Unsorted list of sequence numbers
+=======
+     * @return {Object} Message object
+>>>>>>> master
      */
     BrowserBox.prototype._parseEXPUNGE = function(response) {
         if (!response || !response.payload || !response.payload.EXPUNGE || !response.payload.EXPUNGE.length) {
