@@ -539,11 +539,70 @@ otherwise falls back to EXPUNGE to delete the messages – which means that this
 destructive. If `EXPUNGE` is used, then any messages with `\Deleted` flag set are deleted even if these
 messages are not included in the specified sequence range.
 
+The returned list of sequence numbers might not match with the sequence numbers provided to the method.
+
 ### Example
 
 ```javascript
 client.deleteMessages('1:5', function(err, result){
     console.log(result.length + ' messages were deleted');
+});
+```
+
+## Copy messages
+
+Copy messages with `copyMessages()`
+
+```javascript
+client.copyMessages(sequence, destination[, options], callback)
+```
+
+Where
+
+  * **sequence** defines the range of sequence numbers or UID values (if `byUid` option is set to true). Example: '1', '1:*', '1,2:3,4' etc.
+  * **destination** is the destination folder path. Example: '[Gmail]/Trash'
+  * **options** is an optional options object
+    * **byUid** if `true` uses UID values instead of sequence numbers to define the range
+  * **callback** is the callback function to run once all me messages are processed with the following arguments
+    * **err** is an error object, only set if the request failed
+    * **message** nothing useful, just the response text from the server
+
+### Example
+
+```javascript
+client.copyMessages('1:5', '[Gmail]/Trash', function(err){
+    console.log('Messages were copied to [Gmail]/Trash');
+});
+```
+
+## Move messages
+
+Move messages with `moveMessages()`
+
+```javascript
+client.moveMessages(sequence, destination[, options], callback)
+```
+
+Where
+
+  * **sequence** defines the range of sequence numbers or UID values (if `byUid` option is set to true). Example: '1', '1:*', '1,2:3,4' etc.
+  * **destination** is the destination folder path. Example: '[Gmail]/Trash'
+  * **options** is an optional options object
+    * **byUid** if `true` uses UID values instead of sequence numbers to define the range
+  * **callback** is the callback function to run once all me messages are processed with the following arguments
+    * **err** is an error object, only set if the request failed
+    * **result** is an array of message sequence numbers that were deleted (eg. moved) from the current folder in the order they appeared, eg. when moving a range of 3:5, you get `[3, 3, 3]` as the result
+
+If possible (MOVE extension is supported by the server) uses `MOVE` or `UID MOVE`
+otherwise falls back to COPY + EXPUNGE.
+
+The returned list of sequence numbers might not match with the sequence numbers provided to the method.
+
+### Example
+
+```javascript
+client.copyMessages('1:5', '[Gmail]/Trash', function(err){
+    console.log('Messages were copied to [Gmail]/Trash');
 });
 ```
 

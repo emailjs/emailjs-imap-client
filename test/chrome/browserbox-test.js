@@ -5,10 +5,10 @@ define(['chai', 'browserbox'], function(chai, BrowserBox) {
     chai.Assertion.includeStack = true;
 
     describe('browserbox integration tests', function() {
-        var imap;
+        var imap, port = 10000;
 
         beforeEach(function(done) {
-            imap = new BrowserBox('127.0.0.1', 10000, {
+            imap = new BrowserBox('127.0.0.1', port, {
                 auth: {
                     user: "testuser",
                     pass: "testpass"
@@ -41,7 +41,7 @@ define(['chai', 'browserbox'], function(chai, BrowserBox) {
 
         describe('#listMessages', function() {
             it('should succeed', function(done) {
-                imap.selectMailbox("inbox", function(err){
+                imap.selectMailbox("inbox", function(err) {
                     expect(err).to.not.exist;
                     imap.listMessages("1:*", ["uid", "flags", "envelope", "bodystructure", "body.peek[]"], function(err, messages) {
                         expect(err).to.not.exist;
@@ -54,9 +54,11 @@ define(['chai', 'browserbox'], function(chai, BrowserBox) {
 
         describe('#search', function() {
             it('should return a sequence number', function(done) {
-                imap.selectMailbox('inbox', function(err){
+                imap.selectMailbox('inbox', function(err) {
                     expect(err).to.not.exist;
-                    imap.search({header: ['subject', 'hello 3']}, function(err, result) {
+                    imap.search({
+                        header: ['subject', 'hello 3']
+                    }, function(err, result) {
                         expect(err).to.not.exist;
                         expect(result).to.deep.equal([3]);
                         done();
@@ -65,9 +67,13 @@ define(['chai', 'browserbox'], function(chai, BrowserBox) {
             });
 
             it('should return an uid', function(done) {
-                imap.selectMailbox('inbox', function(err){
+                imap.selectMailbox('inbox', function(err) {
                     expect(err).to.not.exist;
-                    imap.search({header: ['subject', 'hello 3']}, {byUid: true}, function(err, result) {
+                    imap.search({
+                        header: ['subject', 'hello 3']
+                    }, {
+                        byUid: true
+                    }, function(err, result) {
                         expect(err).to.not.exist;
                         expect(result).to.deep.equal([555]);
                         done();
@@ -76,9 +82,12 @@ define(['chai', 'browserbox'], function(chai, BrowserBox) {
             });
 
             it('should work with complex queries', function(done) {
-                imap.selectMailbox('inbox', function(err){
+                imap.selectMailbox('inbox', function(err) {
                     expect(err).to.not.exist;
-                    imap.search({header: ['subject', 'hello'], seen: true}, function(err, result) {
+                    imap.search({
+                        header: ['subject', 'hello'],
+                        seen: true
+                    }, function(err, result) {
                         expect(err).to.not.exist;
                         expect(result).to.deep.equal([2]);
                         done();
@@ -106,7 +115,9 @@ define(['chai', 'browserbox'], function(chai, BrowserBox) {
             it('should add flags to a message', function(done) {
                 imap.selectMailbox('inbox', function(err) {
                     expect(err).to.not.exist;
-                    imap.setFlags('2', {add: ['$MyFlag']}, function(err, result) {
+                    imap.setFlags('2', {
+                        add: ['$MyFlag']
+                    }, function(err, result) {
                         expect(err).to.not.exist;
                         expect(result).to.deep.equal([{
                             '#': 2,
@@ -121,7 +132,11 @@ define(['chai', 'browserbox'], function(chai, BrowserBox) {
             it('should remove flags from a message', function(done) {
                 imap.selectMailbox('inbox', function(err) {
                     expect(err).to.not.exist;
-                    imap.setFlags('557', {remove: ['\\Deleted']}, {byUid: true}, function(err, result) {
+                    imap.setFlags('557', {
+                        remove: ['\\Deleted']
+                    }, {
+                        byUid: true
+                    }, function(err, result) {
                         expect(err).to.not.exist;
                         expect(result).to.deep.equal([{
                             '#': 5,
@@ -137,7 +152,9 @@ define(['chai', 'browserbox'], function(chai, BrowserBox) {
             it('should not return anything on silent mode', function(done) {
                 imap.selectMailbox('inbox', function(err) {
                     expect(err).to.not.exist;
-                    imap.setFlags('1', ['$MyFlag2'], {silent: true}, function(err, result) {
+                    imap.setFlags('1', ['$MyFlag2'], {
+                        silent: true
+                    }, function(err, result) {
                         expect(err).to.not.exist;
                         expect(result).to.deep.equal([]);
 
@@ -151,11 +168,50 @@ define(['chai', 'browserbox'], function(chai, BrowserBox) {
             it('should delete a message and return sequence number', function(done) {
                 imap.selectMailbox('inbox', function(err) {
                     expect(err).to.not.exist;
-                    imap.deleteMessages(557, {byUid: true}, function(err, result) {
+                    imap.deleteMessages(557, {
+                        byUid: true
+                    }, function(err, result) {
                         expect(err).to.not.exist;
                         expect(result).to.deep.equal([5]);
 
                         done();
+                    });
+                });
+            });
+        });
+
+        describe('#copyMessages', function() {
+            it('should copy a message', function(done) {
+                imap.selectMailbox('inbox', function(err) {
+                    expect(err).to.not.exist;
+                    imap.copyMessages(555, '[Gmail]/Trash', {
+                        byUid: true
+                    }, function(err) {
+                        expect(err).to.not.exist;
+                        imap.selectMailbox('[Gmail]/Trash', function(err, info) {
+                            expect(err).to.not.exist;
+                            expect(info.exists).to.equal(1);
+                            done();
+                        });
+                    });
+                });
+            });
+        });
+
+        describe('#moveMessages', function() {
+            it('should move a message', function(done) {
+                imap.selectMailbox('inbox', function(err) {
+                    expect(err).to.not.exist;
+                    imap.moveMessages(555, '[Gmail]/Spam', {
+                        byUid: true
+                    }, function(err, result) {
+                        expect(err).to.not.exist;
+                        expect(result).to.deep.equal([3]);
+                        imap.selectMailbox('[Gmail]/Spam', function(err, info) {
+                            expect(err).to.not.exist;
+                            expect(info.exists).to.equal(1);
+                            done();
+                        });
                     });
                 });
             });
