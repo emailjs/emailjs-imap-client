@@ -28,8 +28,7 @@
     } else if (typeof exports === 'object') {
         module.exports = factory(require('tcp-socket'), require('imap-handler'), require('mimefuncs'));
     } else {
-        navigator.TCPSocket = navigator.TCPSocket || navigator.mozTCPSocket;
-        root.SmtpClient = factory(navigator.TCPSocket, root.imapHandler, root.mimefuncs);
+        root.BrowserboxImapClient = factory(navigator.TCPSocket, root.imapHandler, root.mimefuncs);
     }
 }(this, function(TCPSocket, imapHandler, mimefuncs) {
     'use strict';
