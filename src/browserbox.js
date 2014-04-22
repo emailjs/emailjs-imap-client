@@ -1564,7 +1564,7 @@
         }
 
         [].concat(response.payload.SEARCH || []).forEach(function(result) {
-            result.attributes.forEach(function(nr) {
+            [].concat(result.attributes || []).forEach(function(nr) {
                 nr = Number(nr && nr.value || nr || 0) || 0;
                 if (list.indexOf(nr) < 0) {
                     list.push(nr);
