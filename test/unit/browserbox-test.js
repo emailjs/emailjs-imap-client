@@ -1298,6 +1298,17 @@ define(function(require) {
                     }
                 })).to.deep.equal([5, 6, 7]);
             });
+
+            it('should parse empty SEARCH response', function() {
+                expect(br._parseSEARCH({
+                    payload: {
+                        SEARCH: [{
+                            command: 'SEARCH',
+                            tag: '*'
+                        }]
+                    }
+                })).to.deep.equal([]);
+            });
         });
 
         describe('#_parseEXPUNGE', function() {
