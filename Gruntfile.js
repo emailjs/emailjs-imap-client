@@ -58,7 +58,6 @@ module.exports = function(grunt) {
                     'requirejs/require.js',
                     'tcp-socket/src/tcp-socket.js',
                     'node-forge/js/forge.min.js',
-                    'arraybuffer-slice/index.js',
                     'stringencoding/dist/stringencoding.js',
                     'utf7/src/utf7.js',
                     'imap-handler/src/*.js',
@@ -66,10 +65,6 @@ module.exports = function(grunt) {
                 ],
                 dest: 'test/lib/',
                 rename: function(dest, src) {
-                    if (src === 'arraybuffer-slice/index.js') {
-                        // 'index.js' is obviously a good name for a polyfill. duh.
-                        return dest + 'arraybuffer-slice.js';
-                    }
                     return dest + '/' + src.split('/').pop();
                 }
             },

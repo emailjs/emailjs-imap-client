@@ -176,7 +176,7 @@ define(function(require) {
 
                 for (var i = 0; i < list.length; i++) {
                     client._onData({
-                        data: mimefuncs.toArrayBuffer(list[i] + '\r\n').buffer
+                        data: mimefuncs.toTypedArray(list[i] + '\r\n').buffer
                     });
                 }
 
@@ -199,7 +199,7 @@ define(function(require) {
 
                 for (var i = 0; i < input.length; i++) {
                     client._onData({
-                        data: mimefuncs.toArrayBuffer(input[i]).buffer
+                        data: mimefuncs.toTypedArray(input[i]).buffer
                     });
                 }
 
@@ -220,7 +220,7 @@ define(function(require) {
 
                 for (var i = 0; i < input.length; i++) {
                     client._onData({
-                        data: mimefuncs.toArrayBuffer(input[i]).buffer
+                        data: mimefuncs.toTypedArray(input[i]).buffer
                     });
                 }
 
@@ -245,7 +245,7 @@ define(function(require) {
 
                 for (var i = 0; i < input.length; i++) {
                     client._onData({
-                        data: mimefuncs.toArrayBuffer(input[i]).buffer
+                        data: mimefuncs.toTypedArray(input[i]).buffer
                     });
                 }
 

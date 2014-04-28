@@ -264,7 +264,7 @@
      * @param {String} str Payload
      */
     ImapClient.prototype.send = function(str) {
-        this.waitDrain = this.socket.send(mimefuncs.toArrayBuffer(str).buffer);
+        this.waitDrain = this.socket.send(mimefuncs.toTypedArray(str).buffer);
     };
 
     /**
@@ -349,7 +349,7 @@
             return;
         }
         var match,
-            str = mimefuncs.fromArrayBuffer(evt.data);
+            str = mimefuncs.fromTypedArray(evt.data);
 
         if (this._literalRemaining) {
             if (this._literalRemaining > str.length) {
