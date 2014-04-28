@@ -20,7 +20,7 @@
   "dependencies": {
     "utf7": "https://github.com/whiteout-io/utf7/tarball/v2.0.0",
     "imap-handler": "https://github.com/whiteout-io/imap-handler/tarball/v0.1.8",
-    "mimefuncs": "https://github.com/whiteout-io/mimefuncs/tarball/v0.2.0",
+    "mimefuncs": "https://github.com/whiteout-io/mimefuncs/tarball/v0.3.0",
     "tcp-socket": "^0.2.1"
   },
   "devDependencies": {
@@ -39,7 +39,6 @@
     "hoodiecrow": "^1.1.21",
     "node-forge": "^0.2.33",
     "stringencoding": "https://github.com/whiteout-io/stringencoding/tarball/v0.1.0",
-    "arraybuffer-slice": "0.0.2",
     "amdefine": "^0.1.0",
     "grunt-mocha-test": "^0.10.2"
   }
