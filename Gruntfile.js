@@ -48,7 +48,7 @@ module.exports = function(grunt) {
         copy: {
             npm: {
                 expand: true,
-                flatten: false,
+                flatten: true,
                 cwd: 'node_modules/',
                 src: [
                     'mocha/mocha.js',
@@ -63,10 +63,7 @@ module.exports = function(grunt) {
                     'imap-handler/src/*.js',
                     'mimefuncs/src/mimefuncs.js'
                 ],
-                dest: 'test/lib/',
-                rename: function(dest, src) {
-                    return dest + '/' + src.split('/').pop();
-                }
+                dest: 'test/lib/'
             },
             app: {
                 expand: true,
