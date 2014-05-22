@@ -1,6 +1,6 @@
 {
   "name": "browserbox",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "homepage": "https://github.com/whiteout-io/browserbox",
   "description": "IMAP client for browsers.",
   "author": "Andris Reinman <andris@kreata.ee>",
@@ -20,7 +20,7 @@
   "dependencies": {
     "utf7": "https://github.com/whiteout-io/utf7/tarball/v2.0.0",
     "imap-handler": "https://github.com/whiteout-io/imap-handler/tarball/v0.1.9",
-    "mimefuncs": "https://github.com/whiteout-io/mimefuncs/tarball/v0.3.0",
+    "mimefuncs": "https://github.com/whiteout-io/mimefuncs/tarball/v0.3.1",
     "tcp-socket": "^0.2.1"
   },
   "devDependencies": {
