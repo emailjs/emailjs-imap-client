@@ -236,16 +236,20 @@ define(function(require) {
         });
 
         describe('#deleteMessages', function() {
-            it('should delete a message and return sequence number', function(done) {
-                imap.selectMailbox('inbox', function(err) {
+            it('should delete a message', function(done) {
+                imap.selectMailbox('inbox', function(err, initialInfo) {
                     expect(err).to.not.exist;
                     imap.deleteMessages(557, {
                         byUid: true
                     }, function(err, result) {
                         expect(err).to.not.exist;
-                        expect(result).to.deep.equal([5]);
+                        expect(result).to.be.true;
 
-                        done();
+                        imap.selectMailbox('inbox', function(err, resultInfo) {
+                            expect(err).to.not.exist;
+                            expect(initialInfo.exists !== resultInfo.exists).to.be.true;
+                            done();
+                        });
                     });
                 });
             });
@@ -271,17 +275,22 @@ define(function(require) {
 
         describe('#moveMessages', function() {
             it('should move a message', function(done) {
-                imap.selectMailbox('inbox', function(err) {
+                imap.selectMailbox('inbox', function(err, initialInfo) {
                     expect(err).to.not.exist;
                     imap.moveMessages(555, '[Gmail]/Spam', {
                         byUid: true
                     }, function(err, result) {
                         expect(err).to.not.exist;
-                        expect(result).to.deep.equal([3, 4]);
+                        expect(result).to.be.true;
                         imap.selectMailbox('[Gmail]/Spam', function(err, info) {
                             expect(err).to.not.exist;
                             expect(info.exists).to.equal(1);
-                            done();
+
+                            imap.selectMailbox('inbox', function(err, resultInfo) {
+                                expect(err).to.not.exist;
+                                expect(initialInfo.exists !== resultInfo.exists).to.be.true;
+                                done();
+                            });
                         });
                     });
                 });
