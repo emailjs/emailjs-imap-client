@@ -91,17 +91,17 @@
     /**
      * How much time to wait for the greeting from the server until the connection is considered failed
      */
-    BrowserBox.prototype.TIMEOUT_CONNECTION = 60 * 1000;
+    BrowserBox.prototype.TIMEOUT_CONNECTION = 90 * 1000;
 
     /**
      * Time between NOOP commands while idling
      */
-    BrowserBox.prototype.TIMEOUT_NOOP = 18 * 1000;
+    BrowserBox.prototype.TIMEOUT_NOOP = 3 * 60 * 1000;
 
     /**
      * Time until IDLE command is cancelled
      */
-    BrowserBox.prototype.TIMEOUT_IDLE = 18 * 1000;
+    BrowserBox.prototype.TIMEOUT_IDLE = 3 * 60 * 1000;
 
     /**
      * Initialization method. Setup event handlers and such
