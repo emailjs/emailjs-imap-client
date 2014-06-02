@@ -58,21 +58,21 @@ Where
       * **user** is the username of the user (also applies to Oauth2)
       * **pass** is the password of the user
       * **xoauth2** is the OAuth2 access token to be used instead of password
-    * **id** (optional) is the identification object for [RFC2971](http://tools.ietf.org/html/rfc2971#section-3.3) (ex. `{name: "myclient", version: "1"}`)
+    * **id** (optional) is the identification object for [RFC2971](http://tools.ietf.org/html/rfc2971#section-3.3) (ex. `{name: 'myclient', version: '1'}`)
     * **useSSL** (optional) enables TLS
     * **ca** (optional) (only in conjunction with this [TCPSocket shim](https://github.com/whiteout-io/tcp-socket)) if you use TLS, pin a PEM-encoded certificate as a string
 
 Example
 
 ```javascript
-var client = new BrowserBox("localhost", 143, {
+var client = new BrowserBox('localhost', 143, {
     auth: {
-        user: "testuser",
-        pass: "testpass"
+        user: 'testuser',
+        pass: 'testpass'
     },
     id: {
-        name: "My Client",
-        version: "0.1"
+        name: 'My Client',
+        version: '0.1'
     }
 });
 ```
@@ -135,7 +135,7 @@ Mailbox object is with the following structure
   * **delimiter** (string) path delimiting symbol
   * **listed** (boolean) mailbox was found in the LIST response
   * **subscribed** (boolean) mailbox was found in the LSUB response
-  * **specialUse** (string) mailbox was identified as a special use mailbox ("\Trash", "\Sent", "\Junk" etc. see [RFC6154](http://tools.ietf.org/html/rfc6154#section-2))
+  * **specialUse** (string) mailbox was identified as a special use mailbox ('\Trash', '\Sent', '\Junk' etc. see [RFC6154](http://tools.ietf.org/html/rfc6154#section-2))
   * **flags** (array) a list of flags
   * **children** (array) a list of child mailboxes
 
@@ -211,7 +211,7 @@ Namespace element object has the following structure
 
 **NB!** Namespace_Response_Extensions are not supported (extension data is silently skipped)
 
-Namespaces should be checked before attempting to create new mailboxes - most probably creating mailboxes outside personal namespace fails. For example when the personal namespace is prefixed with "INBOX." you can create "INBOX.Sent Mail" but you can't create "Sent Mail".
+Namespaces should be checked before attempting to create new mailboxes - most probably creating mailboxes outside personal namespace fails. For example when the personal namespace is prefixed with 'INBOX.' you can create 'INBOX.Sent Mail' but you can't create 'Sent Mail'.
 
 Example
 
@@ -262,7 +262,7 @@ Where
 Example
 
 ```javascript
-client.selectMailbox("INBOX", function(err, mailbox){
+client.selectMailbox('INBOX', function(err, mailbox){
     console.log(err || mailbox);
 });
 ```
@@ -283,6 +283,13 @@ client.selectMailbox("INBOX", function(err, mailbox){
     "uidNext": 38361,
     "highestModseq": 3682918
 }
+```
+
+You can check the currently selected mailbox path from `client.selectedMailbox`.
+If no mailbox is currently selected, the value is `false`.
+
+```
+console.log('Current mailbox: %s', client.selectedMailbox);
 ```
 
 ## List messages
@@ -358,7 +365,7 @@ An envelope includes the following fields (a value is only included in the respo
 
 All address fields are in the following format:
 
-```
+```json
 [
     {
         "name": "MIME decoded name",
@@ -371,11 +378,11 @@ All address fields are in the following format:
 
 A bodystructure object includes the following fields (all values are lowercase, unless the value might be case sensitive, eg. Content-Id value):
 
-  * **part** is the sub-part selector for `BODY[x.x.x]`, eg. "4.1.1" (this value is not set for the root object)
+  * **part** is the sub-part selector for `BODY[x.x.x]`, eg. '4.1.1' (this value is not set for the root object)
   * **type** is the Content-Type of the body part
-  * **parameters** is an object defining extra arguments for Content-Type, example: `{border: "abc"}`
+  * **parameters** is an object defining extra arguments for Content-Type, example: `{border: 'abc'}`
   * **disposition** is the Content-Disposition value (without arguments)
-  * **dispositionParameters** is an object defining extra arguments for Content-Disposition, example: `{filename: "foo.gif"}`
+  * **dispositionParameters** is an object defining extra arguments for Content-Disposition, example: `{filename: 'foo.gif'}`
   * **language** is an array of language codes (hardly ever used)
   * **location** is a string for body content URI (hardly ever used)
   * **id** is the Content-Id value
@@ -398,7 +405,7 @@ multipart/mixed
         text/plain
 ```
 
-```
+```json
 {
     "type": "multipart/mixed",
     "childNodes": [
@@ -530,20 +537,21 @@ Where
     * **byUid** if `true` uses UID values instead of sequence numbers to define the range
   * **callback** is the callback function to run once all me messages are processed with the following arguments
     * **err** is an error object, only set if the request failed
-    * **result** is an array of message sequence numbers that were deleted in the order they appeared, eg. when deleting a range of 3:5, you get `[3, 3, 3]` as the result
 
 If possible (`byUid:true` is set and UIDPLUS extension is supported by the server) uses `UID EXPUNGE`
 otherwise falls back to EXPUNGE to delete the messages – which means that this method might be
 destructive. If `EXPUNGE` is used, then any messages with `\Deleted` flag set are deleted even if these
 messages are not included in the specified sequence range.
 
-The returned list of sequence numbers might not match with the sequence numbers provided to the method.
-
 ### Example
 
 ```javascript
-client.deleteMessages('1:5', function(err, result){
-    console.log(result.length + ' messages were deleted');
+client.deleteMessages('1:5', function(err){
+    if(err){
+        console.log('Command failed');
+    }else{
+        console.log('Messages were deleted');
+    }
 });
 ```
 
@@ -589,7 +597,6 @@ Where
     * **byUid** if `true` uses UID values instead of sequence numbers to define the range
   * **callback** is the callback function to run once all me messages are processed with the following arguments
     * **err** is an error object, only set if the request failed
-    * **result** is an array of message sequence numbers that were deleted (eg. moved) from the current folder in the order they appeared, eg. when moving a range of 3:5, you get `[3, 3, 3]` as the result
 
 If possible (MOVE extension is supported by the server) uses `MOVE` or `UID MOVE`
 otherwise falls back to COPY + EXPUNGE.
@@ -599,8 +606,12 @@ The returned list of sequence numbers might not match with the sequence numbers 
 ### Example
 
 ```javascript
-client.copyMessages('1:5', '[Gmail]/Trash', function(err){
-    console.log('Messages were copied to [Gmail]/Trash');
+client.moveMessages('1:5', '[Gmail]/Trash', function(err){
+    if(err){
+        console.log('Command failed');
+    }else{
+        console.log('Messages were moved to [Gmail]/Trash');
+    }
 });
 ```
 
@@ -623,6 +634,27 @@ Possible types:
   * **exists** is emitted on untagged `EXISTS` response, `value` is the argument number used
   * **expunge** is emitted on untagged `EXPUNGE` response, `value` is the sequence number of the deleted message
   * **fetch** is emitted on flag change. `value` includes the parsed message object (probably includes only the sequence number `#` and `flags` array)
+
+## Mailbox change notifications
+
+Listening mailbox select notification is done by setting the `onselectmailbox` and `onclosemailbox` handlers.
+
+For `onselectmailbox` handler the first argument is the path of the selected mailbox and the second argument
+is the mailbox information object (see [selectMailbox](#select-mailbox)).
+
+For `onclosemailbox` handler the argument is the path of the selected mailbox.
+
+**Example**
+
+```javascript
+client.onselectmailbox = function(path, mailbox){
+    console.log('Opened %s with %s messages', path, mailbox.exists);
+}
+
+client.onclosemailbox = function(path){
+    console.log('Closed %s', path);
+}
+```
 
 ## Close connection
 

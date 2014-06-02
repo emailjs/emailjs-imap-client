@@ -68,6 +68,11 @@
         this.authenticated = false;
 
         /**
+         * Selected mailbox
+         */
+        this.selectedMailbox = false;
+
+        /**
          * IMAP client object
          */
         this.client = new ImapClient(host, port, this.options);
@@ -148,6 +153,8 @@
     BrowserBox.prototype.onauth = function() {};
     BrowserBox.prototype.onupdate = function() {};
     /* BrowserBox.prototype.onerror = function(err){}; // not defined by default */
+    BrowserBox.prototype.onselectmailbox = function() {};
+    BrowserBox.prototype.onclosemailbox = function() {};
 
     // Event handlers
 
@@ -180,7 +187,7 @@
     BrowserBox.prototype._onReady = function() {
         clearTimeout(this._connectionTimeout);
         this.onlog('session', 'Connection established');
-        this.state = this.STATE_NOT_AUTHENTICATED;
+        this._changeState(this.STATE_NOT_AUTHENTICATED);
 
         this.updateCapability(function() {
             this.updateId(this.options.id, function() {
@@ -218,7 +225,7 @@
      * Initiate connection to the IMAP server
      */
     BrowserBox.prototype.connect = function() {
-        this.state = this.STATE_CONNECTING;
+        this._changeState(this.STATE_CONNECTING);
 
         // set timeout to fail connection establishing
         clearTimeout(this._connectionTimeout);
@@ -230,7 +237,7 @@
      * Close current connection
      */
     BrowserBox.prototype.close = function(callback) {
-        this.state = this.STATE_LOGOUT;
+        this._changeState(this.STATE_LOGOUT);
 
         this.exec('LOGOUT', function(err) {
             if (typeof callback === 'function') {
@@ -454,7 +461,7 @@
                 return next();
             }
 
-            this.state = this.STATE_AUTHENTICATED;
+            this._changeState(this.STATE_AUTHENTICATED);
             this.authenticated = true;
 
             // update post-auth capabilites
@@ -518,7 +525,7 @@
                 attributes[0].push(id[key]);
             });
         } else {
-            attributes.push(null);
+            attributes[0] = null;
         }
 
         this.exec({
@@ -747,9 +754,11 @@
      * NB! This method might be destructive - if EXPUNGE is used, then any messages
      * with \Deleted flag set are deleted
      *
+     * Callback returns an error if the operation failed
+     *
      * @param {String} sequence Message range to be deleted
      * @param {Object} [options] Query modifiers
-     * @param {Function} callback Callback function with the array of expunged messages
+     * @param {Function} callback Callback function
      */
     BrowserBox.prototype.deleteMessages = function(sequence, options, callback) {
         if (!callback && typeof options === 'function') {
@@ -775,12 +784,11 @@
                         value: sequence
                     }]
                 } : 'EXPUNGE',
-                'EXPUNGE',
                 function(err, response, next) {
                     if (err) {
                         callback(err);
                     } else {
-                        callback(null, this._parseEXPUNGE(response));
+                        callback(null, true);
                     }
                     next();
                 }.bind(this));
@@ -836,7 +844,7 @@
      * MOVE details:
      *   http://tools.ietf.org/html/rfc6851
      *
-     * Callback returns the list of sequence numbers that were deleted from the current folder
+     * Callback returns an error if the operation failed
      *
      * @param {String} sequence Message range to be moved
      * @param {String} destination Destination mailbox path
@@ -861,12 +869,12 @@
                         type: 'atom',
                         value: destination
                     }]
-                }, ['EXPUNGE', 'OK'],
+                }, ['OK'],
                 function(err, response, next) {
                     if (err) {
                         callback(err);
                     } else {
-                        callback(null, this._parseEXPUNGE(response));
+                        callback(null, true);
                     }
                     next();
                 }.bind(this));
@@ -921,12 +929,26 @@
                 return next();
             }
 
-            this.state = this.STATE_SELECTED;
+            this._changeState(this.STATE_SELECTED);
 
-            callback(null, this._parseSELECT(response));
+            if (this.selectedMailbox && this.selectedMailbox !== path) {
+                this.onclosemailbox(this.selectedMailbox);
+            }
+
+            this.selectedMailbox = path;
+
+            var mailboxInfo = this._parseSELECT(response);
+
+            callback(null, mailboxInfo);
+
+            this.onselectmailbox(path, mailboxInfo);
 
             next();
         }.bind(this));
+    };
+
+    BrowserBox.prototype.hasCapability = function(capa) {
+        return this.capability.indexOf((capa || '').toString().toUpperCase().trim()) >= 0;
     };
 
     // Default handlers for untagged responses
@@ -1012,8 +1034,8 @@
         }
 
         var mailbox = {
-            readOnly: response.code === 'READ-ONLY'
-        },
+                readOnly: response.code === 'READ-ONLY'
+            },
 
             existsResponse = response.payload.EXISTS && response.payload.EXISTS.pop(),
             flagsResponse = response.payload.FLAGS && response.payload.FLAGS.pop(),
@@ -1092,39 +1114,39 @@
      */
     BrowserBox.prototype._buildFETCHCommand = function(sequence, items, options) {
         var command = {
-            command: options.byUid ? 'UID FETCH' : 'FETCH',
-            attributes: [{
-                type: 'SEQUENCE',
-                value: sequence
-            }]
-        },
+                command: options.byUid ? 'UID FETCH' : 'FETCH',
+                attributes: [{
+                    type: 'SEQUENCE',
+                    value: sequence
+                }]
+            },
 
             query = [];
 
         [].concat(items || []).forEach(function(item) {
-                var cmd;
-                item = (item || '').toString().toUpperCase().trim();
+            var cmd;
+            item = (item || '').toString().toUpperCase().trim();
 
-                if (/^\w+$/.test(item)) {
-                    // alphanum strings can be used directly
+            if (/^\w+$/.test(item)) {
+                // alphanum strings can be used directly
+                query.push({
+                    type: 'ATOM',
+                    value: item
+                });
+            } else if (item) {
+                try {
+                    // parse the value as a fake command, use only the attributes block
+                    cmd = imapHandler.parser('* Z ' + item);
+                    query = query.concat(cmd.attributes || []);
+                } catch (E) {
+                    // if parse failed, use the original string as one entity
                     query.push({
                         type: 'ATOM',
                         value: item
                     });
-                } else if (item) {
-                    try {
-                        // parse the value as a fake command, use only the attributes block
-                        cmd = imapHandler.parser('* Z ' + item);
-                        query = query.concat(cmd.attributes || []);
-                    } catch (E) {
-                        // if parse failed, use the original string as one entity
-                        query.push({
-                            type: 'ATOM',
-                            value: item
-                        });
-                    }
                 }
-            });
+            }
+        });
 
         if (query.length === 1) {
             query = query.pop();
@@ -1159,7 +1181,7 @@
         list = [].concat(response.payload.FETCH || []).map(function(item) {
             var
             // ensure the first value is an array
-            params = [].concat([].concat(item.attributes || [])[0] || []),
+                params = [].concat([].concat(item.attributes || [])[0] || []),
                 message = {
                     '#': item.nr
                 },
@@ -1233,13 +1255,13 @@
      */
     BrowserBox.prototype._parseENVELOPE = function(value) {
         var processAddresses = function(list) {
-            return [].concat(list || []).map(function(addr) {
-                return {
-                    name: mimefuncs.mimeWordsDecode(addr[0] && addr[0].value || ''),
-                    address: (addr[2] && addr[2].value || '') + '@' + (addr[3] && addr[3].value || '')
-                };
-            });
-        },
+                return [].concat(list || []).map(function(addr) {
+                    return {
+                        name: mimefuncs.mimeWordsDecode(addr[0] && addr[0].value || ''),
+                        address: (addr[2] && addr[2].value || '') + '@' + (addr[3] && addr[3].value || '')
+                    };
+                });
+            },
             envelope = {};
 
         if (value[0] && value[0].value) {
@@ -1300,7 +1322,8 @@
         var processNode = function(node, path) {
             path = path || [];
 
-            var curNode = {}, i = 0,
+            var curNode = {},
+                i = 0,
                 key, part = 0;
 
             if (path.length) {
@@ -1532,7 +1555,16 @@
                 });
 
                 [].concat(query[key] || []).forEach(function(param) {
-                    param = escapeParam(param);
+                    switch (key.toLowerCase()) {
+                        case 'uid':
+                            param = {
+                                type: "sequence",
+                                value: param
+                            };
+                            break;
+                        default:
+                            param = escapeParam(param);
+                    }
                     if (param) {
                         params = params.concat(param || []);
                     }
@@ -1580,36 +1612,16 @@
     };
 
     /**
-     * Parses EXPUNGE response
-     *
-     * @param {Object} response
-<<<<<<< HEAD
-     * @return {Object} Unsorted list of sequence numbers
-=======
-     * @return {Object} Message object
->>>>>>> master
-     */
-    BrowserBox.prototype._parseEXPUNGE = function(response) {
-        if (!response || !response.payload || !response.payload.EXPUNGE || !response.payload.EXPUNGE.length) {
-            return [];
-        }
-
-        return [].concat(response.payload.EXPUNGE || []).map(function(message) {
-            return message.nr;
-        });
-    };
-
-    /**
      * Creates an IMAP STORE command from the selected arguments
      */
     BrowserBox.prototype._buildSTORECommand = function(sequence, flags, options) {
         var command = {
-            command: options.byUid ? 'UID STORE' : 'STORE',
-            attributes: [{
-                type: 'sequence',
-                value: sequence
-            }]
-        },
+                command: options.byUid ? 'UID STORE' : 'STORE',
+                attributes: [{
+                    type: 'sequence',
+                    value: sequence
+                }]
+            },
             key = '',
             list = [];
 
@@ -1643,6 +1655,25 @@
         }));
 
         return command;
+    };
+
+    /**
+     * Updates the IMAP state value for the current connection
+     *
+     * @param {Number} newState The state you want to change to
+     */
+    BrowserBox.prototype._changeState = function(newState) {
+        if (newState === this.state) {
+            return;
+        }
+
+        // if a mailbox was opened, emit onclosemailbox and clear selectedMailbox value
+        if (this.state === this.STATE_SELECTED && this.selectedMailbox) {
+            this.onclosemailbox(this.selectedMailbox);
+            this.selectedMailbox = false;
+        }
+
+        this.state = newState;
     };
 
     /**

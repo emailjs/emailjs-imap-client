@@ -356,6 +356,36 @@ define(function(require) {
                 });
             });
 
+            it('should send NIL', function(done) {
+                sinon.stub(br, 'exec', function(command, untagged, callback) {
+                    expect(command).to.deep.equal({
+                        command: 'ID',
+                        attributes: [
+                            null
+                        ]
+                    });
+
+                    callback(null, {
+                        payload: {
+                            ID: [{
+                                attributes: [
+                                    null
+                                ]
+                            }]
+                        }
+                    }, function() {
+                        br.exec.restore();
+                        done();
+                    });
+                });
+
+                br.capability = ['ID'];
+                br.updateId(null, function(err, id) {
+                    expect(err).to.not.exist;
+                    expect(id).to.deep.equal({});
+                });
+            });
+
             it('should exhange ID values', function(done) {
                 sinon.stub(br, 'exec', function(command, untagged, callback) {
                     expect(command).to.deep.equal({
@@ -537,16 +567,14 @@ define(function(require) {
                     });
                     callback();
                 });
-                sinon.stub(br, 'exec', function(command, untagged, callback) {
+                sinon.stub(br, 'exec', function(command, callback) {
                     callback(null, 'abc', function() {});
                 });
-                sinon.stub(br, '_parseEXPUNGE');
             });
 
             afterEach(function() {
                 br.setFlags.restore();
                 br.exec.restore();
-                br._parseEXPUNGE.restore();
             });
 
             it('should call UID EXPUNGE', function() {
@@ -563,8 +591,6 @@ define(function(require) {
                         value: '1:2'
                     }]
                 });
-                expect(br.exec.args[0][1]).to.equal('EXPUNGE');
-                expect(br._parseEXPUNGE.withArgs('abc').callCount).to.equal(1);
             });
 
             it('should call EXPUNGE', function() {
@@ -575,8 +601,6 @@ define(function(require) {
 
                 expect(br.exec.callCount).to.equal(1);
                 expect(br.exec.args[0][0]).to.equal('EXPUNGE');
-                expect(br.exec.args[0][1]).to.equal('EXPUNGE');
-                expect(br._parseEXPUNGE.withArgs('abc').callCount).to.equal(1);
             });
         });
 
@@ -616,7 +640,6 @@ define(function(require) {
                 sinon.stub(br, 'exec', function(command, untagged, callback) {
                     callback(null, 'abc', done);
                 });
-                sinon.stub(br, '_parseEXPUNGE');
 
                 br.capability = ['MOVE'];
                 br.moveMessages('1:2', '[Gmail]/Trash', {
@@ -634,11 +657,9 @@ define(function(require) {
                         value: '[Gmail]/Trash'
                     }]
                 });
-                expect(br.exec.args[0][1]).to.deep.equal(['EXPUNGE', 'OK']);
-                expect(br._parseEXPUNGE.withArgs('abc').callCount).to.equal(1);
+                expect(br.exec.args[0][1]).to.deep.equal(['OK']);
 
                 br.exec.restore();
-                br._parseEXPUNGE.restore();
             });
 
             it('should fallback to copy+expunge', function() {
@@ -721,6 +742,53 @@ define(function(require) {
 
                 br.exec.restore();
                 br._parseSELECT.restore();
+            });
+
+            it('should emit onselectmailbox', function(done) {
+                sinon.stub(br, 'exec', function(command, untagged, callback) {
+                    callback(null, 'abc', done);
+                });
+                sinon.stub(br, '_parseSELECT').returns('def');
+                sinon.stub(br, 'onselectmailbox');
+
+                br.selectMailbox('[Gmail]/Trash', function() {});
+
+                expect(br._parseSELECT.withArgs('abc').callCount).to.equal(1);
+                expect(br.onselectmailbox.withArgs('[Gmail]/Trash', 'def').callCount).to.equal(1);
+
+                br.exec.restore();
+                br._parseSELECT.restore();
+                br.onselectmailbox.restore();
+            });
+
+            it('should emit onclosemailbox', function(done) {
+                sinon.stub(br, 'exec', function(command, untagged, callback) {
+                    callback(null, 'abc', done);
+                });
+                sinon.stub(br, '_parseSELECT').returns('def');
+                sinon.stub(br, 'onclosemailbox');
+
+                br.selectedMailbox = 'yyy';
+                br.selectMailbox('[Gmail]/Trash', function() {});
+
+                expect(br.onclosemailbox.withArgs('yyy').callCount).to.equal(1);
+
+                br.exec.restore();
+                br._parseSELECT.restore();
+                br.onclosemailbox.restore();
+            });
+        });
+
+        describe('#hasCapability', function() {
+            it('should detect existing capability', function() {
+                br.capability = ['ZZZ'];
+                expect(br.hasCapability('zzz')).to.be.true;
+            });
+
+            it('should detect non existing capability', function() {
+                br.capability = ['ZZZ'];
+                expect(br.hasCapability('ooo')).to.be.false;
+                expect(br.hasCapability()).to.be.false;
             });
         });
 
@@ -1233,7 +1301,8 @@ define(function(require) {
                         seen: true
                     },
                     sentbefore: new Date(2011, 1, 3, 12, 0, 0),
-                    since: new Date(2011, 11, 23, 12, 0, 0)
+                    since: new Date(2011, 11, 23, 12, 0, 0),
+                    uid: '1:*'
                 }, {})).to.deep.equal({
                     command: 'SEARCH',
                     attributes: [{
@@ -1275,6 +1344,12 @@ define(function(require) {
                     }, {
                         'type': 'string',
                         'value': '23-Dec-2011'
+                    }, {
+                        'type': 'atom',
+                        'value': 'UID'
+                    }, {
+                        'type': 'sequence',
+                        'value': '1:*'
                     }]
                 });
             });
@@ -1308,20 +1383,6 @@ define(function(require) {
                         }]
                     }
                 })).to.deep.equal([]);
-            });
-        });
-
-        describe('#_parseEXPUNGE', function() {
-            it('should parse EXPUNGE response', function() {
-                expect(br._parseEXPUNGE({
-                    payload: {
-                        EXPUNGE: [{
-                            nr: 9
-                        }, {
-                            nr: 6
-                        }]
-                    }
-                })).to.deep.equal([9, 6]);
             });
         });
 
@@ -1484,6 +1545,26 @@ define(function(require) {
                 });
             });
 
+        });
+
+        describe('#_changeState', function() {
+            it('should set the state value', function() {
+                br._changeState(12345);
+
+                expect(br.state).to.equal(12345);
+            });
+
+            it('should emit onclosemailbox if mailbox was closed', function() {
+                sinon.stub(br, 'onclosemailbox');
+                br.state = br.STATE_SELECTED;
+                br.selectedMailbox = 'aaa';
+
+                br._changeState(12345);
+
+                expect(br.selectedMailbox).to.be.false;
+                expect(br.onclosemailbox.withArgs('aaa').callCount).to.equal(1);
+                br.onclosemailbox.restore();
+            });
         });
 
         describe('#_ensurePath', function() {
