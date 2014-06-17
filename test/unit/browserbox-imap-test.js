@@ -10,6 +10,7 @@ define(function(require) {
     var sinon = require('sinon');
     var ImapClient = require('browserbox-imap');
     var mimefuncs = require('mimefuncs');
+    var axe = require('axe');
 
     var expect = chai.expect;
     chai.Assertion.includeStack = true;
@@ -18,6 +19,9 @@ define(function(require) {
     var port = 10000;
 
     describe('browserbox imap unit tests', function() {
+        // don't log in the tests
+        axe.removeAppender(axe.defaultAppender);
+
         var client, TCPSocket, openStub, socketStub;
 
         /* jshint indent:false */
@@ -164,10 +168,10 @@ define(function(require) {
         describe('#_onData', function() {
             it('should process normal input', function() {
                 var list = [
-                    '* 1 FETCH (UID 1)',
-                    '* 2 FETCH (UID 2)',
-                    '* 3 FETCH (UID 3)',
-                ],
+                        '* 1 FETCH (UID 1)',
+                        '* 2 FETCH (UID 2)',
+                        '* 3 FETCH (UID 3)',
+                    ],
                     pos = 0;
 
                 sinon.stub(client, '_addToServerQueue', function(cmd) {
@@ -187,10 +191,10 @@ define(function(require) {
                 var input = ['* 1 FETCH (UID 1)\r\n* 2 F', 'ETCH (UID 2)\r\n* 3 FETCH (UID 3', ')\r\n'];
 
                 var output = [
-                    '* 1 FETCH (UID 1)',
-                    '* 2 FETCH (UID 2)',
-                    '* 3 FETCH (UID 3)'
-                ],
+                        '* 1 FETCH (UID 1)',
+                        '* 2 FETCH (UID 2)',
+                        '* 3 FETCH (UID 3)'
+                    ],
                     pos = 0;
 
                 sinon.stub(client, '_addToServerQueue', function(cmd) {
@@ -210,8 +214,8 @@ define(function(require) {
                 var input = ['* 1 ', 'F', 'ETCH (', 'UID 1)', '\r', '\n'];
 
                 var output = [
-                    '* 1 FETCH (UID 1)'
-                ],
+                        '* 1 FETCH (UID 1)'
+                    ],
                     pos = 0;
 
                 sinon.stub(client, '_addToServerQueue', function(cmd) {
@@ -233,10 +237,10 @@ define(function(require) {
                 ];
 
                 var output = [
-                    '* 1 FETCH (UID {1}\r\n1)',
-                    '* 2 FETCH (UID {4}\r\n2345)',
-                    '* 3 FETCH (UID {4}\r\n3789)'
-                ],
+                        '* 1 FETCH (UID {1}\r\n1)',
+                        '* 2 FETCH (UID {4}\r\n2345)',
+                        '* 3 FETCH (UID {4}\r\n3789)'
+                    ],
                     pos = 0;
 
                 sinon.stub(client, '_addToServerQueue', function(cmd) {

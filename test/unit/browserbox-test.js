@@ -8,6 +8,7 @@ define(function(require) {
 
     var chai = require('chai');
     var sinon = require('sinon');
+    var axe = require('axe');
     var BrowserBox = require('browserbox');
     var mimeTorture = require('./fixtures/mime-torture-bodystructure');
     var testEnvelope = require('./fixtures/envelope');
@@ -16,6 +17,9 @@ define(function(require) {
     chai.Assertion.includeStack = true;
 
     describe('browserbox unit tests', function() {
+        // don't log in the tests
+        axe.removeAppender(axe.defaultAppender);
+
         var br;
 
         beforeEach(function() {

@@ -9,6 +9,7 @@ define(function(require) {
     var chai = require('chai');
     var BrowserBox = require('../../src/browserbox');
     var hoodiecrow = require('hoodiecrow');
+    var axe = require('axe');
 
     var expect = chai.expect;
     chai.Assertion.includeStack = true;
@@ -18,6 +19,9 @@ define(function(require) {
             server;
 
         beforeEach(function(done) {
+            // don't log in the tests
+            axe.removeAppender(axe.defaultAppender);
+
             // start imap test server
             var options = {
                 secureConnection: false,

@@ -22,16 +22,18 @@
     'use strict';
 
     if (typeof define === 'function' && define.amd) {
-        define(['tcp-socket', 'imap-handler', 'mimefuncs'], function(TCPSocket, imapHandler, mimefuncs) {
-            return factory(TCPSocket, imapHandler, mimefuncs);
+        define(['tcp-socket', 'imap-handler', 'mimefuncs', 'axe'], function(TCPSocket, imapHandler, mimefuncs, axe) {
+            return factory(TCPSocket, imapHandler, mimefuncs, axe);
         });
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('tcp-socket'), require('imap-handler'), require('mimefuncs'));
+        module.exports = factory(require('tcp-socket'), require('imap-handler'), require('mimefuncs'), require('axe'));
     } else {
-        root.BrowserboxImapClient = factory(navigator.TCPSocket, root.imapHandler, root.mimefuncs);
+        root.BrowserboxImapClient = factory(navigator.TCPSocket, root.imapHandler, root.mimefuncs, root.axe);
     }
-}(this, function(TCPSocket, imapHandler, mimefuncs) {
+}(this, function(TCPSocket, imapHandler, mimefuncs, axe) {
     'use strict';
+
+    var DEBUG_TAG = 'browserbox IMAP';
 
     /**
      * Creates a connection object to an IMAP server. Call `connect` method to inititate
@@ -57,7 +59,7 @@
          * (recommended if applicable). If useSSL is not set but the port used is 993,
          * then ecryption is used by default.
          */
-        this.options.useSSL = 'useSSL' in this.options ? !! this.options.useSSL : this.port === 993;
+        this.options.useSSL = 'useSSL' in this.options ? !!this.options.useSSL : this.port === 993;
 
         /**
          * Authentication object. If not set, authentication step will be skipped.
@@ -86,7 +88,7 @@
         /**
          * Does the connection use SSL/TLS
          */
-        this._secureMode = !! this.options.useSSL;
+        this._secureMode = !!this.options.useSSL;
 
         /**
          * Is the conection established and greeting is received from the server
@@ -190,14 +192,6 @@
      * @event
      */
     ImapClient.prototype.onidle = function() {};
-
-    /**
-     * Log something
-     *
-     * @param {String} type Indicator
-     * @param {String} message Data to be logged
-     */
-    ImapClient.prototype.onlog = function() {};
 
     // PUBLIC METHODS
 
@@ -400,6 +394,7 @@
      * @event
      */
     ImapClient.prototype._onOpen = function() {
+        axe.debug(DEBUG_TAG, 'tcp socket opened');
         this.socket.ondata = this._onData.bind(this);
         this.socket.onclose = this._onClose.bind(this);
         this.socket.ondrain = this._onDrain.bind(this);
@@ -438,8 +433,6 @@
         var data = this._serverQueue.shift(),
             response;
 
-        this.onlog('server', data);
-
         try {
             // + tagged response is a special case, do not try to parse it
             if (/^\+/.test(data)) {
@@ -449,9 +442,11 @@
                 };
             } else {
                 response = imapHandler.parser(data);
+                axe.debug(DEBUG_TAG, 'received response: ' + response.tag + ' ' + response.command);
             }
-        } catch (E) {
-            return this._onError(E);
+        } catch (e) {
+            axe.error(DEBUG_TAG, 'error parsing imap response: ' + e + '\n' + e.stack + '\nraw:' + data);
+            return this._onError(e);
         }
 
         if (response.tag === '*' &&
@@ -465,7 +460,6 @@
         if (response.tag === '+') {
             if (this._currentCommand.data.length) {
                 data = this._currentCommand.data.shift();
-                this.onlog('client', data);
                 this.send(data + (!this._currentCommand.data.length ? '\r\n' : ''));
             } else if (typeof this._currentCommand.onplustagged === 'function') {
                 this._currentCommand.onplustagged(response, this._processServerQueue.bind(this));
@@ -609,12 +603,13 @@
 
         try {
             this._currentCommand.data = imapHandler.compiler(this._currentCommand.request, true);
-        } catch (E) {
-            return this._onError(E);
+        } catch (e) {
+            axe.error(DEBUG_TAG, 'error compiling imap command: ' + e + '\nstack trace: ' + e.stack + '\nraw:' + this._currentCommand.request);
+            return this._onError(e);
         }
 
+        axe.debug(DEBUG_TAG, 'sending request: ' + this._currentCommand.request.tag + ' ' + this._currentCommand.request.command);
         var data = this._currentCommand.data.shift();
-        this.onlog('client', data);
         this.send(data + (!this._currentCommand.data.length ? '\r\n' : ''));
         return this.waitDrain;
     };

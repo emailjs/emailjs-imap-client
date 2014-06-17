@@ -22,18 +22,19 @@
     'use strict';
 
     if (typeof define === 'function' && define.amd) {
-        define(['browserbox-imap', 'utf7', 'imap-handler', 'mimefuncs'], function(ImapClient, utf7, imapHandler, mimefuncs) {
-            return factory(ImapClient, utf7, imapHandler, mimefuncs);
+        define(['browserbox-imap', 'utf7', 'imap-handler', 'mimefuncs', 'axe'], function(ImapClient, utf7, imapHandler, mimefuncs, axe) {
+            return factory(ImapClient, utf7, imapHandler, mimefuncs, axe);
         });
     } else if (typeof exports === 'object') {
 
-        module.exports = factory(require('./browserbox-imap'), require('utf7'), require('imap-handler'), require('mimefuncs'));
+        module.exports = factory(require('./browserbox-imap'), require('utf7'), require('imap-handler'), require('mimefuncs'), require('axe'));
     } else {
-        root.BrowserBox = factory(root.BrowserboxImapClient, root.utf7, root.imapHandler, root.mimefuncs);
+        root.BrowserBox = factory(root.BrowserboxImapClient, root.utf7, root.imapHandler, root.mimefuncs, root.axe);
     }
-}(this, function(ImapClient, utf7, imapHandler, mimefuncs) {
+}(this, function(ImapClient, utf7, imapHandler, mimefuncs, axe) {
     'use strict';
 
+    var DEBUG_TAG = 'browserbox';
     /**
      * High level IMAP client
      *
@@ -112,10 +113,6 @@
      * Initialization method. Setup event handlers and such
      */
     BrowserBox.prototype._init = function() {
-        this.client.onlog = function(type, payload) {
-            this.onlog(type, payload);
-        }.bind(this);
-
         // proxy error events
         this.client.onerror = function(err) {
             this.onerror(err);
@@ -148,7 +145,6 @@
     };
 
     // Event placeholders
-    BrowserBox.prototype.onlog = function() {};
     BrowserBox.prototype.onclose = function() {};
     BrowserBox.prototype.onauth = function() {};
     BrowserBox.prototype.onupdate = function() {};
@@ -164,6 +160,7 @@
      * @event
      */
     BrowserBox.prototype._onClose = function() {
+        axe.debug(DEBUG_TAG, 'connection closed. goodbye.');
         this.onclose();
     };
 
@@ -174,7 +171,9 @@
      */
     BrowserBox.prototype._onTimeout = function() {
         clearTimeout(this._connectionTimeout);
-        this.onerror(new Error('Timeout creating connection to the IMAP server'));
+        var error = new Error('Timeout creating connection to the IMAP server');
+        axe.error(DEBUG_TAG, error);
+        this.onerror(error);
         this.client._destroy();
     };
 
@@ -186,7 +185,7 @@
      */
     BrowserBox.prototype._onReady = function() {
         clearTimeout(this._connectionTimeout);
-        this.onlog('session', 'Connection established');
+        axe.debug(DEBUG_TAG, 'session: connection established');
         this._changeState(this.STATE_NOT_AUTHENTICATED);
 
         this.updateCapability(function() {
@@ -215,7 +214,7 @@
             return;
         }
 
-        this.onlog('idle', 'Started idling');
+        axe.debug(DEBUG_TAG, 'client: started idling');
         this.enterIdle();
     };
 
@@ -225,6 +224,7 @@
      * Initiate connection to the IMAP server
      */
     BrowserBox.prototype.connect = function() {
+        axe.debug(DEBUG_TAG, 'connecting to ' + this.client.host + ':' + this.client.port);
         this._changeState(this.STATE_CONNECTING);
 
         // set timeout to fail connection establishing
@@ -237,6 +237,7 @@
      * Close current connection
      */
     BrowserBox.prototype.close = function(callback) {
+        axe.debug(DEBUG_TAG, 'closing connection');
         this._changeState(this.STATE_LOGOUT);
 
         this.exec('LOGOUT', function(err) {
@@ -256,6 +257,7 @@
     BrowserBox.prototype.exec = function() {
         var args = Array.prototype.slice.call(arguments),
             callback = args.pop();
+        
         if (typeof callback !== 'function') {
             args.push(callback);
             callback = undefined;
@@ -299,6 +301,7 @@
             return;
         }
         this._enteredIdle = this.capability.indexOf('IDLE') >= 0 ? 'IDLE' : 'NOOP';
+        axe.debug(DEBUG_TAG, 'entering idle with ' + this._enteredIdle);
 
         if (this._enteredIdle === 'NOOP') {
             this._idleTimeout = setTimeout(function() {
@@ -311,7 +314,7 @@
                 next();
             }.bind(this));
             this._idleTimeout = setTimeout(function() {
-                this.onlog('client', 'DONE');
+                axe.debug(DEBUG_TAG, 'sending idle DONE');
                 this.client.socket.send(new Uint8Array([0x44, 0x4f, 0x4e, 0x45, 0x0d, 0x0a]).buffer);
                 this._enteredIdle = false;
             }.bind(this), this.TIMEOUT_IDLE);
@@ -330,12 +333,12 @@
 
         clearTimeout(this._idleTimeout);
         if (this._enteredIdle === 'IDLE') {
-            this.onlog('client', 'DONE');
+            axe.debug(DEBUG_TAG, 'sending idle DONE');
             this.client.socket.send(new Uint8Array([0x44, 0x4f, 0x4e, 0x45, 0x0d, 0x0a]).buffer);
         }
         this._enteredIdle = false;
 
-        this.onlog('idle', 'terminated');
+        axe.debug(DEBUG_TAG, 'idle terminated');
 
         return callback();
     };
@@ -357,12 +360,11 @@
             callback = forced;
             forced = undefined;
         }
-
         // skip request, if not forced update and capabilities are already loaded
         if (!forced && this.capability.length) {
             return callback(null, false);
         }
-
+        
         this.exec('CAPABILITY', function(err, response, next) {
             if (err) {
                 callback(err);
@@ -431,10 +433,9 @@
                 if (response && response.payload) {
                     try {
                         payload = JSON.parse(mimefuncs.base64Decode(response.payload));
-                    } catch (E) {}
-                }
-                if (payload) {
-                    this.onlog('xoauth2', payload);
+                    } catch (e) {
+                        axe.error(DEBUG_TAG, 'error parsing XOAUTH2 payload: ' + e + '\nstack trace: ' + e.stack);
+                    }
                 }
                 // + tagged error response expects an empty line in return
                 this.client.send('\r\n');
@@ -472,6 +473,7 @@
                 // capabilites were listed with the OK [CAPABILITY ...] response
                 this.capability = [].concat(response.capability || []);
                 capabilityUpdated = true;
+                axe.debug(DEBUG_TAG, 'post-auth capabilites updated: ' + this.capability);
                 callback(null, true);
             } else if (response.payload && response.payload.CAPABILITY && response.payload.CAPABILITY.length) {
                 // capabilites were listed with * CAPABILITY ... response
@@ -479,6 +481,7 @@
                     return (capa.value || '').toString().toUpperCase().trim();
                 });
                 capabilityUpdated = true;
+                axe.debug(DEBUG_TAG, 'post-auth capabilites updated: ' + this.capability);
                 callback(null, true);
             } else {
                 // capabilities were not automatically listed, reload
@@ -486,9 +489,10 @@
                     if (err) {
                         callback(err);
                     } else {
+                        axe.debug(DEBUG_TAG, 'post-auth capabilites updated: ' + this.capability);
                         callback(null, true);
                     }
-                });
+                }.bind(this));
             }
 
             next();
@@ -533,6 +537,7 @@
             attributes: attributes
         }, 'ID', function(err, response, next) {
             if (err) {
+                axe.error(DEBUG_TAG, 'error updating server id: ' + err + '\n' + err.stack);
                 callback(err);
                 return next();
             }
@@ -552,8 +557,6 @@
                     this.serverId[key] = (val && val.value || '').toString();
                 }
             }.bind(this));
-
-            this.onlog('server id', JSON.stringify(this.serverId));
 
             callback(null, this.serverId);
 
@@ -608,6 +611,7 @@
                 attributes: ['', '*']
             }, 'LSUB', function(err, response, next) {
                 if (err) {
+                    axe.error(DEBUG_TAG, 'error while listing subscribed mailboxes: ' + err + '\n' + err.stack);
                     callback(null, tree);
                     return next();
                 }
@@ -1666,6 +1670,8 @@
         if (newState === this.state) {
             return;
         }
+
+        axe.debug(DEBUG_TAG, 'entering state: ' + this.state);
 
         // if a mailbox was opened, emit onclosemailbox and clear selectedMailbox value
         if (this.state === this.STATE_SELECTED && this.selectedMailbox) {
