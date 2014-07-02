@@ -19,7 +19,7 @@
   "main": "src/browserbox",
   "dependencies": {
     "utf7": "https://github.com/whiteout-io/utf7/tarball/v2.0.0",
-    "imap-handler": "https://github.com/whiteout-io/imap-handler/tarball/v0.1.9",
+    "imap-handler": "https://github.com/whiteout-io/imap-handler/tarball/v0.1.10",
     "mimefuncs": "https://github.com/whiteout-io/mimefuncs/tarball/v0.3.2",
     "axe": "https://github.com/whiteout-io/axe/tarball/v0.0.2",
     "tcp-socket": "^0.2.1"

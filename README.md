@@ -14,10 +14,6 @@ There is a [shim](https://github.com/whiteout-io/tcp-socket) that brings [Mozill
 
 ## Installation
 
-### [Bower](http://bower.io/):
-
-    bower install git@github.com:whiteout-io/browserbox.git#<TAG_NAME>
-
 ### [npm](https://www.npmjs.org/):
 
     npm install https://github.com/whiteout-io/browserbox/tarball/<TAG_NAME>
