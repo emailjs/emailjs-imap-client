@@ -61,7 +61,8 @@ module.exports = function(grunt) {
                     'stringencoding/dist/stringencoding.js',
                     'utf7/src/utf7.js',
                     'imap-handler/src/*.js',
-                    'mimefuncs/src/mimefuncs.js'
+                    'mimefuncs/src/mimefuncs.js',
+                    'axe/axe.js'
                 ],
                 dest: 'test/lib/'
             },
