@@ -761,7 +761,7 @@
      *
      * @param {String} destination The mailbox where to append the message
      * @param {String} message The message to append
-     * @param {Array} options.flags Any flags. Defaults to \Seen. (optional)
+     * @param {Array} options.flags Any flags you want to set on the uploaded message. Defaults to [\Seen]. (optional)
      * @param {Function} callback Callback function with the array of matching seq. or uid numbers
      */
     BrowserBox.prototype.upload = function(destination, message, options, callback) {
@@ -773,6 +773,13 @@
         options = options || {};
         options.flags = options.flags || ['\\Seen'];
 
+        var flags = options.flags.map(function(flag) {
+            return {
+                type: 'atom',
+                value: flag
+            };
+        });
+
         var command = {
             command: 'APPEND'
         };
@@ -780,7 +787,7 @@
                 type: 'atom',
                 value: destination
             },
-            options.flags, {
+            flags, {
                 type: 'literal',
                 value: message
             }
