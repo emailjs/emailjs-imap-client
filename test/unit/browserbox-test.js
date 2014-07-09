@@ -534,6 +534,36 @@ define(function(require) {
             });
         });
 
+        describe('#upload', function() {
+            it('should call APPEND with custom flag', function(done) {
+                sinon.stub(br, 'exec').yields(null, null, done);
+
+                br.upload('mailbox', 'this is a message', {
+                    flags: ['\\$MyFlag']
+                }, function(err, success) {
+                    expect(err).to.not.exist;
+                    expect(success).to.be.true;
+
+                    expect(br.exec.callCount).to.equal(1);
+
+                    br.exec.restore();
+                });
+            });
+
+            it('should call APPEND w/o flags', function(done) {
+                sinon.stub(br, 'exec').yields(null, null, done);
+
+                br.upload('mailbox', 'this is a message', function(err, success) {
+                    expect(err).to.not.exist;
+                    expect(success).to.be.true;
+
+                    expect(br.exec.callCount).to.equal(1);
+
+                    br.exec.restore();
+                });
+            });
+        });
+
         describe('#setFlags', function() {
             it('should call STORE', function(done) {
                 sinon.stub(br, 'exec', function(command, untagged, callback) {

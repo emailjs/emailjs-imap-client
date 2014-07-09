@@ -266,7 +266,7 @@
     BrowserBox.prototype.exec = function() {
         var args = Array.prototype.slice.call(arguments),
             callback = args.pop();
-        
+
         if (typeof callback !== 'function') {
             args.push(callback);
             callback = undefined;
@@ -373,7 +373,7 @@
         if (!forced && this.capability.length) {
             return callback(null, false);
         }
-        
+
         this.exec('CAPABILITY', function(err, response, next) {
             if (err) {
                 callback(err);
@@ -749,6 +749,45 @@
             } else {
                 callback(null, this._parseFETCH(response));
             }
+            next();
+        }.bind(this));
+    };
+
+    /**
+     * Runs APPEND command
+     *
+     * APPEND details:
+     *   http://tools.ietf.org/html/rfc3501#section-6.3.11
+     *
+     * @param {String} destination The mailbox where to append the message
+     * @param {String} message The message to append
+     * @param {Array} options.flags Any flags. Defaults to \Seen. (optional)
+     * @param {Function} callback Callback function with the array of matching seq. or uid numbers
+     */
+    BrowserBox.prototype.upload = function(destination, message, options, callback) {
+        if (!callback && typeof options === 'function') {
+            callback = options;
+            options = undefined;
+        }
+
+        options = options || {};
+        options.flags = options.flags || ['\\Seen'];
+
+        var command = {
+            command: 'APPEND'
+        };
+        command.attributes = [{
+                type: 'atom',
+                value: destination
+            },
+            options.flags, {
+                type: 'literal',
+                value: message
+            }
+        ];
+
+        this.exec(command, function(err, response, next) {
+            callback(err, err ? undefined : true);
             next();
         }.bind(this));
     };
