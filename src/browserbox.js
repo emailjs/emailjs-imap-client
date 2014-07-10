@@ -111,7 +111,7 @@
     /**
      * Time between NOOP commands while idling
      */
-    BrowserBox.prototype.TIMEOUT_NOOP = 3 * 60 * 1000;
+    BrowserBox.prototype.TIMEOUT_NOOP = 1 * 60 * 1000;
 
     /**
      * Time until IDLE command is cancelled
