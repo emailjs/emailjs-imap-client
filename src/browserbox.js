@@ -127,6 +127,11 @@
             this.onerror(err);
         }.bind(this);
 
+        // allows certificate handling for platforms w/o native tls support
+        this.client.oncert = function(cert) {
+            this.oncert(cert);
+        }.bind(this);
+
         // proxy close events
         this.client.onclose = function() {
             clearTimeout(this._connectionTimeout);
@@ -157,6 +162,7 @@
     BrowserBox.prototype.onclose = function() {};
     BrowserBox.prototype.onauth = function() {};
     BrowserBox.prototype.onupdate = function() {};
+    BrowserBox.prototype.oncert = function() {};
     /* BrowserBox.prototype.onerror = function(err){}; // not defined by default */
     BrowserBox.prototype.onselectmailbox = function() {};
     BrowserBox.prototype.onclosemailbox = function() {};
