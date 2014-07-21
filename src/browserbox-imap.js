@@ -44,22 +44,22 @@
      * @param {String} [host='localhost'] Hostname to conenct to
      * @param {Number} [port=143] Port number to connect to
      * @param {Object} [options] Optional options object
-     * @param {Boolean} [options.useSSL] Set to true, to use encrypted connection
+     * @param {Boolean} [options.useSecureTransport] Set to true, to use encrypted connection
      */
     function ImapClient(host, port, options) {
         this._TCPSocket = TCPSocket;
 
         this.options = options || {};
 
-        this.port = port || (this.options.useSSL ? 993 : 143);
+        this.port = port || (this.options.useSecureTransport ? 993 : 143);
         this.host = host || 'localhost';
 
         /**
          * If set to true, start an encrypted connection instead of the plaintext one
-         * (recommended if applicable). If useSSL is not set but the port used is 993,
+         * (recommended if applicable). If useSecureTransport is not set but the port used is 993,
          * then ecryption is used by default.
          */
-        this.options.useSSL = 'useSSL' in this.options ? !!this.options.useSSL : this.port === 993;
+        this.options.useSecureTransport = 'useSecureTransport' in this.options ? !!this.options.useSecureTransport : this.port === 993;
 
         /**
          * Authentication object. If not set, authentication step will be skipped.
@@ -88,7 +88,7 @@
         /**
          * Does the connection use SSL/TLS
          */
-        this._secureMode = !!this.options.useSSL;
+        this._secureMode = !!this.options.useSecureTransport;
 
         /**
          * Is the conection established and greeting is received from the server
@@ -201,7 +201,7 @@
     ImapClient.prototype.connect = function() {
         this.socket = this._TCPSocket.open(this.host, this.port, {
             binaryType: 'arraybuffer',
-            useSSL: this._secureMode,
+            useSecureTransport: this._secureMode,
             ca: this.options.ca
         });
 

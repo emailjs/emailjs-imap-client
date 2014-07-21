@@ -86,7 +86,7 @@ define(function(require) {
                         user: "testuser",
                         pass: "testpass"
                     },
-                    useSSL: false
+                    useSecureTransport: false
                 });
                 expect(imap).to.exist;
 
