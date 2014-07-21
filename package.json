@@ -22,7 +22,7 @@
     "imap-handler": "https://github.com/whiteout-io/imap-handler/tarball/v0.1.10",
     "mimefuncs": "https://github.com/whiteout-io/mimefuncs/tarball/v0.3.2",
     "axe": "https://github.com/whiteout-io/axe/tarball/v0.0.2",
-    "tcp-socket": "https://github.com/whiteout-io/tcp-socket/tarball/dev/WO-421"
+    "tcp-socket": "^0.3.0"
   },
   "devDependencies": {
     "chai": "~1.8.1",
