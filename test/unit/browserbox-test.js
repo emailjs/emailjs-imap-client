@@ -534,6 +534,36 @@ define(function(require) {
             });
         });
 
+        describe('#upload', function() {
+            it('should call APPEND with custom flag', function(done) {
+                sinon.stub(br, 'exec').yields(null, null, done);
+
+                br.upload('mailbox', 'this is a message', {
+                    flags: ['\\$MyFlag']
+                }, function(err, success) {
+                    expect(err).to.not.exist;
+                    expect(success).to.be.true;
+
+                    expect(br.exec.callCount).to.equal(1);
+
+                    br.exec.restore();
+                });
+            });
+
+            it('should call APPEND w/o flags', function(done) {
+                sinon.stub(br, 'exec').yields(null, null, done);
+
+                br.upload('mailbox', 'this is a message', function(err, success) {
+                    expect(err).to.not.exist;
+                    expect(success).to.be.true;
+
+                    expect(br.exec.callCount).to.equal(1);
+
+                    br.exec.restore();
+                });
+            });
+        });
+
         describe('#setFlags', function() {
             it('should call STORE', function(done) {
                 sinon.stub(br, 'exec', function(command, untagged, callback) {
@@ -1624,8 +1654,6 @@ define(function(require) {
 
         describe('#_checkSpecialUse', function() {
             it('should exist', function() {
-                br.capability = ['SPECIAL-USE'];
-
                 expect(br._checkSpecialUse({
                     flags: ['test', '\\All']
                 })).to.equal('\\All');
@@ -1633,33 +1661,22 @@ define(function(require) {
             });
 
             it('should fail for non-existent flag', function() {
-                br.capability = ['SPECIAL-USE'];
-
                 expect(false, br._checkSpecialUse({}));
             });
 
             it('should fail for invalid flag', function() {
-                br.capability = ['SPECIAL-USE'];
-
                 expect(br._checkSpecialUse({
                     flags: ['test']
                 })).to.be.false;
             });
 
-            it('should fail when no extension is present', function() {
+            it('should return special use flag if match is found', function() {
                 expect(br._checkSpecialUse({
                     name: 'test'
                 })).to.be.false;
                 expect(br._checkSpecialUse({
                     name: 'Praht'
                 })).to.equal('\\Trash');
-            });
-        });
-
-        describe('#_specialUseType', function() {
-            it('should return special use flag if match is found', function() {
-                expect(br._specialUseType('praht')).to.equal('\\Trash');
-                expect(br._specialUseType('aaaa')).to.be.false;
             });
         });
 

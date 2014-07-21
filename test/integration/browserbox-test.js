@@ -86,7 +86,7 @@ define(function(require) {
                         user: "testuser",
                         pass: "testpass"
                     },
-                    useSSL: false
+                    useSecureTransport: false
                 });
                 expect(imap).to.exist;
 
@@ -122,6 +122,33 @@ define(function(require) {
                         expect(err).to.not.exist;
                         expect(messages).to.not.be.empty;
                         done();
+                    });
+                });
+            });
+        });
+
+        describe('#upload', function() {
+            it('should succeed', function(done) {
+                imap.selectMailbox("inbox", function(err) {
+                    expect(err).to.not.exist;
+
+                    imap.listMessages("1:*", ["uid", "flags", "envelope", "bodystructure"], function(err, messages) {
+                        expect(err).to.not.exist;
+                        expect(messages).to.not.be.empty;
+                        var msgCount = messages.length;
+
+                        imap.upload('inbox', 'MIME-Version: 1.0\r\nDate: Wed, 9 Jul 2014 15:07:47 +0200\r\nDelivered-To: test@test.com\r\nMessage-ID: <CAHftYYQo=5fqbtnv-DazXhL2j5AxVP1nWarjkztn-N9SV91Z2w@mail.gmail.com>\r\nSubject: test\r\nFrom: Test Test <test@test.com>\r\nTo: Test Test <test@test.com>\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\ntest', {
+                            flags: ['\\Seen', '\\Answered', '\\$MyFlag']
+                        }, function(err, success) {
+                            expect(err).to.not.exist;
+                            expect(success).to.be.true;
+
+                            imap.listMessages("1:*", ["uid", "flags", "envelope", "bodystructure"], function(err, messages) {
+                                expect(err).to.not.exist;
+                                expect(messages.length).to.equal(msgCount + 1);
+                                done();
+                            });
+                        });
                     });
                 });
             });
