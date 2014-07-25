@@ -8,7 +8,7 @@ define(function(require) {
 
     var chai = require('chai');
     var sinon = require('sinon');
-    var axe = require('axe');
+    var axe = require('axe-logger');
     var BrowserBox = require('browserbox');
     var mimeTorture = require('./fixtures/mime-torture-bodystructure');
     var testEnvelope = require('./fixtures/envelope');

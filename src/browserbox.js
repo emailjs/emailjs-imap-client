@@ -22,12 +22,12 @@
     'use strict';
 
     if (typeof define === 'function' && define.amd) {
-        define(['browserbox-imap', 'utf7', 'imap-handler', 'mimefuncs', 'axe'], function(ImapClient, utf7, imapHandler, mimefuncs, axe) {
+        define(['browserbox-imap', 'wo-utf7', 'wo-imap-handler', 'mimefuncs', 'axe-logger'], function(ImapClient, utf7, imapHandler, mimefuncs, axe) {
             return factory(ImapClient, utf7, imapHandler, mimefuncs, axe);
         });
     } else if (typeof exports === 'object') {
 
-        module.exports = factory(require('./browserbox-imap'), require('utf7'), require('imap-handler'), require('mimefuncs'), require('axe'));
+        module.exports = factory(require('./browserbox-imap'), require('wo-utf7'), require('wo-imap-handler'), require('mimefuncs'), require('axe-logger'));
     } else {
         root.BrowserBox = factory(root.BrowserboxImapClient, root.utf7, root.imapHandler, root.mimefuncs, root.axe);
     }

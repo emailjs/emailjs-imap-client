@@ -22,11 +22,11 @@
     'use strict';
 
     if (typeof define === 'function' && define.amd) {
-        define(['tcp-socket', 'imap-handler', 'mimefuncs', 'axe'], function(TCPSocket, imapHandler, mimefuncs, axe) {
+        define(['tcp-socket', 'wo-imap-handler', 'mimefuncs', 'axe-logger'], function(TCPSocket, imapHandler, mimefuncs, axe) {
             return factory(TCPSocket, imapHandler, mimefuncs, axe);
         });
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('tcp-socket'), require('imap-handler'), require('mimefuncs'), require('axe'));
+        module.exports = factory(require('tcp-socket'), require('wo-imap-handler'), require('mimefuncs'), require('axe-logger'));
     } else {
         root.BrowserboxImapClient = factory(navigator.TCPSocket, root.imapHandler, root.mimefuncs, root.axe);
     }

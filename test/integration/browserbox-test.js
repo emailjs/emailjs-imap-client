@@ -9,7 +9,7 @@ define(function(require) {
     var chai = require('chai');
     var BrowserBox = require('../../src/browserbox');
     var hoodiecrow = require('hoodiecrow');
-    var axe = require('axe');
+    var axe = require('axe-logger');
 
     var expect = chai.expect;
     chai.Assertion.includeStack = true;

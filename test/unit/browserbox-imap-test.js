@@ -10,7 +10,7 @@ define(function(require) {
     var sinon = require('sinon');
     var ImapClient = require('browserbox-imap');
     var mimefuncs = require('mimefuncs');
-    var axe = require('axe');
+    var axe = require('axe-logger');
 
     var expect = chai.expect;
     chai.Assertion.includeStack = true;

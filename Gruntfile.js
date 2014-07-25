@@ -58,11 +58,11 @@ module.exports = function(grunt) {
                     'requirejs/require.js',
                     'tcp-socket/src/tcp-socket.js',
                     'node-forge/js/forge.min.js',
-                    'stringencoding/dist/stringencoding.js',
-                    'utf7/src/utf7.js',
-                    'imap-handler/src/*.js',
+                    'wo-stringencoding/dist/stringencoding.js',
+                    'wo-utf7/src/utf7.js',
+                    'wo-imap-handler/src/*.js',
                     'mimefuncs/src/mimefuncs.js',
-                    'axe/axe.js'
+                    'axe-logger/axe.js'
                 ],
                 dest: 'test/lib/'
             },
