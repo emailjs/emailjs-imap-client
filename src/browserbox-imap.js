@@ -22,7 +22,7 @@
     'use strict';
 
     if (typeof define === 'function' && define.amd) {
-        define(['tcp-socket', 'wo-imap-handler', 'mimefuncs', 'axe-logger'], function(TCPSocket, imapHandler, mimefuncs, axe) {
+        define(['tcp-socket', 'imap-handler', 'mimefuncs', 'axe'], function(TCPSocket, imapHandler, mimefuncs, axe) {
             return factory(TCPSocket, imapHandler, mimefuncs, axe);
         });
     } else if (typeof exports === 'object') {

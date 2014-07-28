@@ -22,7 +22,7 @@
     'use strict';
 
     if (typeof define === 'function' && define.amd) {
-        define(['browserbox-imap', 'wo-utf7', 'wo-imap-handler', 'mimefuncs', 'axe-logger'], function(ImapClient, utf7, imapHandler, mimefuncs, axe) {
+        define(['browserbox-imap', 'utf7', 'imap-handler', 'mimefuncs', 'axe'], function(ImapClient, utf7, imapHandler, mimefuncs, axe) {
             return factory(ImapClient, utf7, imapHandler, mimefuncs, axe);
         });
     } else if (typeof exports === 'object') {

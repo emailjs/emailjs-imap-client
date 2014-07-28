@@ -1,18 +1,12 @@
 'use strict';
 
-if (typeof define !== 'function') {
-    var define = require('amdefine')(module);
-}
-
-define(function(require) {
-
-    var chai = require('chai');
-    var sinon = require('sinon');
-    var axe = require('axe-logger');
-    var BrowserBox = require('browserbox');
-    var mimeTorture = require('./fixtures/mime-torture-bodystructure');
-    var testEnvelope = require('./fixtures/envelope');
-
+(function(factory) {
+    if (typeof define === 'function' && define.amd) {
+        define(['chai', 'sinon', 'axe', 'browserbox', './fixtures/mime-torture-bodystructure', './fixtures/envelope'], factory);
+    } else if (typeof exports === 'object') {
+        module.exports = factory(require('chai'), require('sinon'), require('axe-logger'), require('browserbox'), require('./fixtures/mime-torture-bodystructure'), require('./fixtures/envelope'));
+    }
+}(function(chai, sinon, axe, BrowserBox, mimeTorture, testEnvelope) {
     var expect = chai.expect;
     chai.Assertion.includeStack = true;
 
@@ -1722,4 +1716,4 @@ define(function(require) {
             });
         });
     });
-});
+}));
