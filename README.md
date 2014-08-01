@@ -26,7 +26,7 @@ Require [browserbox.js](src/browserbox.js) as `browserbox`
 
 ### Global context
 
-Include following fileson the page.
+Include following files on the page.
 
 ```html
 <script src="browserbox.js"></script>
