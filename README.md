@@ -55,7 +55,7 @@ Where
       * **pass** is the password of the user
       * **xoauth2** is the OAuth2 access token to be used instead of password
     * **id** (optional) is the identification object for [RFC2971](http://tools.ietf.org/html/rfc2971#section-3.3) (ex. `{name: 'myclient', version: '1'}`)
-    * **useSSL** (optional) enables TLS
+    * **useSecureTransport** (optional) enables TLS
     * **ca** (optional) (only in conjunction with this [TCPSocket shim](https://github.com/whiteout-io/tcp-socket)) if you use TLS, pin a PEM-encoded certificate as a string
 
 Example
