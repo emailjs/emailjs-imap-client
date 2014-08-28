@@ -1752,13 +1752,14 @@
      * @return {Object} branch for used path
      */
     BrowserBox.prototype._ensurePath = function(tree, path, delimiter) {
-        var names = path.split(delimiter),
-            branch = tree,
-            i, j, found;
+        var names = path.split(delimiter);
+        var branch = tree;
+        var i, j, found;
+
         for (i = 0; i < names.length; i++) {
             found = false;
             for (j = 0; j < branch.children.length; j++) {
-                if (branch.children[j].name === utf7.imap.decode(names[i])) {
+                if (this._compareMailboxNames(branch.children[j].name, utf7.imap.decode(names[i]))) {
                     branch = branch.children[j];
                     found = true;
                     break;
@@ -1775,6 +1776,17 @@
             }
         }
         return branch;
+    };
+
+    /**
+     * Compares two mailbox names. Case insensitive in case of INBOX, otherwise case sensitive
+     *
+     * @param {String} a Mailbox name
+     * @param {String} b Mailbox name
+     * @returns {Boolean} True if the folder names match
+     */
+    BrowserBox.prototype._compareMailboxNames = function(a, b) {
+        return (a.toUpperCase() === 'INBOX' ? 'INBOX' : a) === (b.toUpperCase() === 'INBOX' ? 'INBOX' : b);
     };
 
     /**
