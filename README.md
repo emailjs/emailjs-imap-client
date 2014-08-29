@@ -180,6 +180,39 @@ client.listMailboxes(function(err, mailboxes){
 }
 ```
 
+### Notes
+
+Root level `INBOX` is case insensitive, so all subfolders of INBOX, Inbox etc. are mapped together. The first occurence of `INBOX` defines the `name` property for the parent element. `path` values remain as listed.
+
+For example the following IMAP response lists different INBOX names:
+
+```
+    * LIST () "INBOX"
+    * LIST () "Inbox/test"
+```
+
+These different INBOX names are mapped to the following object:
+
+```json
+{
+  "root": true,
+  "children": [
+    {
+      "name": "INBOX",
+      "delimiter": "/",
+      "path": "INBOX",
+      "children": [
+        {
+          "name": "test",
+          "delimiter": "/",
+          "path": "Inbox/test",
+        }
+      ]
+    }
+  ]
+}
+```
+
 ## List namespaces
 
 List available namespaces with `listNamespaces()`. If [NAMESPACE](https://tools.ietf.org/html/rfc2342) extension is not supported, the method returns `false`.

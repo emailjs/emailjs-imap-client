@@ -1644,6 +1644,43 @@
                     abc: 123
                 });
             });
+
+            it('should handle case insensitive Inbox', function() {
+                var tree = {
+                    children: []
+                };
+                expect(br._ensurePath(tree, 'Inbox/world', '/')).to.deep.equal({
+                    name: 'world',
+                    delimiter: '/',
+                    path: 'Inbox/world',
+                    children: []
+                });
+                expect(br._ensurePath(tree, 'INBOX/worlds', '/')).to.deep.equal({
+                    name: 'worlds',
+                    delimiter: '/',
+                    path: 'INBOX/worlds',
+                    children: []
+                });
+
+                expect(tree).to.deep.equal({
+                    children: [{
+                        name: 'Inbox',
+                        delimiter: '/',
+                        path: 'Inbox',
+                        children: [{
+                            name: 'world',
+                            delimiter: '/',
+                            path: 'Inbox/world',
+                            children: []
+                        }, {
+                            name: 'worlds',
+                            delimiter: '/',
+                            path: 'INBOX/worlds',
+                            children: []
+                        }]
+                    }]
+                });
+            });
         });
 
         describe('#_checkSpecialUse', function() {
