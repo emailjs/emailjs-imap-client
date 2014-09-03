@@ -19,7 +19,8 @@
         beforeEach(function() {
             br = new BrowserBox();
             br.client.socket = {
-                send: function() {}
+                send: function() {},
+                upgradeToSecure: function() {}
             };
         });
 
@@ -237,6 +238,45 @@
                     done();
                 });
             });
+        });
+
+        describe('#upgradeConnection', function() {
+            describe('Skip upgrade', function() {
+                it('should do nothing if already secured', function() {
+                    br.client.secureMode = true;
+                    br.capability = ['starttls'];
+                    br.upgradeConnection(function(err, upgraded) {
+                        expect(err).to.not.exist;
+                        expect(upgraded).to.be.false;
+                    });
+                });
+
+                it('should do nothing if STARTTLS not available', function() {
+                    br.client.secureMode = false;
+                    br.capability = [];
+                    br.upgradeConnection(function(err, upgraded) {
+                        expect(err).to.not.exist;
+                        expect(upgraded).to.be.false;
+                    });
+                });
+            });
+
+            it('should run STARTTLS', function(done) {
+                sinon.stub(br.client, 'upgrade');
+                sinon.stub(br, 'exec', function(cmd, cb) {
+                    expect(cmd).to.equal('STARTTLS');
+                    cb();
+                    expect(br.client.upgrade.callCount).to.equal(1);
+                    expect(br.capability.length).to.equal(0);
+
+                    br.exec.restore();
+                    br.client.upgrade.restore();
+                    done();
+                });
+                br.capability = ['STARTTLS'];
+                br.upgradeConnection();
+            });
+
         });
 
         describe('#updateCapability', function() {

@@ -57,6 +57,7 @@ Where
     * **id** (optional) is the identification object for [RFC2971](http://tools.ietf.org/html/rfc2971#section-3.3) (ex. `{name: 'myclient', version: '1'}`)
     * **useSecureTransport** (optional) enables TLS
     * **ca** (optional) (only in conjunction with this [TCPSocket shim](https://github.com/whiteout-io/tcp-socket)) if you use TLS, pin a PEM-encoded certificate as a string
+    * **ignoreTLS** – if set to true, do not call STARTTLS before authentication
 
 Example
 

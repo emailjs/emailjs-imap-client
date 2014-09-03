@@ -88,7 +88,7 @@
         /**
          * Does the connection use SSL/TLS
          */
-        this._secureMode = !!this.options.useSecureTransport;
+        this.secureMode = !!this.options.useSecureTransport;
 
         /**
          * Is the conection established and greeting is received from the server
@@ -201,7 +201,7 @@
     ImapClient.prototype.connect = function() {
         this.socket = this._TCPSocket.open(this.host, this.port, {
             binaryType: 'arraybuffer',
-            useSecureTransport: this._secureMode,
+            useSecureTransport: this.secureMode,
             ca: this.options.ca
         });
 
@@ -221,6 +221,18 @@
         } else {
             this._destroy();
         }
+    };
+
+    /**
+     * Closes the connection to the server
+     */
+    ImapClient.prototype.upgrade = function(callback) {
+        if (this.secureMode) {
+            return callback(null, false);
+        }
+        this.secureMode = true;
+        this.socket.upgradeToSecure();
+        callback(null, true);
     };
 
     /**

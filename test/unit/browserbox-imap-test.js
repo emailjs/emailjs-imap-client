@@ -32,7 +32,7 @@
             TCPSocket.prototype.send = function() {};
             TCPSocket.prototype.suspend = function() {};
             TCPSocket.prototype.resume = function() {};
-            TCPSocket.prototype.send = function() {};
+            TCPSocket.prototype.upgradeToSecure = function() {};
 
             socketStub = sinon.createStubInstance(TCPSocket);
             openStub = sinon.stub(TCPSocket, 'open');
@@ -68,6 +68,26 @@
                 expect(client._destroy.callCount).to.equal(1);
 
                 client._destroy.restore();
+            });
+        });
+
+        describe('#upgrade', function() {
+            it('should upgrade socket', function(done) {
+                client.secureMode = false;
+                client.upgrade(function(err, upgraded) {
+                    expect(err).to.not.exist;
+                    expect(upgraded).to.be.true;
+                    done();
+                });
+            });
+
+            it('should not upgrade socket', function(done) {
+                client.secureMode = true;
+                client.upgrade(function(err, upgraded) {
+                    expect(err).to.not.exist;
+                    expect(upgraded).to.be.false;
+                    done();
+                });
             });
         });
 

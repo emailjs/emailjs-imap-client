@@ -204,16 +204,18 @@
         this._changeState(this.STATE_NOT_AUTHENTICATED);
 
         this.updateCapability(function() {
-            this.updateId(this.options.id, function() {
-                this.login(this.options.auth, function(err) {
-                    if (err) {
-                        // emit an error
-                        this.onerror(err);
-                        this.close();
-                        return;
-                    }
-                    // emit
-                    this.onauth();
+            this.upgradeConnection(function() {
+                this.updateId(this.options.id, function() {
+                    this.login(this.options.auth, function(err) {
+                        if (err) {
+                            // emit an error
+                            this.onerror(err);
+                            this.close();
+                            return;
+                        }
+                        // emit
+                        this.onauth();
+                    }.bind(this));
                 }.bind(this));
             }.bind(this));
         }.bind(this));
@@ -356,6 +358,36 @@
         axe.debug(DEBUG_TAG, 'idle terminated');
 
         return callback();
+    };
+
+    /**
+     * Runs STARTTLS command if needed
+     *
+     * STARTTLS details:
+     *   http://tools.ietf.org/html/rfc3501#section-6.2.1
+     *
+     * @param {Boolean} [forced] By default the command is not run if capability is already listed. Set to true to skip this validation
+     * @param {Function} callback Callback function
+     */
+    BrowserBox.prototype.upgradeConnection = function(callback) {
+        // skip request, if already secured or STARTTLS not available or starttls support disabled
+        if (this.client.secureMode ||  this.capability.indexOf('STARTTLS') < 0 || this.options.ignoreTLS) {
+            return callback(null, false);
+        }
+
+        this.exec('STARTTLS', function(err, response, next) {
+            if (err) {
+                callback(err);
+            } else {
+                this.capability = [];
+                this.client.upgrade(function(err, upgraded) {
+                    this.updateCapability(function(){
+                        callback(err, upgraded);
+                    });
+                    next();
+                }.bind(this));
+            }
+        }.bind(this));
     };
 
     /**
