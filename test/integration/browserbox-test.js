@@ -7,6 +7,8 @@
         module.exports = factory(require('chai'), require('../../src/browserbox'), require('hoodiecrow'), require('axe-logger'));
     }
 }(function(chai, BrowserBox, hoodiecrow, axe) {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
     var expect = chai.expect;
     chai.Assertion.includeStack = true;
 
@@ -20,6 +22,8 @@
 
             // start imap test server
             var options = {
+                //debug: true,
+                plugins: ["STARTTLS"],
                 secureConnection: false,
                 storage: {
                     "INBOX": {
