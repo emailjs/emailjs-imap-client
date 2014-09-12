@@ -1446,7 +1446,7 @@
                         curNode.parameters = {};
                         [].concat(node[i] || []).forEach(function(val, j) {
                             if (j % 2) {
-                                curNode.parameters[key] = (val && val.value || '').toString();
+                                curNode.parameters[key] = mimefuncs.mimeWordsDecode((val && val.value || '').toString());
                             } else {
                                 key = (val && val.value || '').toString().toLowerCase();
                             }
@@ -1466,7 +1466,7 @@
                     curNode.parameters = {};
                     [].concat(node[i] || []).forEach(function(val, j) {
                         if (j % 2) {
-                            curNode.parameters[key] = (val && val.value || '').toString();
+                            curNode.parameters[key] = mimefuncs.mimeWordsDecode((val && val.value || '').toString());
                         } else {
                             key = (val && val.value || '').toString().toLowerCase();
                         }
@@ -1556,7 +1556,7 @@
                         curNode.dispositionParameters = {};
                         [].concat(node[i][1] || []).forEach(function(val, j) {
                             if (j % 2) {
-                                curNode.dispositionParameters[key] = (val && val.value || '').toString();
+                                curNode.dispositionParameters[key] = mimefuncs.mimeWordsDecode((val && val.value || '').toString());
                             } else {
                                 key = (val && val.value || '').toString().toLowerCase();
                             }
