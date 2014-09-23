@@ -2,11 +2,11 @@
 
 (function(factory) {
     if (typeof define === 'function' && define.amd) {
-        define(['chai', 'sinon', 'axe', 'browserbox', './fixtures/mime-torture-bodystructure', './fixtures/envelope'], factory);
+        define(['chai', 'sinon', 'axe', 'browserbox', 'imap-handler', './fixtures/mime-torture-bodystructure', './fixtures/envelope'], factory);
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('chai'), require('sinon'), require('axe-logger'), require('browserbox'), require('./fixtures/mime-torture-bodystructure'), require('./fixtures/envelope'));
+        module.exports = factory(require('chai'), require('sinon'), require('axe-logger'), require('browserbox'), require('imap-handler'), require('./fixtures/mime-torture-bodystructure'), require('./fixtures/envelope'));
     }
-}(function(chai, sinon, axe, BrowserBox, mimeTorture, testEnvelope) {
+}(function(chai, sinon, axe, BrowserBox, imapHandler, mimeTorture, testEnvelope) {
     var expect = chai.expect;
     chai.Assertion.includeStack = true;
 
@@ -496,6 +496,44 @@
                     callback(null, {
                         payload: {
                             LIST: [false]
+                        }
+                    }, function() {});
+                });
+
+                br.listMailboxes(function(err, tree) {
+                    expect(err).to.not.exist;
+                    expect(tree).to.exist;
+                });
+            });
+
+            it('should not die on NIL separators', function(done) {
+                sinon.stub(br, 'exec', function(command, untagged, callback) {
+                    br.exec.restore();
+                    sinon.stub(br, 'exec', function(command, untagged, callback) {
+                        br.exec.restore();
+
+                        expect(command).to.deep.equal({
+                            command: 'LSUB',
+                            attributes: ['', '*']
+                        });
+                        callback(null, {
+                            payload: {
+                                LSUB: [false]
+                            }
+                        }, function() {
+                            done();
+                        });
+                    });
+
+                    expect(command).to.deep.equal({
+                        command: 'LIST',
+                        attributes: ['', '*']
+                    });
+                    callback(null, {
+                        payload: {
+                            LIST: [
+                                imapHandler.parser('* LIST (\\NoInferiors) NIL "INBOX"')
+                            ]
                         }
                     }, function() {});
                 });
