@@ -672,7 +672,7 @@
                     if (!item || !item.attributes || item.attributes.length < 3) {
                         return;
                     }
-                    var branch = this._ensurePath(tree, (item.attributes[2].value || '').toString(), (item.attributes[1].value).toString());
+                    var branch = this._ensurePath(tree, (item.attributes[2].value || '').toString(), (item.attributes[1] ? item.attributes[1].value : '/').toString());
                     [].concat(item.attributes[0] || []).map(function(flag) {
                         flag = (flag.value || '').toString();
                         if (!branch.flags || branch.flags.indexOf(flag) < 0) {
