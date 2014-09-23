@@ -645,7 +645,7 @@
                 if (!item || !item.attributes || item.attributes.length < 3) {
                     return;
                 }
-                var branch = this._ensurePath(tree, (item.attributes[2].value || '').toString(), (item.attributes[1].value).toString());
+                var branch = this._ensurePath(tree, (item.attributes[2].value || '').toString(), (item.attributes[1] ? item.attributes[1].value : '/').toString());
                 branch.flags = [].concat(item.attributes[0] || []).map(function(flag) {
                     return (flag.value || '').toString();
                 });
