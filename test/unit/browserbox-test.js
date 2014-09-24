@@ -518,7 +518,9 @@
                         });
                         callback(null, {
                             payload: {
-                                LSUB: [false]
+                                LSUB: [
+                                    imapHandler.parser('* LSUB (\\NoInferiors) NIL "INBOX"')
+                                ]
                             }
                         }, function() {
                             done();
