@@ -103,7 +103,7 @@ Where
 Is fired when the connection to the IMAP server is closed.
 
 ```
-client.onerror = function(err){}
+client.onclose = function(){}
 ```
 
 ### onauth
