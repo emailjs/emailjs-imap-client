@@ -204,7 +204,13 @@
         this._changeState(this.STATE_NOT_AUTHENTICATED);
 
         this.updateCapability(function() {
-            this.upgradeConnection(function() {
+            this.upgradeConnection(function(err) {
+                if (err) {
+                    // emit an error
+                    this.onerror(err);
+                    this.close();
+                    return;
+                }
                 this.updateId(this.options.id, function() {
                     this.login(this.options.auth, function(err) {
                         if (err) {
@@ -370,18 +376,25 @@
      * @param {Function} callback Callback function
      */
     BrowserBox.prototype.upgradeConnection = function(callback) {
-        // skip request, if already secured or STARTTLS not available or starttls support disabled
-        if (this.client.secureMode ||  this.capability.indexOf('STARTTLS') < 0 || this.options.ignoreTLS) {
+
+        // skip request, if already secured
+        if (this.client.secureMode) {
+            return callback(null, false);
+        }
+
+        // skip if STARTTLS not available or starttls support disabled
+        if ((this.capability.indexOf('STARTTLS') < 0 || this.options.ignoreTLS) && !this.options.requireTLS) {
             return callback(null, false);
         }
 
         this.exec('STARTTLS', function(err, response, next) {
             if (err) {
                 callback(err);
+                next();
             } else {
                 this.capability = [];
                 this.client.upgrade(function(err, upgraded) {
-                    this.updateCapability(function(){
+                    this.updateCapability(function() {
                         callback(err, upgraded);
                     });
                     next();
