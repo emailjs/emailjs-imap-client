@@ -22,7 +22,7 @@
     "wo-imap-handler": "~0.1.11",
     "mimefuncs": "~0.3.4",
     "axe-logger": "~0.0.2",
-    "tcp-socket": "~0.3.4"
+    "tcp-socket": "https://github.com/whiteout-io/tcp-socket/tarball/dev/WO-559"
   },
   "devDependencies": {
     "chai": "~1.8.1",

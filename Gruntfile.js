@@ -56,7 +56,7 @@ module.exports = function(grunt) {
                     'chai/chai.js',
                     'sinon/pkg/sinon.js',
                     'requirejs/require.js',
-                    'tcp-socket/src/tcp-socket.js',
+                    'tcp-socket/src/*.js',
                     'node-forge/js/forge.min.js',
                     'wo-stringencoding/dist/stringencoding.js',
                     'wo-utf7/src/utf7.js',
