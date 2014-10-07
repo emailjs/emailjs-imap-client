@@ -10,7 +10,13 @@ This module requires `TextEncoder` and `TextDecoder` to exist as part of the Str
 
 ## TCPSocket API
 
-There is a [shim](https://github.com/whiteout-io/tcp-socket) that brings [Mozilla-flavored](https://developer.mozilla.org/en-US/docs/WebAPI/TCP_Socket) version of the [Raw Socket API](http://www.w3.org/TR/raw-sockets/) to Chromium.
+There is a [shim](https://github.com/whiteout-io/tcp-socket) that brings [Mozilla-flavored](https://developer.mozilla.org/en-US/docs/WebAPI/TCP_Socket) version of the [Raw Socket API](http://www.w3.org/TR/raw-sockets/) to other platforms.
+
+If you are on a platform that uses forge instead of a native TLS implementation (e.g. chrome.socket), you have to set the .oncert(pemEncodedCertificate) handler that passes the TLS certificate that the server presents. It can be used on a trust-on-first-use basis for subsequent connection. 
+
+If forge is used to handle TLS traffic, you may choose to handle the TLS-related load in a Web Worker. Please use tlsWorkerPath to point to `tcp-socket-tls-worker.js`!
+
+Please take a look at the [tcp-socket documentation](https://github.com/whiteout-io/tcp-socket) for more information!
 
 ## Installation
 
@@ -56,7 +62,8 @@ Where
       * **xoauth2** is the OAuth2 access token to be used instead of password
     * **id** (optional) is the identification object for [RFC2971](http://tools.ietf.org/html/rfc2971#section-3.3) (ex. `{name: 'myclient', version: '1'}`)
     * **useSecureTransport** (optional) enables TLS
-    * **ca** (optional) (only in conjunction with this [TCPSocket shim](https://github.com/whiteout-io/tcp-socket)) if you use TLS, pin a PEM-encoded certificate as a string
+    * **ca** (optional) (only in conjunction with the [TCPSocket shim](https://github.com/whiteout-io/tcp-socket)) if you use TLS with forge, pin a PEM-encoded certificate as a string. Please refer to the [tcp-socket documentation](https://github.com/whiteout-io/tcp-socket) for more information!
+    * **tlsWorkerPath** (optional) (only in conjunction with the [TCPSocket shim](https://github.com/whiteout-io/tcp-socket)) if you use TLS with forge, this path indicates where the file for the TLS Web Worker is located. Please refer to the [tcp-socket documentation](https://github.com/whiteout-io/tcp-socket) for more information!
     * **ignoreTLS** – if set to true, do not call STARTTLS before authentication even if the host advertises support for it
     * **requireTLS** – if set to true, always use STARTTLS before authentication even if the host does not advertise it. If STARTTLS fails, do not try to authenticate the user
 
