@@ -13,8 +13,7 @@ define(['chai', 'browserbox'], function(chai, BrowserBox) {
                     user: "testuser",
                     pass: "testpass"
                 },
-                useSecureTransport: true,
-                ca: '-----BEGIN CERTIFICATE-----\r\nMIICKTCCAZICCQDW2h5P+naMbjANBgkqhkiG9w0BAQUFADBZMQswCQYDVQQGEwJB\r\nVTETMBEGA1UECBMKU29tZS1TdGF0ZTEhMB8GA1UEChMYSW50ZXJuZXQgV2lkZ2l0\r\ncyBQdHkgTHRkMRIwEAYDVQQDEwkxMjcuMC4wLjEwHhcNMTQwNzI4MTIzMDAxWhcN\r\nMTUwNzI4MTIzMDAxWjBZMQswCQYDVQQGEwJBVTETMBEGA1UECBMKU29tZS1TdGF0\r\nZTEhMB8GA1UEChMYSW50ZXJuZXQgV2lkZ2l0cyBQdHkgTHRkMRIwEAYDVQQDEwkx\r\nMjcuMC4wLjEwgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBAL0SbQFFWO5ylGyo\r\nHxj8ZCLNGk/ARPPZoFcfKE1ABw0e1xs+mF3Hrlq0AxoOI+NidW17WTBroqx2LMwH\r\ngDU7d/mBsfgGnXMCZmtkq3VcE/LTmQz5+PHrhLHsomvzqPPMGL1PM5i7UOBRxvZb\r\nI0P4WM8ZBRISHJ4JaUBupvrhXaeZAgMBAAEwDQYJKoZIhvcNAQEFBQADgYEApduD\r\nnAGm+VIMkCfLxWNegd41xS6Z89F/szTXjqnT14UnDc9CayOqxhsoWirukmEr7W9d\r\ngOTjGvG5X2k012VT1WTWinMHmyRJ4mM+caGTAJCE6Z314duhzOXrHhJUSHU5F9vs\r\nk9+qfs5ewmYBE3J6adnRCszn2VuoSRuof1MWRsU=\r\n-----END CERTIFICATE-----'
+                useSecureTransport: false
             });
             expect(imap).to.exist;
 
