@@ -123,16 +123,20 @@
 
         describe('#close', function() {
             it('should send LOGOUT', function(done) {
+                sinon.stub(br.client, 'close');
                 sinon.stub(br, 'exec', function(cmd, callback) {
                     expect(cmd).to.equal('LOGOUT');
                     callback();
                 });
 
                 br.close(function() {
-                    expect(br.state).to.equal(br.STATE_LOGOUT);
-
-                    br.exec.restore();
-                    done();
+                    // the close call comes after the current event loop iteration hass been handled.
+                    setTimeout(function() {
+                        expect(br.state).to.equal(br.STATE_LOGOUT);
+                        br.exec.restore();
+                        br.client.close.restore();
+                        done();
+                    }, 0);
                 });
             });
         });
