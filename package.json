@@ -36,7 +36,7 @@
     "mocha": "~1.16.2",
     "phantomjs": "~1.9.7-1",
     "requirejs": "~2.1.10",
-    "sinon": "^1.9.0",
+    "sinon": "^1.11.0",
     "hoodiecrow": "^1.1.21",
     "node-forge": "~0.6.11",
     "wo-stringencoding": "~0.1.1",

@@ -2,11 +2,11 @@
 
 (function(factory) {
     if (typeof define === 'function' && define.amd) {
-        define(['chai', 'sinon', 'axe', 'browserbox', 'imap-handler', './fixtures/mime-torture-bodystructure', './fixtures/envelope'], factory);
+        define(['chai', 'axe', 'browserbox', 'imap-handler', './fixtures/mime-torture-bodystructure', './fixtures/envelope'], factory.bind(null, sinon));
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('chai'), require('sinon'), require('axe-logger'), require('browserbox'), require('imap-handler'), require('./fixtures/mime-torture-bodystructure'), require('./fixtures/envelope'));
+        module.exports = factory(require('sinon'), require('chai'), require('axe-logger'), require('browserbox'), require('imap-handler'), require('./fixtures/mime-torture-bodystructure'), require('./fixtures/envelope'));
     }
-}(function(chai, sinon, axe, BrowserBox, imapHandler, mimeTorture, testEnvelope) {
+}(function(sinon, chai, axe, BrowserBox, imapHandler, mimeTorture, testEnvelope) {
     var expect = chai.expect;
     chai.Assertion.includeStack = true;
 

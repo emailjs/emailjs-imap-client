@@ -19,6 +19,7 @@
     "-W100": true,
 
 	"globals": {
+        "sinon": true,
         "define": true,
 		"chrome": true,
         "TextEncoder": true,
