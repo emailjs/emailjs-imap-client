@@ -267,7 +267,9 @@
             if (typeof callback === 'function') {
                 callback(err || null);
             }
-        });
+
+            this.client.close();
+        }.bind(this));
     };
 
     /**
