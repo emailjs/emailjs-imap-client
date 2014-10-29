@@ -133,6 +133,7 @@
                     // the close call comes after the current event loop iteration hass been handled.
                     setTimeout(function() {
                         expect(br.state).to.equal(br.STATE_LOGOUT);
+                        expect(br.client.close.calledOnce).to.be.true;
                         br.exec.restore();
                         br.client.close.restore();
                         done();
