@@ -5,11 +5,6 @@ require.config({
     paths: {
         'test': '..',
         'forge': 'forge.min'
-    },
-    shim: {
-        sinon: {
-            exports: 'sinon',
-        }
     }
 });
 
