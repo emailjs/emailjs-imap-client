@@ -1196,7 +1196,8 @@
                 return !arr ? false : [].concat(arr || []).map(function(ns) {
                     return !ns || !ns.length ? false : {
                         prefix: ns[0].value,
-                        delimiter: ns[1].value
+                        // The delimiter can legally be NIL which maps to null
+                        delimiter: ns[1] && ns[1].value
                     };
                 });
             };

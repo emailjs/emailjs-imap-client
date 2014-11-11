@@ -139,7 +139,7 @@ Mailbox object is with the following structure
   * **root** (boolean) `true` if the node is root
   * **name** (string) unicode decoded name of the mailbox
   * **path** (string) full path to the mailbox
-  * **delimiter** (string) path delimiting symbol
+  * **delimiter** (string) path delimiting symbol.  In the event the server returns NIL for this (some servers do this for the INBOX), it will be coerced to a '/' at this time, but the behavior may be changed in the future depending on how the folder creation API is implemented.
   * **listed** (boolean) mailbox was found in the LIST response
   * **subscribed** (boolean) mailbox was found in the LSUB response
   * **specialUse** (string) mailbox was identified as a special use mailbox ('\Trash', '\Sent', '\Junk' etc. see [RFC6154](http://tools.ietf.org/html/rfc6154#section-2))
@@ -247,7 +247,7 @@ Namespace object is with the following structure
 Namespace element object has the following structure
 
   * **prefix** is the prefix string
-  * **delimiter** is the hierarchy delimiter
+  * **delimiter** is the hierarchy delimiter.  This can be null for some servers but will usually be a string.
 
 **NB!** Namespace_Response_Extensions are not supported (extension data is silently skipped)
 
