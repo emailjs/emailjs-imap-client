@@ -1194,7 +1194,25 @@
                         delimiter: '/'
                     }]
                 });
+            });
 
+            it('should handle NIL namespace hierarchy delim', function() {
+                expect(br._parseNAMESPACE({
+                    payload: {
+                        NAMESPACE: [
+                            // This specific value is returned by yahoo.co.jp's
+                            // imapgate version 0.7.68_11_1.61475 IMAP server
+                            imapHandler.parser('* NAMESPACE (("" NIL)) NIL NIL')
+                        ]
+                    }
+                })).to.deep.equal({
+                    personal: [{
+                        prefix: '',
+                        delimiter: null
+                    }],
+                    users: false,
+                    shared: false
+                });
             });
         });
 
