@@ -1009,7 +1009,7 @@
                 })).to.deep.equal({
                     exists: 123,
                     flags: ['\\Answered', '\\Flagged'],
-                    highestModseq: 3682918,
+                    highestModseq: '3682918',
                     permanentFlags: ['\\Answered', '\\Flagged'],
                     readOnly: false,
                     uidNext: 38361,
@@ -1017,7 +1017,7 @@
                 });
             });
 
-            it('should parse response with ne modseq', function() {
+            it('should parse response with no modseq', function() {
                 expect(br._parseSELECT({
                     code: 'READ-WRITE',
                     payload: {
@@ -1914,7 +1914,7 @@
                     expect(value).to.deep.equal({
                         '#': 123,
                         'flags': ['\\Seen'],
-                        'modseq': 4
+                        'modseq': '4'
                     });
                     done();
                 };

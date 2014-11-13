@@ -1175,7 +1175,7 @@
                     mailbox.uidNext = Number(ok.uidnext) || 0;
                     break;
                 case 'HIGHESTMODSEQ':
-                    mailbox.highestModseq = Number(ok.highestmodseq) || 0;
+                    mailbox.highestModseq = ok.highestmodseq || '0'; // keep 64bit uint as a string
                     break;
             }
         });
@@ -1331,9 +1331,10 @@
         if (!Array.isArray(value)) {
             switch (key) {
                 case 'uid':
-                case 'modseq':
                 case 'rfc822.size':
                     return Number(value.value) || 0;
+                case 'modseq': // do not cast 64 bit uint to a number
+                    return value.value || '0';
             }
             return value.value;
         }
@@ -1351,7 +1352,7 @@
                 value = this._parseBODYSTRUCTURE([].concat(value || []));
                 break;
             case 'modseq':
-                value = Number((value.shift() || {}).value) || 0;
+                value = (value.shift() || {}).value || '0';
                 break;
         }
 
