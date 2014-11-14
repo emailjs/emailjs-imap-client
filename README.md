@@ -12,7 +12,7 @@ This module requires `TextEncoder` and `TextDecoder` to exist as part of the Str
 
 There is a [shim](https://github.com/whiteout-io/tcp-socket) that brings [Mozilla-flavored](https://developer.mozilla.org/en-US/docs/WebAPI/TCP_Socket) version of the [Raw Socket API](http://www.w3.org/TR/raw-sockets/) to other platforms.
 
-If you are on a platform that uses forge instead of a native TLS implementation (e.g. chrome.socket), you have to set the .oncert(pemEncodedCertificate) handler that passes the TLS certificate that the server presents. It can be used on a trust-on-first-use basis for subsequent connection. 
+If you are on a platform that uses forge instead of a native TLS implementation (e.g. chrome.socket), you have to set the .oncert(pemEncodedCertificate) handler that passes the TLS certificate that the server presents. It can be used on a trust-on-first-use basis for subsequent connection.
 
 If forge is used to handle TLS traffic, you may choose to handle the TLS-related load in a Web Worker. Please use tlsWorkerPath to point to `tcp-socket-tls-worker.js`!
 
@@ -297,7 +297,7 @@ Where
       * **readOnly** (boolean) `true` if the mailbox is in read only mode
       * **uidValidity** (number) UIDValidity value
       * **uidNext** (number) predicted next UID value
-      * **highestModseq** (number) (with CONDSTORE only) highest modseq value
+      * **highestModseq** (string) (with CONDSTORE only) highest modseq value (javascript can't handle 64bit uints so this is a string)
 
 Example
 
@@ -321,7 +321,7 @@ client.selectMailbox('INBOX', function(err, mailbox){
     ],
     "uidValidity": 2,
     "uidNext": 38361,
-    "highestModseq": 3682918
+    "highestModseq": "3682918"
 }
 ```
 
