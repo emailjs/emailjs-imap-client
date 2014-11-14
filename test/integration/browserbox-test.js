@@ -456,6 +456,44 @@
                     });
                 });
             });
+
+        });
+
+        describe('Timeout', function() {
+
+            beforeEach(function(done) {
+                imap = new BrowserBox('127.0.0.1', port, {
+                    auth: {
+                        user: "testuser",
+                        pass: "testpass"
+                    },
+                    useSecureTransport: false
+                });
+                expect(imap).to.exist;
+
+                imap.onauth = done;
+                imap.connect();
+            });
+
+            it('should timeout', function(done) {
+                var errored = false;
+
+                // remove the ondata event to simulate 100% packet loss and make the socket time out after 10ms
+                imap.client.TIMEOUT_SOCKET_LOWER_BOUND = 10;
+                imap.client.TIMEOUT_SOCKET_MULTIPLIER = 0;
+                imap.client.socket.ondata = function() {};
+
+                imap.onerror = function() {
+                    errored = true;
+                };
+
+                imap.onclose = function() {
+                    expect(errored).to.be.true;
+                    done();
+                };
+
+                imap.selectMailbox('inbox', function() {});
+            });
         });
     });
 }));
