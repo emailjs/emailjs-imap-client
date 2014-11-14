@@ -139,9 +139,14 @@
         this._globalAcceptUntagged = {};
 
         /**
-         * Time to wait until enter idle
+         * Timer waiting to enter idle
          */
         this._idleTimer = false;
+
+        /**
+         * Timer waiting to declare the socket dead starting from the last write
+         */
+        this._socketTimeoutTimer = false;
     }
 
     // Constants
@@ -150,6 +155,20 @@
      * How much time to wait since the last response until the connection is considered idling
      */
     ImapClient.prototype.TIMEOUT_ENTER_IDLE = 1000;
+
+    /**
+     * Lower Bound for socket timeout to wait since the last data was written to a socket
+     */
+    ImapClient.prototype.TIMEOUT_SOCKET_LOWER_BOUND = 10000;
+
+    /**
+     * Multiplier for socket timeout:
+     *
+     * We assume at least a GPRS connection with 115 kb/s = 14,375 kB/s tops, so 10 KB/s to be on
+     * the safe side. We can timeout after a lower bound of 10s + (n KB / 10 KB/s). A 1 MB message
+     * upload would be 110 seconds to wait for the timeout. 10 KB/s === 0.1 s/B
+     */
+    ImapClient.prototype.TIMEOUT_SOCKET_MULTIPLIER = 0.1;
 
     // PUBLIC EVENTS
     // Event functions should be overriden, these are just placeholders
@@ -273,11 +292,18 @@
 
     /**
      * Send data to the TCP socket
+     * Arms a timeout waiting for a response from the server.
      *
      * @param {String} str Payload
      */
     ImapClient.prototype.send = function(str) {
-        this.waitDrain = this.socket.send(mimefuncs.toTypedArray(str).buffer);
+        var buffer = mimefuncs.toTypedArray(str).buffer,
+            timeout = this.TIMEOUT_SOCKET_LOWER_BOUND + Math.floor(buffer.byteLength * this.TIMEOUT_SOCKET_MULTIPLIER);
+
+        clearTimeout(this._socketTimeoutTimer); // clear pending timeouts
+        this._socketTimeoutTimer = setTimeout(this._onTimeout.bind(this), timeout); // arm the next timeout
+
+        this.waitDrain = this.socket.send(buffer);
     };
 
     /**
@@ -321,6 +347,7 @@
         this._currentCommand = false;
 
         clearTimeout(this._idleTimer);
+        clearTimeout(this._socketTimeoutTimer);
 
         if (!this.destroyed) {
             this.destroyed = true;
@@ -337,6 +364,18 @@
     ImapClient.prototype._onClose = function() {
         this._destroy();
     };
+
+    /**
+     * Indicates that a socket timeout has occurred
+     */
+    ImapClient.prototype._onTimeout = function() {
+        // inform about the timeout, _onError takes case of the rest
+        var error = new Error('Socket timed out!');
+        axe.error(DEBUG_TAG, error);
+        this._onError(error);
+    };
+
+
 
     /**
      * More data can be buffered in the socket, `waitDrain` is reset to false
@@ -361,6 +400,9 @@
         if (!evt || !evt.data) {
             return;
         }
+
+        clearTimeout(this._idleTimer);
+
         var match,
             str = mimefuncs.fromTypedArray(evt.data);
 

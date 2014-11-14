@@ -104,19 +104,19 @@
     // Timeout constants
 
     /**
-     * How much time to wait for the greeting from the server until the connection is considered failed
+     * Milliseconds to wait for the greeting from the server until the connection is considered failed
      */
     BrowserBox.prototype.TIMEOUT_CONNECTION = 90 * 1000;
 
     /**
-     * Time between NOOP commands while idling
+     * Milliseconds between NOOP commands while idling
      */
-    BrowserBox.prototype.TIMEOUT_NOOP = 1 * 60 * 1000;
+    BrowserBox.prototype.TIMEOUT_NOOP = 60 * 1000;
 
     /**
-     * Time until IDLE command is cancelled
+     * Milliseconds until IDLE command is cancelled
      */
-    BrowserBox.prototype.TIMEOUT_IDLE = 3 * 60 * 1000;
+    BrowserBox.prototype.TIMEOUT_IDLE = 60 * 1000;
 
     /**
      * Initialization method. Setup event handlers and such
@@ -340,6 +340,7 @@
             }.bind(this));
             this._idleTimeout = setTimeout(function() {
                 axe.debug(DEBUG_TAG, 'sending idle DONE');
+                // [0x44, 0x4f, 0x4e, 0x45, 0x0d, 0x0a] is ASCII for "DONE\r\n"
                 this.client.socket.send(new Uint8Array([0x44, 0x4f, 0x4e, 0x45, 0x0d, 0x0a]).buffer);
                 this._enteredIdle = false;
             }.bind(this), this.TIMEOUT_IDLE);
