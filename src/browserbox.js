@@ -1631,6 +1631,8 @@
             command: options.byUid ? 'UID SEARCH' : 'SEARCH'
         };
 
+        var isAscii = true;
+
         var buildTerm = function(query) {
             var list = [];
 
@@ -1648,6 +1650,14 @@
                                 value: param
                             };
                         } else if (typeof param === "string") {
+                            if (/[\u0080-\uFFFF]/.test(param)) {
+                                isAscii = false;
+                                return {
+                                    type: "literal",
+                                    // cast unicode string to pseudo-binary as imap-handler compiles strings as octets
+                                    value: mimefuncs.fromTypedArray(mimefuncs.charset.encode(param))
+                                };
+                            }
                             return {
                                 type: "string",
                                 value: param
@@ -1691,6 +1701,18 @@
         };
 
         command.attributes = [].concat(buildTerm(query || {}) || []);
+
+        // If any string input is using 8bit bytes, prepend the optional CHARSET argument
+        if (!isAscii) {
+            command.attributes.unshift({
+                type: "atom",
+                value: "UTF-8"
+            });
+            command.attributes.unshift({
+                type: "atom",
+                value: "CHARSET"
+            });
+        }
 
         return command;
     };
