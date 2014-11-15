@@ -312,6 +312,17 @@
 
                 br.exec.restore();
             });
+
+            it('should do nothing if connection is not yet upgraded', function() {
+                br.capability = [];
+                br.client.secureMode = false;
+                br.options.requireTLS = true;
+
+                br.updateCapability(function(err, updated) {
+                    expect(err).to.not.exist;
+                    expect(updated).to.be.false;
+                });
+            });
         });
 
         describe('#listNamespaces', function() {
