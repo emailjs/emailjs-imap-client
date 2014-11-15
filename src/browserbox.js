@@ -423,8 +423,15 @@
             callback = forced;
             forced = undefined;
         }
+
         // skip request, if not forced update and capabilities are already loaded
         if (!forced && this.capability.length) {
+            return callback(null, false);
+        }
+
+        // If STARTTLS is required then skip capability listing as we are going to try
+        // STARTTLS anyway and we re-check capabilities after connection is secured
+        if (!this.client.secureMode && this.options.requireTLS) {
             return callback(null, false);
         }
 
