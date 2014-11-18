@@ -1277,11 +1277,12 @@
 
         if (options.changedSince) {
             command.attributes.push([{
-                    type: 'ATOM',
-                    value: 'CHANGEDSINCE'
-                },
-                options.changedSince
-            ]);
+                type: 'ATOM',
+                value: 'CHANGEDSINCE'
+            }, {
+                type: 'ATOM',
+                value: options.changedSince
+            }]);
         }
         return command;
     };
