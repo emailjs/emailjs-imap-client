@@ -1338,7 +1338,7 @@
 
             it('should build FETCH with ', function() {
                 expect(br._buildFETCHCommand('1:*', 'all', {
-                    changedSince: 123456
+                    changedSince: '123456'
                 })).to.deep.equal({
                     command: 'FETCH',
                     attributes: [{
@@ -1349,11 +1349,12 @@
                             value: 'ALL'
                         },
                         [{
-                                type: 'ATOM',
-                                value: 'CHANGEDSINCE'
-                            },
-                            123456
-                        ]
+                            type: 'ATOM',
+                            value: 'CHANGEDSINCE'
+                        }, {
+                            type: 'ATOM',
+                            value: '123456'
+                        }]
                     ]
                 });
             });
