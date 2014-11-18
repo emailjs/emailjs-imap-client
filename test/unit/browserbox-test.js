@@ -1561,6 +1561,27 @@
                     }]
                 });
             });
+
+            it('should compose an unicode search command', function() {
+                expect(br._buildSEARCHCommand({
+                    body: 'jõgeva'
+                }, {})).to.deep.equal({
+                    command: 'SEARCH',
+                    attributes: [{
+                        type: 'atom',
+                        value: 'CHARSET'
+                    }, {
+                        type: 'atom',
+                        value: 'UTF-8'
+                    }, {
+                        type: 'atom',
+                        value: 'BODY'
+                    }, {
+                        type: 'literal',
+                        value: 'jÃµgeva'
+                    }]
+                });
+            });
         });
 
         describe('#_parseSEARCH', function() {
