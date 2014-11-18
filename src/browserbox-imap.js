@@ -401,7 +401,7 @@
             return;
         }
 
-        clearTimeout(this._idleTimer);
+        clearTimeout(this._socketTimeoutTimer);
 
         var match,
             str = mimefuncs.fromTypedArray(evt.data);
