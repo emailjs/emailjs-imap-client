@@ -1,6 +1,6 @@
 {
   "name": "browserbox",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "homepage": "https://github.com/whiteout-io/browserbox",
   "description": "IMAP client for browsers.",
   "author": "Andris Reinman <andris@kreata.ee>",
