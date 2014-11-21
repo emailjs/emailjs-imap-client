@@ -1545,13 +1545,13 @@
                         'type': 'atom',
                         'value': 'SENTBEFORE'
                     }, {
-                        'type': 'string',
+                        'type': 'atom',
                         'value': '3-Feb-2011'
                     }, {
                         'type': 'atom',
                         'value': 'SINCE'
                     }, {
-                        'type': 'string',
+                        'type': 'atom',
                         'value': '23-Dec-2011'
                     }, {
                         'type': 'atom',

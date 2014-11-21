@@ -1671,8 +1671,12 @@
                                 value: param
                             };
                         } else if (Object.prototype.toString.call(param) === "[object Date]") {
+                            // RFC 3501 allows for dates to be placed in
+                            // double-quotes or left without quotes.  Some
+                            // servers (Yandex), do not like the double quotes,
+                            // so we treat the date as an atom.
                             return {
-                                type: "string",
+                                type: "atom",
                                 value: formatDate(param)
                             };
                         } else if (Array.isArray(param)) {
