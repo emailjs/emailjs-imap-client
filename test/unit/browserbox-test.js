@@ -563,6 +563,67 @@
             });
         });
 
+        describe('#createMailbox', function() {
+            // The spec allows unquoted ATOM-style syntax too, but for
+            // simplicity we always generate a string even if it could be
+            // expressed as an atom.
+            it('should call CREATE with a string payload', function(done) {
+                sinon.stub(br, 'exec').yields(null, null, done);
+                var mailboxName = 'foo';
+                br.createMailbox(mailboxName, function(err) {
+                    expect(err).to.not.exist;
+
+                    expect(br.exec.args[0][0]).to.deep.equal({
+                      command: 'CREATE',
+                      attributes: [mailboxName]
+                    });
+
+                    expect(br.exec.callCount).to.equal(1);
+
+                    br.exec.restore();
+                });
+            });
+
+            it('should call mutf7 encode the argument', function(done) {
+                sinon.stub(br, 'exec').yields(null, null, done);
+                // From RFC 3501
+                var localName = '~peter/mail/\u53f0\u5317/\u65e5\u672c\u8a9e';
+                var serverName = '~peter/mail/&U,BTFw-/&ZeVnLIqe-';
+                br.createMailbox(localName, function(err) {
+                    expect(err).to.not.exist;
+
+                    expect(br.exec.args[0][0]).to.deep.equal({
+                      command: 'CREATE',
+                      attributes: [serverName]
+                    });
+
+                    expect(br.exec.callCount).to.equal(1);
+
+                    br.exec.restore();
+                });
+            });
+
+            it('should treat an ALREADYEXISTS response as success', function(done) {
+                var fakeErr = { code: 'ALREADYEXISTS' };
+                var fakeResp = { code: 'ALREADYEXISTS' };
+                sinon.stub(br, 'exec').yields(fakeErr, fakeResp, done);
+                var mailboxName = 'foo';
+                br.createMailbox(mailboxName, function(err, alreadyExists) {
+                    expect(err).to.not.exist;
+                    expect(alreadyExists).to.be.true;
+
+                    expect(br.exec.args[0][0]).to.deep.equal({
+                        command: 'CREATE',
+                        attributes: [mailboxName]
+                    });
+
+                    expect(br.exec.callCount).to.equal(1);
+
+                    br.exec.restore();
+                  });
+            });
+        });
+
         describe('#listMessages', function() {
             it('should call FETCH', function(done) {
                 sinon.stub(br, 'exec', function(command, untagged, callback) {

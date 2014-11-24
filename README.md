@@ -274,6 +274,26 @@ client.listNamespaces(function(err, namespaces){
 }
 ```
 
+## Create mailbox
+
+Create a folder with the given path, automatically handling utf-7 encoding.  You
+currently need to manually build the path string yourself.  (There is potential
+for future enhancement to provide assistance.)
+
+If the server indicates a failure but that the folder already exists with the
+ALREADYEXISTS response code, the request will be treated as a success.
+
+Example
+
+```javascript
+// On a server with a personal namesapce of INBOX and a delimiter of '/',
+// create folder Foo.  Note that folders using a non-empty personal namespace
+// may automatically assume the personal namespace.
+client.createMailbox('INBOX/Foo', function callback(err, alreadyExists) {});
+// Do the same on a server where the personal namespace is ''
+client.createMailbox('Foo', function callback(err, alreadyExists) {});
+```
+
 ## Select mailbox
 
 Select specific mailbox by path with `selectMailbox()`
