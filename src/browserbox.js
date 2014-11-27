@@ -715,6 +715,37 @@
     };
 
     /**
+     * Create a mailbox with the given path.
+     *
+     * CREATE details:
+     *   http://tools.ietf.org/html/rfc3501#section-6.3.3
+     *
+     * @param {String} path
+     *     The path of the mailbox you would like to create.  This method will
+     *     handle utf7 encoding for you.
+     * @param {Function} callback
+     *     Callback that takes an error argument and a boolean indicating
+     *     whether the folder already existed.  If the mailbox creation
+     *     succeeds, the error argument will be null.  If creation fails, error
+     *     will have an error value.  In the event the server says NO
+     *     [ALREADYEXISTS], we treat that as success and return true for the
+     *     second argument.
+     */
+    BrowserBox.prototype.createMailbox = function(path, callback) {
+        this.exec({
+            command: 'CREATE',
+            attributes: [utf7.imap.encode(path)]
+        }, function(err, response, next) {
+            if (err && err.code === 'ALREADYEXISTS') {
+                callback(null, true);
+            } else {
+                callback(err, false);
+            }
+            next();
+        });
+    };
+
+    /**
      * Runs FETCH command
      *
      * FETCH details:
