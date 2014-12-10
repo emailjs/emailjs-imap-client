@@ -90,6 +90,11 @@
          */
         this.secureMode = !!this.options.useSecureTransport;
 
+        /*
+         * Flag that indicates if we are waiting for the STARTTLS upgrade to finish
+         */
+        this.upgradeInProcess = false;
+
         /**
          * Is the conection established and greeting is received from the server
          */
@@ -254,6 +259,7 @@
             return callback(null, false);
         }
         this.secureMode = true;
+        this.upgradeInProcess = true;
         this.socket.upgradeToSecure();
         callback(null, true);
     };
@@ -327,13 +333,22 @@
      * @param {Event} evt Event object. See evt.data for the error
      */
     ImapClient.prototype._onError = function(evt) {
+        var err;
+
         if (this.isError(evt)) {
-            this.onerror(evt);
+            err = evt;
         } else if (evt && this.isError(evt.data)) {
-            this.onerror(evt.data);
+            err = evt.data;
         } else {
-            this.onerror(new Error(evt && evt.data && evt.data.message || evt.data || evt || 'Error'));
+            err = new Error(evt && evt.data && evt.data.message || evt.data || evt || 'Error');
         }
+
+        if (this.upgradeInProcess) {
+            this.secureMode = false;
+            err.code = 'ETLS';
+        }
+
+        this.onerror(err);
 
         this.close();
     };
@@ -371,6 +386,7 @@
     ImapClient.prototype._onTimeout = function() {
         // inform about the timeout, _onError takes case of the rest
         var error = new Error('Socket timed out!');
+        error.code = 'ETIMEDOUT';
         axe.error(DEBUG_TAG, error);
         this._onError(error);
     };
@@ -402,6 +418,7 @@
         }
 
         clearTimeout(this._socketTimeoutTimer);
+        this.upgradeInProcess = false; // we got some data, so if the connections was about to be updated, it must have succeeded
 
         var match,
             str = mimefuncs.fromTypedArray(evt.data);
@@ -507,6 +524,7 @@
             }
         } catch (e) {
             axe.error(DEBUG_TAG, 'error parsing imap response: ' + e + '\n' + e.stack + '\nraw:' + data);
+            e.code = e.code || 'EPROTOCOL';
             return this._onError(e);
         }
 

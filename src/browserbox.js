@@ -186,8 +186,9 @@
      */
     BrowserBox.prototype._onTimeout = function() {
         clearTimeout(this._connectionTimeout);
-        var error = new Error('Timeout creating connection to the IMAP server');
+        var error = this._formatError('Timeout creating connection to the IMAP server', 'ETIMEDOUT');
         axe.error(DEBUG_TAG, error);
+
         this.onerror(error);
         this.client._destroy();
     };
@@ -296,11 +297,9 @@
             }
 
             if (['NO', 'BAD'].indexOf((response && response.command || '').toString().toUpperCase().trim()) >= 0) {
-                error = new Error(response.humanReadable || 'Error');
-                if (response.code) {
-                    error.code = response.code;
-                }
+                error = this._formatError(response.humanReadable, response.code || 'ECMDFAIL');
             }
+
             if (typeof callback === 'function') {
                 callback(error, response, next);
             } else {
@@ -392,11 +391,14 @@
 
         this.exec('STARTTLS', function(err, response, next) {
             if (err) {
+                err.code = err.code || 'ETLS';
                 callback(err);
                 next();
             } else {
                 this.capability = [];
                 this.client.upgrade(function(err, upgraded) {
+                    // current upgrade implementation doesn't return any errors
+                    // if upgrade fails, the error should receive sometime later
                     this.updateCapability(function() {
                         callback(err, upgraded);
                     });
@@ -481,10 +483,12 @@
      * @param {Function} callback Returns error if login failed
      */
     BrowserBox.prototype.login = function(auth, callback) {
-        var command, options = {};
+        var command;
+        var options = {};
+        var payload;
 
         if (!auth) {
-            return callback(new Error('Authentication information not provided'));
+            return callback(this._formatError('Authentication information not provided', 'EAUTH'));
         }
 
         if (this.capability.indexOf('AUTH=XOAUTH2') >= 0 && auth && auth.xoauth2) {
@@ -496,10 +500,10 @@
                 }, {
                     type: 'ATOM',
                     value: this._buildXOAuth2Token(auth.user, auth.xoauth2)
-                }]
+                }],
+                _authType: 'XOAUTH2'
             };
             options.onplustagged = function(response, next) {
-                var payload;
                 if (response && response.payload) {
                     try {
                         payload = JSON.parse(mimefuncs.base64Decode(response.payload));
@@ -520,7 +524,8 @@
                 }, {
                     type: 'STRING',
                     value: auth.pass || ''
-                }]
+                }],
+                _authType: 'LOGIN'
             };
         }
 
@@ -528,6 +533,7 @@
             var capabilityUpdated = false;
 
             if (err) {
+                err = this._processAuthError(err, command, response, payload);
                 callback(err);
                 return next();
             }
@@ -1957,6 +1963,72 @@
             ''
         ];
         return mimefuncs.base64.encode(authData.join('\x01'));
+    };
+
+    /**
+     * Builds an Error object
+     *
+     * @param {String|Error} err Error message or error object
+     * @param {String} code Error code
+     * @returns {Error} Error object
+     */
+    BrowserBox.prototype._formatError = function(err, code) {
+        if (!this._isError(err)) {
+            err = (err || '').toString();
+            if (!err) {
+                err = 'Error';
+            }
+            err = new Error(err);
+        }
+
+        if (code) {
+            err.code = code;
+        }
+
+        return err;
+    };
+
+    /**
+     * Checks if a value is an Error object
+     *
+     * @param {Mixed} value Value to be checked
+     * @return {Boolean} returns true if the value is an Error
+     */
+    BrowserBox.prototype._isError = function(value) {
+        return !!Object.prototype.toString.call(value).match(/Error\]$/);
+    };
+
+    /**
+     * Checks the reason why authentication failed
+     *
+     * Adds new property to the error object - reason
+     *
+     * See gaia-email-libs implementation for details:
+     * https://github.com/mozilla-b2g/gaia-email-libs-and-more/blob/cfba98999cb4f4eb7aaae99abd3978353fba49a7/js/imap/client.js#L206-L257
+     *
+     * @param {Error} err Error raised while trying to log in
+     * @param {Object} command Serialized input sent to server
+     * @param {Object} response Serialized response from server
+     * @returns {Error} Updated error object
+     */
+    BrowserBox.prototype._processAuthError = function(err, command, response) {
+
+        if (/Your account is not enabled for IMAP use|IMAP access is disabled for your domain/i.test(response.humanReadable)) {
+            err.reason = 'imap-disabled';
+        } else if (/UNAVAILABLE/.test(response.code)) {
+            err.reason = 'server-maintenance';
+        } else if (this.capability.indexOf('LOGINDISABLED') >= 0) {
+            err.reason = 'server-maintenance';
+        } else if (/AUTHENTICATIONFAILED/.test(response.code) || /Invalid credentials|login failed|password/i.test(response.humanReadable)) {
+            if (command._authType === 'XOAUTH2') {
+                err.reason = 'needs-oauth-reauth';
+            } else {
+                err.reason = 'bad-user-or-pass';
+            }
+        }
+
+        err.code = 'EAUTH';
+        return err;
     };
 
     return BrowserBox;

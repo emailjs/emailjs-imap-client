@@ -367,7 +367,8 @@
                     }, {
                         type: 'STRING',
                         value: 'p1'
-                    }]
+                    }],
+                    _authType: 'LOGIN'
                 });
 
                 br.exec.restore();
@@ -391,7 +392,8 @@
                     }, {
                         type: 'ATOM',
                         value: 'dXNlcj11MQFhdXRoPUJlYXJlciBhYmMBAQ=='
-                    }]
+                    }],
+                    _authType: 'XOAUTH2'
                 });
 
                 br.exec.restore();
@@ -574,8 +576,8 @@
                     expect(err).to.not.exist;
 
                     expect(br.exec.args[0][0]).to.deep.equal({
-                      command: 'CREATE',
-                      attributes: [mailboxName]
+                        command: 'CREATE',
+                        attributes: [mailboxName]
                     });
 
                     expect(br.exec.callCount).to.equal(1);
@@ -593,8 +595,8 @@
                     expect(err).to.not.exist;
 
                     expect(br.exec.args[0][0]).to.deep.equal({
-                      command: 'CREATE',
-                      attributes: [serverName]
+                        command: 'CREATE',
+                        attributes: [serverName]
                     });
 
                     expect(br.exec.callCount).to.equal(1);
@@ -604,8 +606,12 @@
             });
 
             it('should treat an ALREADYEXISTS response as success', function(done) {
-                var fakeErr = { code: 'ALREADYEXISTS' };
-                var fakeResp = { code: 'ALREADYEXISTS' };
+                var fakeErr = {
+                    code: 'ALREADYEXISTS'
+                };
+                var fakeResp = {
+                    code: 'ALREADYEXISTS'
+                };
                 sinon.stub(br, 'exec').yields(fakeErr, fakeResp, done);
                 var mailboxName = 'foo';
                 br.createMailbox(mailboxName, function(err, alreadyExists) {
@@ -620,7 +626,7 @@
                     expect(br.exec.callCount).to.equal(1);
 
                     br.exec.restore();
-                  });
+                });
             });
         });
 
@@ -2013,6 +2019,68 @@
                     done();
                 };
                 br.client._addToServerQueue('* 123 FETCH (FLAGS (\\Seen) MODSEQ (4))');
+            });
+        });
+
+        describe('#_processAuthError', function() {
+            it('should detect bad user or pass', function() {
+                var command = {
+                    _authType: 'LOGIN'
+                };
+                var response = {
+                    humanReadable: 'Login failed: authentication failure'
+                };
+                var error = new Error('Login error');
+
+                expect(br._processAuthError(error, command, response).reason).to.equal('bad-user-or-pass');
+            });
+
+            it('should detect bad xoauth token', function() {
+                var command = {
+                    _authType: 'XOAUTH2'
+                };
+                var response = {
+                    humanReadable: 'Login failed: authentication failure'
+                };
+                var error = new Error('Login error');
+
+                expect(br._processAuthError(error, command, response).reason).to.equal('needs-oauth-reauth');
+            });
+
+            it('should detect disabled IMAP', function() {
+                var command = {
+                    _authType: 'LOGIN'
+                };
+                var response = {
+                    humanReadable: 'Your account is not enabled for IMAP use'
+                };
+                var error = new Error('Login error');
+
+                expect(br._processAuthError(error, command, response).reason).to.equal('imap-disabled');
+            });
+
+            it('should detect service error', function() {
+                var command = {
+                    _authType: 'LOGIN'
+                };
+                var response = {
+                    code: 'UNAVAILABLE'
+                };
+                var error = new Error('Login error');
+
+                expect(br._processAuthError(error, command, response).reason).to.equal('server-maintenance');
+            });
+
+            it('should detect disbaled login', function() {
+                var command = {
+                    _authType: 'LOGIN'
+                };
+                var response = {};
+                var error = new Error('Login error');
+
+                br.capability = ['LOGINDISABLED'];
+
+                expect(br._processAuthError(error, command, response).reason).to.equal('server-maintenance');
             });
         });
     });
