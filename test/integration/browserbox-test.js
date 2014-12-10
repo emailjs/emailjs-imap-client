@@ -208,6 +208,51 @@
 
                 imap.connect();
             });
+
+            it('should reject invalid certificate', function(done) {
+                imap = new BrowserBox('127.0.0.1', port, {
+                    auth: {
+                        user: "testuser",
+                        pass: "testpass"
+                    },
+                    useSecureTransport: false
+                });
+                expect(imap).to.exist;
+
+                imap.onclose = done;
+
+                imap.onerror = function(err) {
+                    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+                    expect(err).to.exist;
+                    expect(err.code).to.equal('ETLS');
+                    expect(imap.client.secureMode).to.be.false;
+                    imap.client.close();
+                };
+
+                process.env.NODE_TLS_REJECT_UNAUTHORIZED = '1'; // reject invalid certs
+                imap.connect();
+            });
+
+            it('should fail login', function(done) {
+                imap = new BrowserBox('127.0.0.1', port, {
+                    auth: {
+                        user: "testuser123",
+                        pass: "testpass123"
+                    },
+                    useSecureTransport: false
+                });
+                expect(imap).to.exist;
+
+                imap.onclose = done;
+
+                imap.onerror = function(err) {
+                    expect(err).to.exist;
+                    expect(err.code).to.equal('EAUTH');
+                    expect(err.reason).to.equal('bad-user-or-pass');
+                };
+
+                imap.connect();
+            });
         });
 
         describe('Post login tests', function() {
@@ -483,8 +528,9 @@
                 imap.client.TIMEOUT_SOCKET_MULTIPLIER = 0;
                 imap.client.socket.ondata = function() {};
 
-                imap.onerror = function() {
+                imap.onerror = function(err) {
                     errored = true;
+                    expect(err.code).to.equal('ETIMEDOUT');
                 };
 
                 imap.onclose = function() {
