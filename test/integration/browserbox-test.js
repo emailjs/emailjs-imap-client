@@ -43,6 +43,9 @@
                             uid: 557
                         }, {
                             raw: "Subject: hello 6\r\n\r\nWorld 6!"
+                        }, {
+                            raw: "Subject: hello 7\r\n\r\nWorld 7!",
+                            uid: 600
                         }]
                     },
                     "": {
@@ -91,9 +94,6 @@
             var insecureServer;
 
             beforeEach(function(done) {
-                // don't log in the tests
-                axe.removeAppender(axe.defaultAppender);
-
                 // start imap test server
                 var options = {
                     //debug: true,
@@ -455,6 +455,162 @@
                         });
                     });
                 });
+            });
+
+            describe('precheck', function() {
+                var callCtr;
+
+                beforeEach(function() {
+                    callCtr = 0;
+                });
+
+                it('should use nested precheck calls to cycle through mailboxes, delete mail, move stuff around etc', function(done) {
+                    /*
+                     * start out in [Gmail]/Drafts
+                     *
+                     * execution path #1:
+                     *   folder? -> [Gmail]/Spam -> inbox
+                     *   set flags on a message (in the inbox)
+                     *
+                     * execution path #2:
+                     *   folder? -> inbox
+                     *   move 600 to [Gmail]/Drafts
+                     *   folder? -> [Gmail]/Drafts
+                     *   list messages, make sure uid 1 is there
+                     *   delete uid 1 from [Gmail]/Drafts
+                     *
+                     * execution path #3:
+                     *   folder? -> inbox
+                     *   search for subject 'hello 3', make sure it's there
+                     */
+                    imap.selectMailbox('[Gmail]/Drafts', function(err) {
+                        expect(err).to.not.exist;
+
+                        imap.setFlags('1', ['\\Seen', '$MyFlag'], {
+                            precheck: function(ctx, next) {
+                                imap.selectMailbox('[Gmail]/Spam', {
+                                    ctx: ctx
+                                }, function(err) {
+                                    expect(err).to.not.exist;
+                                    imap.selectMailbox('inbox', {
+                                        ctx: ctx
+                                    }, next);
+                                });
+                            }
+                        }, function(err, result) {
+                            expect(err).to.not.exist;
+                            expect(result).to.deep.equal([{
+                                '#': 1,
+                                'flags': ['\\Seen', '$MyFlag']
+                            }]);
+                            proceed();
+                        });
+
+                        imap.moveMessages(600, '[Gmail]/Drafts', {
+                            byUid: true,
+                            precheck: function(ctx, next) {
+                                imap.selectMailbox('inbox', {
+                                    ctx: ctx
+                                }, next);
+                            }
+                        }, function(err, result) {
+                            expect(err).to.not.exist;
+                            expect(result).to.be.true;
+
+                            imap.deleteMessages(1, {
+                                byUid: true,
+                                precheck: function(ctx1, next1) {
+                                    imap.listMessages("1:*", ["uid", "flags", "envelope", "bodystructure", "body.peek[]"], {
+                                        ctx: ctx1,
+                                        precheck: function(ctx2, next2) {
+                                            imap.selectMailbox('[Gmail]/Drafts', {
+                                                ctx: ctx2,
+                                                precheck: function(ctx, next3) {
+                                                    next3();
+                                                }
+                                            }, next2);
+                                        }
+                                    }, function(err, messages) {
+                                        expect(err).to.not.exist;
+                                        expect(messages[0].uid).to.equal(1);
+                                        next1();
+                                    });
+                                }
+                            }, function(err, result) {
+                                expect(err).to.not.exist;
+                                expect(result).to.be.true;
+                                proceed();
+                            });
+                        });
+
+                        imap.search({
+                            header: ['subject', 'hello 3']
+                        }, {
+                            precheck: function(ctx, next) {
+                                imap.selectMailbox('inbox', {
+                                    ctx: ctx
+                                }, next);
+                            },
+                            byUid: true
+                        }, function(err, result) {
+                            expect(err).to.not.exist;
+                            expect(result).to.deep.equal([555]);
+                            proceed();
+                        });
+
+                    });
+
+                    function proceed() {
+                        ++callCtr === 3 && done();
+                    }
+                });
+
+                it('should error in precheck', function(done) {
+                    /*
+                     * start out in [Gmail]/Drafts
+                     
+                     * execution path #1:
+                     *   setFlags precheck() should error and never be executed
+                     *
+                     * execution path #2:
+                     *   folder? -> inbox
+                     *   search for subject 'hello 3', make sure it's there
+                     */
+                    imap.selectMailbox('[Gmail]/Drafts', function(err) {
+                        expect(err).to.not.exist;
+
+                        imap.setFlags('1', ['\\Seen', '$MyFlag'], {
+                            precheck: function(ctx, next) {
+                                next(new Error());
+                            }
+                        }, function(err, result) {
+                            expect(err).to.exist;
+                            expect(result).to.not.exist;
+                            proceed();
+                        });
+
+                        imap.search({
+                            header: ['subject', 'hello 3']
+                        }, {
+                            precheck: function(ctx, next) {
+                                imap.selectMailbox('inbox', {
+                                    ctx: ctx
+                                }, next);
+                            },
+                            byUid: true
+                        }, function(err, result) {
+                            expect(err).to.not.exist;
+                            expect(result).to.deep.equal([555]);
+                            proceed();
+                        });
+
+                    });
+
+                    function proceed() {
+                        ++callCtr === 2 && done();
+                    }
+                });
+
             });
 
         });

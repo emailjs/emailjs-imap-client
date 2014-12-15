@@ -726,6 +726,56 @@ client.close();
 
 Once the connection is actually closed `onclose` event is fired.
 
+## State-dependend calls
+
+Calls to Browserbox are queued in FIFO order until they are ready for execution. This may be problematic for calls that depend on a selected mailbox, e.g. `#search` or `#setFlags`. These call can be issued with a `precheck` callback that is invoked **before** the IMAP command is sent to the server.
+
+Example:
+
+```javascript
+// search depends on a selected mailbox, e.g. inbox
+imap.search({
+    header: ['subject', 'hello 3']
+}, {
+    // add precheck(ctx, next) to the query options 
+    precheck: function(ctx, next) {
+        // make sure inbox is selected before the search command is run
+        imap.selectMailbox('inbox', {
+            ctx: ctx // pass the context parameter received in the precheck callback as a query option to bypass the command queue
+        }, next); // next should invoked when you're done
+    },
+    byUid: true
+}, function(error, result) {
+    ...
+});
+
+```
+
+A `precheck` callback receives two arguments: 
+* **ctx** is a context parameter, i.e. a pointer to the current position in the command queue
+* **next** callback to be invoked when the precheck is done
+
+Calls issued in a `precheck` callback will be executed *before* the parent call, if you pass the `ctx` parameter received as a argument of the `precheck` callback to the query options. This bypasses the internal FIFO queue and executes the call on the spot! *If the context parameter is left blank, the calls will be queued as usual*.
+
+Invoke `next` once you're done with the `precheck` callback to resume normal operation.
+
+If you want to *remove* a call from the FIFO queue, e.g. because a message is no longer available in a mailbox, pass in an error to the `next` callback. The parent call will not be executed and you will receive the error passed to next in the callback of the parent call.
+
+Example:
+
+```javascript
+imap.setFlags('1', ['\\Seen', '$MyFlag'], {
+    precheck: function(ctx, next) {
+        next(new Error('Foo')); // this removes the setFlags query from the queue
+    }
+}, function(err, result) {
+    // err.message -> 'Foo'
+    ...
+});
+```
+
+**NB!** `precheck` callbacks can be also nested! For details, have a look at the integration test that covers this portion of the code.
+
 ## Get your hands dirty
 
     git clone git@github.com:whiteout-io/browserbox.git

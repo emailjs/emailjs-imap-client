@@ -643,7 +643,17 @@
             data.payload[command] = [];
         });
 
-        this._clientQueue.push(data);
+        // if we're in priority mode (i.e. we ran commands in a precheck),
+        // queue any commands BEFORE the command that contianed the precheck, 
+        // otherwise just queue command as usual
+        var index = data.ctx ? this._clientQueue.indexOf(data.ctx) : -1;
+        if (index >= 0) {
+            data.tag += '.p';
+            data.request.tag += '.p';
+            this._clientQueue.splice(index, 0, data);
+        } else {
+            this._clientQueue.push(data);
+        }
 
         if (this._canSend) {
             this._sendRequest();
@@ -651,13 +661,55 @@
     };
 
     /**
-     * Sends a command from command queue to the server.
+     * Sends a command from client queue to the server.
      */
     ImapClient.prototype._sendRequest = function() {
         if (!this._clientQueue.length) {
             return this._enterIdle();
         }
         this._clearIdle();
+
+        // an operation was made in the precheck, no need to restart the queue manually
+        this._restartQueue = false;
+
+        var command = this._clientQueue[0];
+        if (typeof command.precheck === 'function') {
+            // remember the context
+            var context = command;
+            var precheck = context.precheck;
+            delete context.precheck;
+
+            // we need to restart the queue handling if no operation was made in the precheck
+            this._restartQueue = true;
+
+            // invoke the precheck command with a callback to signal that you're
+            // done with precheck and ready to resume normal operation
+            precheck(context, function(err) {
+                // we're done with the precheck
+                if (!err) {
+                    if (this._restartQueue) {
+                        // we need to restart the queue handling
+                        this._sendRequest();
+                    }
+                    return;
+                }
+
+                // precheck callback failed, so we remove the initial command
+                // from the queue, invoke its callback and resume normal operation
+                var cmd, index = this._clientQueue.indexOf(context);
+                if (index >= 0) {
+                    cmd = this._clientQueue.splice(index, 1)[0];
+                }
+                if (cmd && cmd.callback) {
+                    cmd.callback(err, function() {
+                        this._canSend = true;
+                        this._sendRequest();
+                        setTimeout(this._processServerQueue.bind(this), 0);
+                    }.bind(this));
+                }
+            }.bind(this));
+            return;
+        }
 
         this._canSend = false;
         this._currentCommand = this._clientQueue.shift();
@@ -671,6 +723,7 @@
 
         axe.debug(DEBUG_TAG, 'sending request: ' + this._currentCommand.request.tag + ' ' + this._currentCommand.request.command);
         var data = this._currentCommand.data.shift();
+
         this.send(data + (!this._currentCommand.data.length ? '\r\n' : ''));
         return this.waitDrain;
     };
