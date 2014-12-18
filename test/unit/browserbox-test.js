@@ -574,8 +574,8 @@
                     expect(err).to.not.exist;
 
                     expect(br.exec.args[0][0]).to.deep.equal({
-                      command: 'CREATE',
-                      attributes: [mailboxName]
+                        command: 'CREATE',
+                        attributes: [mailboxName]
                     });
 
                     expect(br.exec.callCount).to.equal(1);
@@ -593,8 +593,8 @@
                     expect(err).to.not.exist;
 
                     expect(br.exec.args[0][0]).to.deep.equal({
-                      command: 'CREATE',
-                      attributes: [serverName]
+                        command: 'CREATE',
+                        attributes: [serverName]
                     });
 
                     expect(br.exec.callCount).to.equal(1);
@@ -604,8 +604,12 @@
             });
 
             it('should treat an ALREADYEXISTS response as success', function(done) {
-                var fakeErr = { code: 'ALREADYEXISTS' };
-                var fakeResp = { code: 'ALREADYEXISTS' };
+                var fakeErr = {
+                    code: 'ALREADYEXISTS'
+                };
+                var fakeResp = {
+                    code: 'ALREADYEXISTS'
+                };
                 sinon.stub(br, 'exec').yields(fakeErr, fakeResp, done);
                 var mailboxName = 'foo';
                 br.createMailbox(mailboxName, function(err, alreadyExists) {
@@ -620,13 +624,13 @@
                     expect(br.exec.callCount).to.equal(1);
 
                     br.exec.restore();
-                  });
+                });
             });
         });
 
         describe('#listMessages', function() {
             it('should call FETCH', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, callback) {
+                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
                     callback(null, 'abc', done);
                 });
                 sinon.stub(br, '_buildFETCHCommand', function() {
@@ -655,7 +659,7 @@
 
         describe('#search', function() {
             it('should call SEARCH', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, callback) {
+                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
                     callback(null, 'abc', done);
                 });
                 sinon.stub(br, '_buildSEARCHCommand', function() {
@@ -717,7 +721,7 @@
 
         describe('#setFlags', function() {
             it('should call STORE', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, callback) {
+                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
                     callback(null, 'abc', done);
                 });
                 sinon.stub(br, '_buildSTORECommand', function() {
@@ -791,7 +795,7 @@
 
         describe('#copyMessages', function() {
             it('should call COPY', function(done) {
-                sinon.stub(br, 'exec', function(command, callback) {
+                sinon.stub(br, 'exec', function(command, options, callback) {
                     callback(null, {
                         humanReadable: 'abc'
                     }, done);
@@ -822,7 +826,7 @@
 
         describe('#moveMessages', function() {
             it('should call MOVE if supported', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, callback) {
+                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
                     callback(null, 'abc', done);
                 });
 
@@ -876,7 +880,7 @@
 
         describe('#selectMailbox', function() {
             it('should run SELECT', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, callback) {
+                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
                     callback(null, 'abc', done);
                 });
                 sinon.stub(br, '_parseSELECT');
@@ -899,7 +903,7 @@
             });
 
             it('should run SELECT with CONDSTORE', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, callback) {
+                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
                     callback(null, 'abc', done);
                 });
                 sinon.stub(br, '_parseSELECT');
@@ -930,7 +934,7 @@
             });
 
             it('should emit onselectmailbox', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, callback) {
+                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
                     callback(null, 'abc', done);
                 });
                 sinon.stub(br, '_parseSELECT').returns('def');
@@ -947,7 +951,7 @@
             });
 
             it('should emit onclosemailbox', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, callback) {
+                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
                     callback(null, 'abc', done);
                 });
                 sinon.stub(br, '_parseSELECT').returns('def');

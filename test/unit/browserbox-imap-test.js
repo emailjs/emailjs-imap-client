@@ -607,6 +607,35 @@
                 client._clearIdle.restore();
                 client.send.restore();
             });
+
+            it('should run precheck', function(done) {
+                sinon.stub(client, '_clearIdle');
+
+                client._canSend = true;
+                client._clientQueue = [{
+                    request: {
+                        tag: 'W101',
+                        command: 'TEST',
+                        attributes: [{
+                            type: 'LITERAL',
+                            value: 'abc'
+                        }]
+                    },
+                    precheck: function(ctx) {
+                        expect(ctx).to.exist;
+                        expect(client._canSend).to.be.true;
+                        client._sendRequest = function() {
+                            expect(client._clientQueue.length).to.equal(2);
+                            expect(client._clientQueue[0].tag).to.include('.p');
+                            expect(client._clientQueue[0].request.tag).to.include('.p');
+                            client._clearIdle.restore();
+                            done();
+                        };
+                        client._addToClientQueue({}, undefined, {ctx: ctx});
+                    }
+                }];
+                client._sendRequest();
+            });
         });
 
         describe('#_enterIdle', function() {

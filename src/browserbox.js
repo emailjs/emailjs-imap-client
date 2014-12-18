@@ -295,7 +295,9 @@
                 this.capability = response.capability;
             }
 
-            if (['NO', 'BAD'].indexOf((response && response.command || '').toString().toUpperCase().trim()) >= 0) {
+            if (this.client.isError(response)) {
+                error = response;
+            } else if (['NO', 'BAD'].indexOf((response && response.command || '').toString().toUpperCase().trim()) >= 0) {
                 error = new Error(response.humanReadable || 'Error');
                 if (response.code) {
                     error.code = response.code;
@@ -776,7 +778,10 @@
         options = options || {};
 
         var command = this._buildFETCHCommand(sequence, items, options);
-        this.exec(command, 'FETCH', function(err, response, next) {
+        this.exec(command, 'FETCH', {
+            precheck: options.precheck,
+            ctx: options.ctx
+        }, function(err, response, next) {
             if (err) {
                 callback(err);
             } else {
@@ -805,7 +810,10 @@
         options = options || {};
 
         var command = this._buildSEARCHCommand(query, options);
-        this.exec(command, 'SEARCH', function(err, response, next) {
+        this.exec(command, 'SEARCH', {
+            precheck: options.precheck,
+            ctx: options.ctx
+        }, function(err, response, next) {
             if (err) {
                 callback(err);
             } else {
@@ -835,7 +843,10 @@
         options = options || {};
 
         var command = this._buildSTORECommand(sequence, flags, options);
-        this.exec(command, 'FETCH', function(err, response, next) {
+        this.exec(command, 'FETCH', {
+            precheck: options.precheck,
+            ctx: options.ctx
+        }, function(err, response, next) {
             if (err) {
                 callback(err);
             } else {
@@ -885,7 +896,10 @@
             }
         ];
 
-        this.exec(command, function(err, response, next) {
+        this.exec(command, {
+            precheck: options.precheck,
+            ctx: options.ctx
+        }, function(err, response, next) {
             callback(err, err ? undefined : true);
             next();
         }.bind(this));
@@ -976,6 +990,9 @@
                     type: 'atom',
                     value: destination
                 }]
+            }, {
+                precheck: options.precheck,
+                ctx: options.ctx
             },
             function(err, response, next) {
                 if (err) {
@@ -1020,7 +1037,10 @@
                         type: 'atom',
                         value: destination
                     }]
-                }, ['OK'],
+                }, ['OK'], {
+                    precheck: options.precheck,
+                    ctx: options.ctx
+                },
                 function(err, response, next) {
                     if (err) {
                         callback(err);
@@ -1035,6 +1055,7 @@
                 if (err) {
                     return callback(err);
                 }
+                delete options.precheck;
                 this.deleteMessages(sequence, options, callback);
             }.bind(this));
         }
@@ -1074,7 +1095,10 @@
             }]);
         }
 
-        this.exec(query, ['EXISTS', 'FLAGS', 'OK'], function(err, response, next) {
+        this.exec(query, ['EXISTS', 'FLAGS', 'OK'], {
+            precheck: options.precheck,
+            ctx: options.ctx
+        }, function(err, response, next) {
             if (err) {
                 callback(err);
                 return next();
