@@ -22,16 +22,16 @@
     'use strict';
 
     if (typeof define === 'function' && define.amd) {
-        define(['browserbox-imap', 'utf7', 'imap-handler', 'mimefuncs', 'axe'], function(ImapClient, utf7, imapHandler, mimefuncs, axe) {
-            return factory(ImapClient, utf7, imapHandler, mimefuncs, axe);
+        define(['browserbox-imap', 'utf7', 'imap-handler', 'mimefuncs', 'axe', 'es6-promise'], function(ImapClient, utf7, imapHandler, mimefuncs, axe, ES6Promise) {
+            return factory(ImapClient, utf7, imapHandler, mimefuncs, axe, ES6Promise);
         });
     } else if (typeof exports === 'object') {
 
-        module.exports = factory(require('./browserbox-imap'), require('wo-utf7'), require('wo-imap-handler'), require('mimefuncs'), require('axe-logger'));
+        module.exports = factory(require('./browserbox-imap'), require('wo-utf7'), require('wo-imap-handler'), require('mimefuncs'), require('axe-logger'), require('es6-promise'));
     } else {
-        root.BrowserBox = factory(root.BrowserboxImapClient, root.utf7, root.imapHandler, root.mimefuncs, root.axe);
+        root.BrowserBox = factory(root.BrowserboxImapClient, root.utf7, root.imapHandler, root.mimefuncs, root.axe, root.ES6Promise);
     }
-}(this, function(ImapClient, utf7, imapHandler, mimefuncs, axe) {
+}(this, function(ImapClient, utf7, imapHandler, mimefuncs, axe, ES6Promise) {
     'use strict';
 
     var DEBUG_TAG = 'browserbox';
@@ -43,6 +43,11 @@
         '\\Drafts': ['ba brouillon', 'borrador', 'borrador', 'borradores', 'bozze', 'brouillons', 'bản thảo', 'ciorne', 'concepten', 'draf', 'drafts', 'drög', 'entwürfe', 'esborranys', 'garalamalar', 'ihe edeturu', 'iidrafti', 'izinhlaka', 'juodraščiai', 'kladd', 'kladder', 'koncepty', 'koncepty', 'konsep', 'konsepte', 'kopie robocze', 'layihələr', 'luonnokset', 'melnraksti', 'meralo', 'mesazhe të padërguara', 'mga draft', 'mustandid', 'nacrti', 'nacrti', 'osnutki', 'piszkozatok', 'rascunhos', 'rasimu', 'skice', 'taslaklar', 'tsararrun saƙonni', 'utkast', 'vakiraoka', 'vázlatok', 'zirriborroak', 'àwọn àkọpamọ́', 'πρόχειρα', 'жобалар', 'нацрти', 'нооргууд', 'сиёҳнавис', 'хомаки хатлар', 'чарнавікі', 'чернетки', 'чернови', 'черновики', 'черновиктер', 'սևագրեր', 'טיוטות', 'مسودات', 'مسودات', 'موسودې', 'پیش نویسها', 'ڈرافٹ/', 'ड्राफ़्ट', 'प्रारूप', 'খসড়া', 'খসড়া', 'ড্ৰাফ্ট', 'ਡ੍ਰਾਫਟ', 'ડ્રાફ્ટસ', 'ଡ୍ରାଫ୍ଟ', 'வரைவுகள்', 'చిత్తు ప్రతులు', 'ಕರಡುಗಳು', 'കരടുകള്‍', 'කෙටුම් පත්', 'ฉบับร่าง', 'მონახაზები', 'ረቂቆች', 'សារព្រាង', '下書き', '草稿', '草稿', '草稿', '임시 보관함']
     };
     var SPECIAL_USE_BOX_FLAGS = Object.keys(SPECIAL_USE_BOXES);
+
+    if (typeof Promise === 'undefined') {
+        // load ES6 Promises polyfill
+        ES6Promise.polyfill();
+    }
 
     /**
      * High level IMAP client
@@ -260,6 +265,14 @@
      * Close current connection
      */
     BrowserBox.prototype.close = function(callback) {
+        var promise;
+
+        if (!callback) {
+            promise = new Promise(function(resolve, reject) {
+                callback = callbackPromise(resolve, reject);
+            });
+        }
+
         axe.debug(DEBUG_TAG, 'closing connection');
         this._changeState(this.STATE_LOGOUT);
 
@@ -270,6 +283,8 @@
 
             this.client.close();
         }.bind(this));
+
+        return promise;
     };
 
     /**
@@ -455,8 +470,20 @@
      * @param {Function} callback Callback function with the namespace information
      */
     BrowserBox.prototype.listNamespaces = function(callback) {
+        var promise;
+
+        if (!callback) {
+            promise = new Promise(function(resolve, reject) {
+                callback = callbackPromise(resolve, reject);
+            });
+        }
+
         if (this.capability.indexOf('NAMESPACE') < 0) {
-            return callback(null, false);
+            setTimeout(function() {
+                callback(null, false);
+            }, 0);
+
+            return promise;
         }
 
         this.exec('NAMESPACE', 'NAMESPACE', function(err, response, next) {
@@ -467,6 +494,8 @@
             }
             next();
         }.bind(this));
+
+        return promise;
     };
 
     /**
@@ -646,6 +675,14 @@
      * @param {Function} callback Returns mailbox tree object
      */
     BrowserBox.prototype.listMailboxes = function(callback) {
+        var promise;
+
+        if (!callback) {
+            promise = new Promise(function(resolve, reject) {
+                callback = callbackPromise(resolve, reject);
+            });
+        }
+
         this.exec({
             command: 'LIST',
             attributes: ['', '*']
@@ -713,6 +750,8 @@
 
             next();
         }.bind(this));
+
+        return promise;
     };
 
     /**
@@ -733,6 +772,14 @@
      *     second argument.
      */
     BrowserBox.prototype.createMailbox = function(path, callback) {
+        var promise;
+
+        if (!callback) {
+            promise = new Promise(function(resolve, reject) {
+                callback = callbackPromise(resolve, reject);
+            });
+        }
+
         this.exec({
             command: 'CREATE',
             attributes: [utf7.imap.encode(path)]
@@ -744,6 +791,8 @@
             }
             next();
         });
+
+        return promise;
     };
 
     /**
@@ -760,6 +809,8 @@
      * @param {Function} callback Callback function with fetched message info
      */
     BrowserBox.prototype.listMessages = function(sequence, items, options, callback) {
+        var promise;
+
         if (!callback && typeof options === 'function') {
             callback = options;
             options = undefined;
@@ -768,6 +819,12 @@
         if (!callback && typeof items === 'function') {
             callback = items;
             items = undefined;
+        }
+
+        if (!callback) {
+            promise = new Promise(function(resolve, reject) {
+                callback = callbackPromise(resolve, reject);
+            });
         }
 
         items = items || {
@@ -788,6 +845,8 @@
             }
             next();
         }.bind(this));
+
+        return promise;
     };
 
     /**
@@ -801,9 +860,17 @@
      * @param {Function} callback Callback function with the array of matching seq. or uid numbers
      */
     BrowserBox.prototype.search = function(query, options, callback) {
+        var promise;
+
         if (!callback && typeof options === 'function') {
             callback = options;
             options = undefined;
+        }
+
+        if (!callback) {
+            promise = new Promise(function(resolve, reject) {
+                callback = callbackPromise(resolve, reject);
+            });
         }
 
         options = options || {};
@@ -820,6 +887,8 @@
             }
             next();
         }.bind(this));
+
+        return promise;
     };
 
     /**
@@ -834,9 +903,17 @@
      * @param {Function} callback Callback function with the array of matching seq. or uid numbers
      */
     BrowserBox.prototype.setFlags = function(sequence, flags, options, callback) {
+        var promise;
+
         if (!callback && typeof options === 'function') {
             callback = options;
             options = undefined;
+        }
+
+        if (!callback) {
+            promise = new Promise(function(resolve, reject) {
+                callback = callbackPromise(resolve, reject);
+            });
         }
 
         options = options || {};
@@ -853,6 +930,8 @@
             }
             next();
         }.bind(this));
+
+        return promise;
     };
 
     /**
@@ -867,9 +946,17 @@
      * @param {Function} callback Callback function with the array of matching seq. or uid numbers
      */
     BrowserBox.prototype.upload = function(destination, message, options, callback) {
+        var promise;
+
         if (!callback && typeof options === 'function') {
             callback = options;
             options = undefined;
+        }
+
+        if (!callback) {
+            promise = new Promise(function(resolve, reject) {
+                callback = callbackPromise(resolve, reject);
+            });
         }
 
         options = options || {};
@@ -902,6 +989,8 @@
             callback(err, err ? undefined : true);
             next();
         }.bind(this));
+
+        return promise;
     };
 
     /**
@@ -925,9 +1014,17 @@
      * @param {Function} callback Callback function
      */
     BrowserBox.prototype.deleteMessages = function(sequence, options, callback) {
+        var promise;
+
         if (!callback && typeof options === 'function') {
             callback = options;
             options = undefined;
+        }
+
+        if (!callback) {
+            promise = new Promise(function(resolve, reject) {
+                callback = callbackPromise(resolve, reject);
+            });
         }
 
         options = options || {};
@@ -957,6 +1054,8 @@
                     next();
                 }.bind(this));
         }.bind(this));
+
+        return promise;
     };
 
     /**
@@ -973,9 +1072,17 @@
      * @param {Function} callback Callback function
      */
     BrowserBox.prototype.copyMessages = function(sequence, destination, options, callback) {
+        var promise;
+
         if (!callback && typeof options === 'function') {
             callback = options;
             options = undefined;
+        }
+
+        if (!callback) {
+            promise = new Promise(function(resolve, reject) {
+                callback = callbackPromise(resolve, reject);
+            });
         }
 
         options = options || {};
@@ -1001,6 +1108,8 @@
                 }
                 next();
             }.bind(this));
+
+        return promise;
     };
 
     /**
@@ -1019,9 +1128,17 @@
      * @param {Function} callback Callback function
      */
     BrowserBox.prototype.moveMessages = function(sequence, destination, options, callback) {
+        var promise;
+
         if (!callback && typeof options === 'function') {
             callback = options;
             options = undefined;
+        }
+
+        if (!callback) {
+            promise = new Promise(function(resolve, reject) {
+                callback = callbackPromise(resolve, reject);
+            });
         }
 
         options = options || {};
@@ -1058,6 +1175,8 @@
                 this.deleteMessages(sequence, options, callback);
             }.bind(this));
         }
+
+        return promise;
     };
 
     /**
@@ -1073,10 +1192,19 @@
      * @param {Function} callback Return information about selected mailbox
      */
     BrowserBox.prototype.selectMailbox = function(path, options, callback) {
+        var promise;
+
         if (!callback && typeof options === 'function') {
             callback = options;
             options = undefined;
         }
+
+        if (!callback) {
+            promise = new Promise(function(resolve, reject) {
+                callback = callbackPromise(resolve, reject);
+            });
+        }
+
         options = options || {};
 
         var query = {
@@ -1119,6 +1247,8 @@
 
             next();
         }.bind(this));
+
+        return promise;
     };
 
     BrowserBox.prototype.hasCapability = function(capa) {
@@ -1981,6 +2111,25 @@
         ];
         return mimefuncs.base64.encode(authData.join('\x01'));
     };
+
+    /**
+     * Wrapper for creating promise aware callback functions
+     *
+     * @param {Function} resolve Promise.resolve
+     * @param {Function} reject promise.reject
+     * @returns {Function} Promise wrapped callback
+     */
+    function callbackPromise(resolve, reject) {
+        return function() {
+            var args = Array.prototype.slice.call(arguments);
+            var err = args.shift();
+            if (err) {
+                reject(err);
+            } else {
+                resolve.apply(null, args);
+            }
+        };
+    }
 
     return BrowserBox;
 }));

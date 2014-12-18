@@ -134,6 +134,8 @@ Where
     * **err** is an error object, only set if the request failed
     * **mailboxes** is an object with the mailbox structure
 
+If callback is not specified, the method returns a Promise.
+
 Mailbox object is with the following structure
 
   * **root** (boolean) `true` if the node is root
@@ -238,6 +240,8 @@ Where
     * **err** is an error object, only set if the request failed
     * **namespaces** is an object with the namespace values or `false` if NAMESPACE is not supported
 
+If callback is not specified, the method returns a Promise.
+
 Namespace object is with the following structure
 
   * **personal** is an array of namespace elements or `false` for Personal Namespace
@@ -294,6 +298,8 @@ client.createMailbox('INBOX/Foo', function callback(err, alreadyExists) {});
 client.createMailbox('Foo', function callback(err, alreadyExists) {});
 ```
 
+If callback is not specified, the method returns a Promise.
+
 ## Select mailbox
 
 Select specific mailbox by path with `selectMailbox()`
@@ -318,6 +324,8 @@ Where
       * **uidValidity** (number) UIDValidity value
       * **uidNext** (number) predicted next UID value
       * **highestModseq** (string) (with CONDSTORE only) highest modseq value (javascript can't handle 64bit uints so this is a string)
+
+If callback is not specified, the method returns a Promise.
 
 Example
 
@@ -370,6 +378,8 @@ Where
   * **callback** is the callback function to run once all me messages are processed with the following arguments
     * **err** is an error object, only set if the request failed
     * **messages** is an array of messages from the provided sequence range
+
+If callback is not specified, the method returns a Promise.
 
 > **A note about sequence ranges** – using `*` as a range selector might be a really bad idea. If the mailbox contains thousands of messages and you are running a `1:*` query, it might choke your application. Additionally, remember that `*` stands for the sequence number of _the last message_ in the mailbox. This means that if you have 10 messages in a mailbox and you run a query for a range of `5000:*` you still get a match as the query is treated as `10:5000` by the server
 
@@ -510,6 +520,8 @@ Where
     * **err** is an error object, only set if the request failed
     * **results** is an array of sorted and unique message sequence numbers or UID numbers that match the specified search query
 
+If callback is not specified, the method returns a Promise.
+
 Queries are composed as objects where keys are search terms and values are term arguments.
 Only strings, numbers and Date values are used as arguments.
 If the value is an array, the members of it are processed separately (use this for terms that require multiple params).
@@ -562,6 +574,8 @@ Where
     * **err** is an error object, only set if the request failed
     * **messages** is an array of messages from the provided sequence range (or empty when `silent:true` option is set). Includes `flags` property and `uid` if `byUid:true` option was used.
 
+If callback is not specified, the method returns a Promise.
+
 ### Reading flags
 
 You can check the flags for a message or a range of messages with `listMessages` - use `['flags']` as the query object.
@@ -598,6 +612,8 @@ Where
   * **callback** is the callback function to run once all me messages are processed with the following arguments
     * **err** is an error object, only set if the request failed
 
+If callback is not specified, the method returns a Promise.
+
 If possible (`byUid:true` is set and UIDPLUS extension is supported by the server) uses `UID EXPUNGE`
 otherwise falls back to EXPUNGE to delete the messages – which means that this method might be
 destructive. If `EXPUNGE` is used, then any messages with `\Deleted` flag set are deleted even if these
@@ -633,6 +649,8 @@ Where
     * **err** is an error object, only set if the request failed
     * **message** nothing useful, just the response text from the server
 
+If callback is not specified, the method returns a Promise.
+
 ### Example
 
 ```javascript
@@ -657,6 +675,8 @@ Where
     * **byUid** if `true` uses UID values instead of sequence numbers to define the range
   * **callback** is the callback function to run once all me messages are processed with the following arguments
     * **err** is an error object, only set if the request failed
+
+If callback is not specified, the method returns a Promise.
 
 If possible (MOVE extension is supported by the server) uses `MOVE` or `UID MOVE`
 otherwise falls back to COPY + EXPUNGE.
@@ -737,7 +757,7 @@ Example:
 imap.search({
     header: ['subject', 'hello 3']
 }, {
-    // add precheck(ctx, next) to the query options 
+    // add precheck(ctx, next) to the query options
     precheck: function(ctx, next) {
         // make sure inbox is selected before the search command is run
         imap.selectMailbox('inbox', {
@@ -751,7 +771,7 @@ imap.search({
 
 ```
 
-A `precheck` callback receives two arguments: 
+A `precheck` callback receives two arguments:
 * **ctx** is a context parameter, i.e. a pointer to the current position in the command queue
 * **next** callback to be invoked when the precheck is done
 
