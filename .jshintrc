@@ -20,6 +20,7 @@
 
     "globals": {
         "Promise": true,
+        "ES6Promise": true,
         "sinon": true,
         "define": true,
         "chrome": true,

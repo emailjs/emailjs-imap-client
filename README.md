@@ -18,11 +18,18 @@ If forge is used to handle TLS traffic, you may choose to handle the TLS-related
 
 Please take a look at the [tcp-socket documentation](https://github.com/whiteout-io/tcp-socket) for more information!
 
+## Promises
+
+This module uses the Promises API, so make sure your platform either supports `Promise` constructor natively, or use the [es6-promise](https://www.npmjs.com/package/es6-promise) polyfill.
+
+    var ES6Promise = require('es6-promises');
+    ES6Promise.polyfill();
+
 ## Installation
 
 ### [npm](https://www.npmjs.org/):
 
-    npm install https://github.com/whiteout-io/browserbox/tarball/<TAG_NAME>
+    npm install browserbox
 
 ## Usage
 

@@ -2,12 +2,17 @@
 
 (function(factory) {
     if (typeof define === 'function' && define.amd) {
-        define(['chai', '../../src/browserbox', 'hoodiecrow', 'axe'], factory);
+        define(['chai', '../../src/browserbox', 'hoodiecrow', 'axe', 'es6-promise'], factory);
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('chai'), require('../../src/browserbox'), require('hoodiecrow'), require('axe-logger'));
+        module.exports = factory(require('chai'), require('../../src/browserbox'), require('hoodiecrow'), require('axe-logger'), require('es6-promise'));
     }
-}(function(chai, BrowserBox, hoodiecrow, axe) {
+}(function(chai, BrowserBox, hoodiecrow, axe, ES6Promise) {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
+    if (typeof Promise === 'undefined') {
+        // load ES6 Promises polyfill
+        ES6Promise.polyfill();
+    }
 
     var expect = chai.expect;
     chai.Assertion.includeStack = true;
@@ -736,7 +741,7 @@
                 it('should error in precheck', function(done) {
                     /*
                      * start out in [Gmail]/Drafts
-                     
+
                      * execution path #1:
                      *   setFlags precheck() should error and never be executed
                      *

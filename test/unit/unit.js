@@ -31,6 +31,12 @@ if (!Function.prototype.bind) {
     };
 }
 
+if (typeof Promise === 'undefined') {
+    // load ES6 Promises polyfill
+    ES6Promise.polyfill();
+}
+
+
 mocha.setup('bdd');
 require(['test/unit/browserbox-test', 'test/unit/browserbox-imap-test'], function() {
     (window.mochaPhantomJS || window.mocha).run();

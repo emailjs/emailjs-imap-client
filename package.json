@@ -41,6 +41,7 @@
     "hoodiecrow": "^1.1.21",
     "node-forge": "~0.6.11",
     "wo-stringencoding": "~0.1.1",
-    "grunt-mocha-test": "^0.10.2"
+    "grunt-mocha-test": "^0.10.2",
+    "es6-promise": "^2.0.1"
   }
 }
