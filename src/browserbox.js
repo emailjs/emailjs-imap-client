@@ -342,8 +342,7 @@
             }.bind(this));
             this._idleTimeout = setTimeout(function() {
                 axe.debug(DEBUG_TAG, 'sending idle DONE');
-                // [0x44, 0x4f, 0x4e, 0x45, 0x0d, 0x0a] is ASCII for "DONE\r\n"
-                this.client.socket.send(new Uint8Array([0x44, 0x4f, 0x4e, 0x45, 0x0d, 0x0a]).buffer);
+                this.client.send('DONE\r\n');
                 this._enteredIdle = false;
             }.bind(this), this.TIMEOUT_IDLE);
         }
@@ -362,7 +361,7 @@
         clearTimeout(this._idleTimeout);
         if (this._enteredIdle === 'IDLE') {
             axe.debug(DEBUG_TAG, 'sending idle DONE');
-            this.client.socket.send(new Uint8Array([0x44, 0x4f, 0x4e, 0x45, 0x0d, 0x0a]).buffer);
+            this.client.send('DONE\r\n');
         }
         this._enteredIdle = false;
 
