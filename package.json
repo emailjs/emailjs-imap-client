@@ -1,6 +1,6 @@
 {
   "name": "browserbox",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "homepage": "https://github.com/whiteout-io/browserbox",
   "description": "IMAP client for browsers.",
   "author": "Andris Reinman <andris@kreata.ee>",
@@ -22,7 +22,7 @@
     "wo-imap-handler": "~0.1.11",
     "mimefuncs": "~0.3.4",
     "axe-logger": "~0.0.2",
-    "tcp-socket": "~0.4.0"
+    "tcp-socket": "https://github.com/whiteout-io/tcp-socket/tarball/dev/WO-765"
   },
   "devDependencies": {
     "chai": "~1.8.1",
