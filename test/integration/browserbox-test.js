@@ -2,12 +2,17 @@
 
 (function(factory) {
     if (typeof define === 'function' && define.amd) {
-        define(['chai', '../../src/browserbox', 'hoodiecrow', 'axe'], factory);
+        define(['chai', '../../src/browserbox', 'hoodiecrow', 'axe', 'es6-promise'], factory);
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('chai'), require('../../src/browserbox'), require('hoodiecrow'), require('axe-logger'));
+        module.exports = factory(require('chai'), require('../../src/browserbox'), require('hoodiecrow'), require('axe-logger'), require('es6-promise'));
     }
-}(function(chai, BrowserBox, hoodiecrow, axe) {
+}(function(chai, BrowserBox, hoodiecrow, axe, ES6Promise) {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+
+    if (typeof Promise === 'undefined') {
+        // load ES6 Promises polyfill
+        ES6Promise.polyfill();
+    }
 
     var expect = chai.expect;
     chai.Assertion.includeStack = true;
@@ -241,6 +246,16 @@
                         done();
                     });
                 });
+
+                it('should succeed with promise', function(done) {
+                    imap.listMailboxes().then(function(mailboxes) {
+                        expect(mailboxes).to.not.be.empty;
+                        done();
+                    }).catch(function(err) {
+                        expect(err).to.not.exist;
+                        done();
+                    });
+                });
             });
 
             describe('#listMessages', function() {
@@ -252,6 +267,19 @@
                             expect(messages).to.not.be.empty;
                             done();
                         });
+                    });
+                });
+
+                it('should succeed with promise', function(done) {
+                    imap.selectMailbox("inbox").then(function() {
+                        imap.listMessages("1:*", ["uid", "flags", "envelope", "bodystructure", "body.peek[]"], function(err, messages) {
+                            expect(err).to.not.exist;
+                            expect(messages).to.not.be.empty;
+                            done();
+                        });
+                    }).catch(function(err) {
+                        expect(err).to.not.exist;
+                        done();
                     });
                 });
             });
@@ -281,6 +309,34 @@
                         });
                     });
                 });
+
+                it('should succeed with promise', function(done) {
+                    var msgCount;
+
+                    imap.selectMailbox("inbox").
+                    then(function() {
+                        return imap.listMessages("1:*", ["uid", "flags", "envelope", "bodystructure"]);
+                    }).
+                    then(function(messages) {
+                        expect(messages).to.not.be.empty;
+                        msgCount = messages.length;
+                        return imap.upload('inbox', 'MIME-Version: 1.0\r\nDate: Wed, 9 Jul 2014 15:07:47 +0200\r\nDelivered-To: test@test.com\r\nMessage-ID: <CAHftYYQo=5fqbtnv-DazXhL2j5AxVP1nWarjkztn-N9SV91Z2w@mail.gmail.com>\r\nSubject: test\r\nFrom: Test Test <test@test.com>\r\nTo: Test Test <test@test.com>\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\ntest', {
+                            flags: ['\\Seen', '\\Answered', '\\$MyFlag']
+                        });
+                    }).
+                    then(function(success) {
+                        expect(success).to.be.true;
+                        return imap.listMessages("1:*", ["uid", "flags", "envelope", "bodystructure"]);
+                    }).
+                    then(function(messages) {
+                        expect(messages.length).to.equal(msgCount + 1);
+                        done();
+                    }).
+                    catch(function(err) {
+                        expect(err).to.not.exist;
+                        done();
+                    });
+                });
             });
 
             describe('#search', function() {
@@ -292,6 +348,22 @@
                         }, function(err, result) {
                             expect(err).to.not.exist;
                             expect(result).to.deep.equal([3]);
+                            done();
+                        });
+                    });
+                });
+
+                it('should return a sequence number with promise', function(done) {
+                    imap.selectMailbox('inbox').then(function() {
+                        imap.search({
+                            header: ['subject', 'hello 3']
+                        }, function(err, result) {
+                            expect(err).to.not.exist;
+                            expect(result).to.deep.equal([3]);
+                            done();
+                        }).
+                        catch(function(err) {
+                            expect(err).to.not.exist;
                             done();
                         });
                     });
@@ -309,6 +381,25 @@
                             expect(result).to.deep.equal([555]);
                             done();
                         });
+                    });
+                });
+
+                it('should return an uid with promise', function(done) {
+                    imap.selectMailbox('inbox').
+                    then(function() {
+                        return imap.search({
+                            header: ['subject', 'hello 3']
+                        }, {
+                            byUid: true
+                        });
+                    }).
+                    then(function(result) {
+                        expect(result).to.deep.equal([555]);
+                        done();
+                    }).
+                    catch(function(err) {
+                        expect(err).to.not.exist;
+                        done();
                     });
                 });
 
@@ -340,6 +431,24 @@
 
                             done();
                         });
+                    });
+                });
+
+                it('should set flags for a message with promise', function(done) {
+                    imap.selectMailbox('inbox').
+                    then(function() {
+                        return imap.setFlags('1', ['\\Seen', '$MyFlag']);
+                    }).
+                    then(function(result) {
+                        expect(result).to.deep.equal([{
+                            '#': 1,
+                            'flags': ['\\Seen', '$MyFlag']
+                        }]);
+                        done();
+                    }).
+                    catch(function(err) {
+                        expect(err).to.not.exist;
+                        done();
                     });
                 });
 
@@ -413,6 +522,29 @@
                         });
                     });
                 });
+
+                it('should delete a message with promise', function(done) {
+                    var initialInfo;
+                    imap.selectMailbox('inbox').
+                    then(function(info) {
+                        initialInfo = info;
+                        return imap.deleteMessages(557, {
+                            byUid: true
+                        });
+                    }).
+                    then(function(result) {
+                        expect(result).to.be.true;
+                        return imap.selectMailbox('inbox');
+                    }).
+                    then(function(resultInfo) {
+                        expect(initialInfo.exists !== resultInfo.exists).to.be.true;
+                        done();
+                    }).
+                    catch(function(err) {
+                        expect(err).to.not.exist;
+                        done();
+                    });
+                });
             });
 
             describe('#copyMessages', function() {
@@ -429,6 +561,23 @@
                                 done();
                             });
                         });
+                    });
+                });
+
+                it('should copy a message with promise', function(done) {
+                    imap.selectMailbox('inbox').then(function() {
+                        return imap.copyMessages(555, '[Gmail]/Trash', {
+                            byUid: true
+                        });
+                    }).then(function() {
+                        return imap.selectMailbox('[Gmail]/Trash');
+                    }).then(function(info) {
+                        expect(info.exists).to.equal(1);
+                        done();
+                    }).
+                    catch(function(err) {
+                        expect(err).to.not.exist;
+                        done();
                     });
                 });
             });
@@ -453,6 +602,30 @@
                                 });
                             });
                         });
+                    });
+                });
+
+                it('should move a message with promise', function(done) {
+                    var initialInfo;
+                    imap.selectMailbox('inbox').
+                    then(function(info) {
+                        initialInfo = info;
+                        return imap.moveMessages(555, '[Gmail]/Spam', {
+                            byUid: true
+                        });
+                    }).then(function(result) {
+                        expect(result).to.be.true;
+                        return imap.selectMailbox('[Gmail]/Spam');
+                    }).then(function(info) {
+                        expect(info.exists).to.equal(1);
+                        return imap.selectMailbox('inbox');
+                    }).then(function(resultInfo) {
+                        expect(initialInfo.exists !== resultInfo.exists).to.be.true;
+                        done();
+                    }).
+                    catch(function(err) {
+                        expect(err).to.not.exist;
+                        done();
                     });
                 });
             });
@@ -568,7 +741,7 @@
                 it('should error in precheck', function(done) {
                     /*
                      * start out in [Gmail]/Drafts
-                     
+
                      * execution path #1:
                      *   setFlags precheck() should error and never be executed
                      *

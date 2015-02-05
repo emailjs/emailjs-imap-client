@@ -62,7 +62,8 @@ module.exports = function(grunt) {
                     'wo-utf7/src/utf7.js',
                     'wo-imap-handler/src/*.js',
                     'mimefuncs/src/mimefuncs.js',
-                    'axe-logger/axe.js'
+                    'axe-logger/axe.js',
+                    'es6-promise/dist/es6-promise.js'
                 ],
                 dest: 'test/lib/'
             },
