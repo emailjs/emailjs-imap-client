@@ -370,12 +370,10 @@
      */
     ImapClient.prototype._onTimeout = function() {
         // inform about the timeout, _onError takes case of the rest
-        var error = new Error('Socket timed out!');
+        var error = new Error(this.options.sessionId + ' Socket timed out!');
         axe.error(DEBUG_TAG, error);
         this._onError(error);
     };
-
-
 
     /**
      * More data can be buffered in the socket, `waitDrain` is reset to false
@@ -455,7 +453,7 @@
      * @event
      */
     ImapClient.prototype._onOpen = function() {
-        axe.debug(DEBUG_TAG, 'tcp socket opened');
+        axe.debug(DEBUG_TAG, this.options.sessionId + ' tcp socket opened');
         this.socket.ondata = this._onData.bind(this);
         this.socket.onclose = this._onClose.bind(this);
         this.socket.ondrain = this._onDrain.bind(this);
@@ -503,10 +501,10 @@
                 };
             } else {
                 response = imapHandler.parser(data);
-                axe.debug(DEBUG_TAG, 'received response: ' + response.tag + ' ' + response.command);
+                axe.debug(DEBUG_TAG, this.options.sessionId + ' S: ' + imapHandler.compiler(response, false, true));
             }
         } catch (e) {
-            axe.error(DEBUG_TAG, 'error parsing imap response: ' + e + '\n' + e.stack + '\nraw:' + data);
+            axe.error(DEBUG_TAG, this.options.sessionId + ' error parsing imap response: ' + e + '\n' + e.stack + '\nraw:' + data);
             return this._onError(e);
         }
 
@@ -644,7 +642,7 @@
         });
 
         // if we're in priority mode (i.e. we ran commands in a precheck),
-        // queue any commands BEFORE the command that contianed the precheck, 
+        // queue any commands BEFORE the command that contianed the precheck,
         // otherwise just queue command as usual
         var index = data.ctx ? this._clientQueue.indexOf(data.ctx) : -1;
         if (index >= 0) {
@@ -713,15 +711,17 @@
 
         this._canSend = false;
         this._currentCommand = this._clientQueue.shift();
+        var loggedCommand = false;
 
         try {
             this._currentCommand.data = imapHandler.compiler(this._currentCommand.request, true);
+            loggedCommand = imapHandler.compiler(this._currentCommand.request, false, true);
         } catch (e) {
-            axe.error(DEBUG_TAG, 'error compiling imap command: ' + e + '\nstack trace: ' + e.stack + '\nraw:' + this._currentCommand.request);
+            axe.error(DEBUG_TAG, this.options.sessionId + ' error compiling imap command: ' + e + '\nstack trace: ' + e.stack + '\nraw:' + this._currentCommand.request);
             return this._onError(e);
         }
 
-        axe.debug(DEBUG_TAG, 'sending request: ' + this._currentCommand.request.tag + ' ' + this._currentCommand.request.command);
+        axe.debug(DEBUG_TAG, this.options.sessionId + ' C: ' + loggedCommand);
         var data = this._currentCommand.data.shift();
 
         this.send(data + (!this._currentCommand.data.length ? '\r\n' : ''));

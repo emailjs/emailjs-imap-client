@@ -43,6 +43,7 @@
         '\\Drafts': ['ba brouillon', 'borrador', 'borrador', 'borradores', 'bozze', 'brouillons', 'bản thảo', 'ciorne', 'concepten', 'draf', 'drafts', 'drög', 'entwürfe', 'esborranys', 'garalamalar', 'ihe edeturu', 'iidrafti', 'izinhlaka', 'juodraščiai', 'kladd', 'kladder', 'koncepty', 'koncepty', 'konsep', 'konsepte', 'kopie robocze', 'layihələr', 'luonnokset', 'melnraksti', 'meralo', 'mesazhe të padërguara', 'mga draft', 'mustandid', 'nacrti', 'nacrti', 'osnutki', 'piszkozatok', 'rascunhos', 'rasimu', 'skice', 'taslaklar', 'tsararrun saƙonni', 'utkast', 'vakiraoka', 'vázlatok', 'zirriborroak', 'àwọn àkọpamọ́', 'πρόχειρα', 'жобалар', 'нацрти', 'нооргууд', 'сиёҳнавис', 'хомаки хатлар', 'чарнавікі', 'чернетки', 'чернови', 'черновики', 'черновиктер', 'սևագրեր', 'טיוטות', 'مسودات', 'مسودات', 'موسودې', 'پیش نویسها', 'ڈرافٹ/', 'ड्राफ़्ट', 'प्रारूप', 'খসড়া', 'খসড়া', 'ড্ৰাফ্ট', 'ਡ੍ਰਾਫਟ', 'ડ્રાફ્ટસ', 'ଡ୍ରାଫ୍ଟ', 'வரைவுகள்', 'చిత్తు ప్రతులు', 'ಕರಡುಗಳು', 'കരടുകള്‍', 'කෙටුම් පත්', 'ฉบับร่าง', 'მონახაზები', 'ረቂቆች', 'សារព្រាង', '下書き', '草稿', '草稿', '草稿', '임시 보관함']
     };
     var SPECIAL_USE_BOX_FLAGS = Object.keys(SPECIAL_USE_BOXES);
+    var SESSIONCOUNTER = 0;
 
     /**
      * High level IMAP client
@@ -54,8 +55,10 @@
      * @param {Object} [options] Optional options object
      */
     function BrowserBox(host, port, options) {
-
         this.options = options || {};
+
+        // Session identified used for logging
+        this.options.sessionId = this.options.sessionId || '[' + (++SESSIONCOUNTER) + ']';
 
         /**
          * List of extensions the server supports
@@ -175,7 +178,7 @@
      * @event
      */
     BrowserBox.prototype._onClose = function() {
-        axe.debug(DEBUG_TAG, 'connection closed. goodbye.');
+        axe.debug(DEBUG_TAG, this.options.sessionId + ' connection closed. goodbye.');
         this.onclose();
     };
 
@@ -186,7 +189,7 @@
      */
     BrowserBox.prototype._onTimeout = function() {
         clearTimeout(this._connectionTimeout);
-        var error = new Error('Timeout creating connection to the IMAP server');
+        var error = new Error(this.options.sessionId + ' Timeout creating connection to the IMAP server');
         axe.error(DEBUG_TAG, error);
         this.onerror(error);
         this.client._destroy();
@@ -200,7 +203,7 @@
      */
     BrowserBox.prototype._onReady = function() {
         clearTimeout(this._connectionTimeout);
-        axe.debug(DEBUG_TAG, 'session: connection established');
+        axe.debug(DEBUG_TAG, this.options.sessionId + ' session: connection established');
         this._changeState(this.STATE_NOT_AUTHENTICATED);
 
         this.updateCapability(function() {
@@ -237,7 +240,7 @@
             return;
         }
 
-        axe.debug(DEBUG_TAG, 'client: started idling');
+        axe.debug(DEBUG_TAG, this.options.sessionId + ' client: started idling');
         this.enterIdle();
     };
 
@@ -247,7 +250,7 @@
      * Initiate connection to the IMAP server
      */
     BrowserBox.prototype.connect = function() {
-        axe.debug(DEBUG_TAG, 'connecting to ' + this.client.host + ':' + this.client.port);
+        axe.debug(DEBUG_TAG, this.options.sessionId + ' connecting to ' + this.client.host + ':' + this.client.port);
         this._changeState(this.STATE_CONNECTING);
 
         // set timeout to fail connection establishing
@@ -268,7 +271,7 @@
             });
         }
 
-        axe.debug(DEBUG_TAG, 'closing connection');
+        axe.debug(DEBUG_TAG, this.options.sessionId + ' closing connection');
         this._changeState(this.STATE_LOGOUT);
 
         this.exec('LOGOUT', function(err) {
@@ -338,7 +341,7 @@
             return;
         }
         this._enteredIdle = this.capability.indexOf('IDLE') >= 0 ? 'IDLE' : 'NOOP';
-        axe.debug(DEBUG_TAG, 'entering idle with ' + this._enteredIdle);
+        axe.debug(DEBUG_TAG, this.options.sessionId + ' entering idle with ' + this._enteredIdle);
 
         if (this._enteredIdle === 'NOOP') {
             this._idleTimeout = setTimeout(function() {
@@ -351,7 +354,7 @@
                 next();
             }.bind(this));
             this._idleTimeout = setTimeout(function() {
-                axe.debug(DEBUG_TAG, 'sending idle DONE');
+                axe.debug(DEBUG_TAG, this.options.sessionId + ' sending idle DONE');
                 this.client.send('DONE\r\n');
                 this._enteredIdle = false;
             }.bind(this), this.TIMEOUT_IDLE);
@@ -370,12 +373,12 @@
 
         clearTimeout(this._idleTimeout);
         if (this._enteredIdle === 'IDLE') {
-            axe.debug(DEBUG_TAG, 'sending idle DONE');
+            axe.debug(DEBUG_TAG, this.options.sessionId + ' sending idle DONE');
             this.client.send('DONE\r\n');
         }
         this._enteredIdle = false;
 
-        axe.debug(DEBUG_TAG, 'idle terminated');
+        axe.debug(DEBUG_TAG, this.options.sessionId + ' idle terminated');
 
         return callback();
     };
@@ -520,7 +523,8 @@
                     value: 'XOAUTH2'
                 }, {
                     type: 'ATOM',
-                    value: this._buildXOAuth2Token(auth.user, auth.xoauth2)
+                    value: this._buildXOAuth2Token(auth.user, auth.xoauth2),
+                    sensitive: true
                 }]
             };
             options.onplustagged = function(response, next) {
@@ -529,7 +533,7 @@
                     try {
                         payload = JSON.parse(mimefuncs.base64Decode(response.payload));
                     } catch (e) {
-                        axe.error(DEBUG_TAG, 'error parsing XOAUTH2 payload: ' + e + '\nstack trace: ' + e.stack);
+                        axe.error(DEBUG_TAG, this.options.sessionId + ' error parsing XOAUTH2 payload: ' + e + '\nstack trace: ' + e.stack);
                     }
                 }
                 // + tagged error response expects an empty line in return
@@ -544,7 +548,8 @@
                     value: auth.user || ''
                 }, {
                     type: 'STRING',
-                    value: auth.pass || ''
+                    value: auth.pass || '',
+                    sensitive: true
                 }]
             };
         }
@@ -568,7 +573,7 @@
                 // capabilites were listed with the OK [CAPABILITY ...] response
                 this.capability = [].concat(response.capability || []);
                 capabilityUpdated = true;
-                axe.debug(DEBUG_TAG, 'post-auth capabilites updated: ' + this.capability);
+                axe.debug(DEBUG_TAG, this.options.sessionId + ' post-auth capabilites updated: ' + this.capability);
                 callback(null, true);
             } else if (response.payload && response.payload.CAPABILITY && response.payload.CAPABILITY.length) {
                 // capabilites were listed with * CAPABILITY ... response
@@ -576,7 +581,7 @@
                     return (capa.value || '').toString().toUpperCase().trim();
                 });
                 capabilityUpdated = true;
-                axe.debug(DEBUG_TAG, 'post-auth capabilites updated: ' + this.capability);
+                axe.debug(DEBUG_TAG, this.options.sessionId + ' post-auth capabilites updated: ' + this.capability);
                 callback(null, true);
             } else {
                 // capabilities were not automatically listed, reload
@@ -584,7 +589,7 @@
                     if (err) {
                         callback(err);
                     } else {
-                        axe.debug(DEBUG_TAG, 'post-auth capabilites updated: ' + this.capability);
+                        axe.debug(DEBUG_TAG, this.options.sessionId + ' post-auth capabilites updated: ' + this.capability);
                         callback(null, true);
                     }
                 }.bind(this));
@@ -632,7 +637,7 @@
             attributes: attributes
         }, 'ID', function(err, response, next) {
             if (err) {
-                axe.error(DEBUG_TAG, 'error updating server id: ' + err + '\n' + err.stack);
+                axe.error(DEBUG_TAG, this.options.sessionId + ' error updating server id: ' + err + '\n' + err.stack);
                 callback(err);
                 return next();
             }
@@ -714,7 +719,7 @@
                 attributes: ['', '*']
             }, 'LSUB', function(err, response, next) {
                 if (err) {
-                    axe.error(DEBUG_TAG, 'error while listing subscribed mailboxes: ' + err + '\n' + err.stack);
+                    axe.error(DEBUG_TAG, this.options.sessionId + ' error while listing subscribed mailboxes: ' + err + '\n' + err.stack);
                     callback(null, tree);
                     return next();
                 }
@@ -1995,7 +2000,7 @@
             return;
         }
 
-        axe.debug(DEBUG_TAG, 'entering state: ' + this.state);
+        axe.debug(DEBUG_TAG, this.options.sessionId + ' entering state: ' + this.state);
 
         // if a mailbox was opened, emit onclosemailbox and clear selectedMailbox value
         if (this.state === this.STATE_SELECTED && this.selectedMailbox) {

@@ -366,7 +366,8 @@
                         value: 'u1'
                     }, {
                         type: 'STRING',
-                        value: 'p1'
+                        value: 'p1',
+                        sensitive: true
                     }]
                 });
 
@@ -390,7 +391,8 @@
                         value: 'XOAUTH2'
                     }, {
                         type: 'ATOM',
-                        value: 'dXNlcj11MQFhdXRoPUJlYXJlciBhYmMBAQ=='
+                        value: 'dXNlcj11MQFhdXRoPUJlYXJlciBhYmMBAQ==',
+                        sensitive: true
                     }]
                 });
 
