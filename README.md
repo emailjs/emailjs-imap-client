@@ -487,7 +487,7 @@ multipart/mixed
     "type": "multipart/mixed",
     "childNodes": [
         {
-            "part": "1"
+            "part": "1",
             "type": "text/plain",
             "encoding": "7bit",
             "size": 8,
