@@ -1478,20 +1478,27 @@
      * @return {Object} Message object
      */
     BrowserBox.prototype._parseFETCH = function(response) {
-        var list;
-
         if (!response || !response.payload || !response.payload.FETCH || !response.payload.FETCH.length) {
             return [];
         }
 
-        list = [].concat(response.payload.FETCH || []).map(function(item) {
-            var
-            // ensure the first value is an array
-                params = [].concat([].concat(item.attributes || [])[0] || []),
-                message = {
+        var list = [];
+        var messages = {};
+
+        [].concat(response.payload.FETCH || []).forEach(function(item) {
+            var params = [].concat([].concat(item.attributes || [])[0] || []); // ensure the first value is an array
+            var message;
+            var i, len, key;
+
+            if (messages[item.nr]) {
+                // same sequence number is already used, so merge values instead of creating a new message object
+                message = messages[item.nr];
+            } else {
+                messages[item.nr] = message = {
                     '#': item.nr
-                },
-                i, len, key;
+                };
+                list.push(message);
+            }
 
             for (i = 0, len = params.length; i < len; i++) {
                 if (i % 2 === 0) {
@@ -1502,8 +1509,6 @@
                 }
                 message[key] = this._parseFetchValue(key, params[i]);
             }
-
-            return message;
         }.bind(this));
 
         return list;
