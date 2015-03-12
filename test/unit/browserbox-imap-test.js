@@ -631,7 +631,9 @@
                             client._clearIdle.restore();
                             done();
                         };
-                        client._addToClientQueue({}, undefined, {ctx: ctx});
+                        client._addToClientQueue({}, undefined, {
+                            ctx: ctx
+                        });
                     }
                 }];
                 client._sendRequest();
@@ -691,10 +693,32 @@
             });
         });
 
-        define('#isError', function() {
+        describe('#isError', function() {
             it('should detect if an object is an error', function() {
                 expect(client.isError(new RangeError('abc'))).to.be.true;
                 expect(client.isError('abc')).to.be.false;
+            });
+        });
+
+        describe('enableCompression', function() {
+            it('should create inflater and deflater streams', function() {
+                sinon.stub(client._pako, 'inflater').yields(new Uint8Array([1, 2, 3]));
+                sinon.stub(client._pako, 'deflater').yields(new Uint8Array([4, 5, 6]));
+
+                client.socket.ondata = function() {};
+                sinon.stub(client.socket, 'ondata');
+
+                expect(client.compressed).to.be.false;
+                client.enableCompression();
+                expect(client.compressed).to.be.true;
+
+                expect(new Uint8Array(socketStub.send.args[0][0])).to.deep.equal(new Uint8Array([4, 5, 6]));
+                expect(client._socketOnData.args[0][0]).to.deep.equal({
+                    data: new Uint8Array([1, 2, 3])
+                });
+
+                client._pako.inflater.restore();
+                client._pako.deflater.restore();
             });
         });
     });

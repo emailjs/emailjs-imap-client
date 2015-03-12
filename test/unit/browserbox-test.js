@@ -349,6 +349,50 @@
             });
         });
 
+        describe('#compressConnection', function() {
+            it('should run COMPRESS=DEFLATE if supported', function() {
+                sinon.stub(br, 'exec').yields(null, {}, function() {});
+                sinon.stub(br.client, 'enableCompression');
+
+                br.options.enableCompression = true;
+                br.capability = ['COMPRESS=DEFLATE'];
+                br.compressConnection();
+                expect(br.exec.callCount).to.equal(1);
+                expect(br.client.enableCompression.callCount).to.equal(1);
+                expect(br.exec.args[0][0]).to.deep.equal({
+                    command: 'COMPRESS',
+                    attributes: [{
+                        type: 'ATOM',
+                        value: 'DEFLATE'
+                    }]
+                });
+
+                br.exec.restore();
+                br.client.enableCompression.restore();
+            });
+
+            it('should do nothing if not supported', function() {
+                sinon.stub(br, 'exec');
+
+                br.capability = [];
+                br.compressConnection(function() {});
+                expect(br.exec.callCount).to.equal(0);
+
+                br.exec.restore();
+            });
+
+            it('should do nothing if not enabled', function() {
+                sinon.stub(br, 'exec');
+
+                br.options.enableCompression = false;
+                br.capability = ['COMPRESS=DEFLATE'];
+                br.compressConnection(function() {});
+                expect(br.exec.callCount).to.equal(0);
+
+                br.exec.restore();
+            });
+        });
+
         describe('#login', function() {
             it('should call LOGIN', function() {
                 sinon.stub(br, 'exec');

@@ -22,15 +22,15 @@
     'use strict';
 
     if (typeof define === 'function' && define.amd) {
-        define(['tcp-socket', 'imap-handler', 'mimefuncs', 'axe'], function(TCPSocket, imapHandler, mimefuncs, axe) {
-            return factory(TCPSocket, imapHandler, mimefuncs, axe);
+        define(['tcp-socket', 'imap-handler', 'mimefuncs', 'pako', 'axe'], function(TCPSocket, imapHandler, mimefuncs, pako, axe) {
+            return factory(TCPSocket, imapHandler, mimefuncs, pako, axe);
         });
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('tcp-socket'), require('wo-imap-handler'), require('mimefuncs'), require('axe-logger'));
+        module.exports = factory(require('tcp-socket'), require('wo-imap-handler'), require('mimefuncs'), require('./pako'), require('axe-logger'));
     } else {
-        root.BrowserboxImapClient = factory(navigator.TCPSocket, root.imapHandler, root.mimefuncs, root.axe);
+        root.BrowserboxImapClient = factory(navigator.TCPSocket, root.imapHandler, root.mimefuncs, root.pako, root.axe);
     }
-}(this, function(TCPSocket, imapHandler, mimefuncs, axe) {
+}(this, function(TCPSocket, imapHandler, mimefuncs, pako, axe) {
     'use strict';
 
     var DEBUG_TAG = 'browserbox IMAP';
@@ -48,6 +48,7 @@
      */
     function ImapClient(host, port, options) {
         this._TCPSocket = TCPSocket;
+        this._pako = pako;
 
         this.options = options || {};
 
@@ -83,7 +84,15 @@
          */
         this.waitDrain = false;
 
+        /**
+         * Is the connection compressed and needs inflating/deflating
+         */
+        this.compressed = false;
+
         // Private properties
+
+        this._inputInflate = false;
+        this._outputDeflate = false;
 
         /**
          * Does the connection use SSL/TLS
@@ -239,6 +248,8 @@
      * Closes the connection to the server
      */
     ImapClient.prototype.close = function() {
+        this._disableCompression();
+
         if (this.socket && this.socket.readyState === 'open') {
             this.socket.close();
         } else {
@@ -303,7 +314,11 @@
         clearTimeout(this._socketTimeoutTimer); // clear pending timeouts
         this._socketTimeoutTimer = setTimeout(this._onTimeout.bind(this), timeout); // arm the next timeout
 
-        this.waitDrain = this.socket.send(buffer);
+        if (this.compressed) {
+            this._sendCompressed(buffer);
+        } else {
+            this.waitDrain = this.socket.send(buffer);
+        }
     };
 
     /**
@@ -327,6 +342,11 @@
      * @param {Event} evt Event object. See evt.data for the error
      */
     ImapClient.prototype._onError = function(evt) {
+        if (this.destroyed) {
+            // ignore errors that happen after we close the connection
+            return;
+        }
+
         if (this.isError(evt)) {
             this.onerror(evt);
         } else if (evt && this.isError(evt.data)) {
@@ -362,6 +382,7 @@
      * @param {Event} evt Event object. Not used
      */
     ImapClient.prototype._onClose = function() {
+        this._disableCompression();
         this._destroy();
     };
 
@@ -812,6 +833,78 @@
      */
     ImapClient.prototype.isError = function(value) {
         return !!Object.prototype.toString.call(value).match(/Error\]$/);
+    };
+
+    // COMPRESSION RELATED METHODS
+
+    /**
+     * Sets up deflate/inflate for the IO
+     */
+    ImapClient.prototype.enableCompression = function() {
+        this._socketOnData = this.socket.ondata;
+
+        this.compressed = true;
+
+        // create compression pair
+        this._inputInflate = this._pako.inflater(function(chunk) {
+            // emit inflated data
+            this._socketOnData({
+                data: chunk
+            });
+        }.bind(this));
+
+        this._outputDeflate = this._pako.deflater(function(chunk) {
+            // write deflated data to socket
+            if (!this.compressed) {
+                return;
+            }
+
+            // The chunk we get from deflater is actually a view of a 16kB arraybuffer, if we
+            // send chunk.buffer to socket then we actually send our payload +
+            // almost 16kB of 0x00 bytes. The server chokes on it and closes connection.
+            // To get a valid arraybuffer we need to copy values to a new
+            // typed array with correct length and use its buffer property.
+            // Copying data is hardly what we want to to but at least this only applies
+            // to outgoing commands which in most cases should be pretty small (except for
+            // message uploads)
+            var len = chunk.length;
+            var data = new Uint8Array(len);
+            for(var i=0; i<len; i++){
+                data[i] = chunk[i];
+            }
+
+            this.waitDrain = this.socket.send(data.buffer);
+        }.bind(this));
+
+        // override data handler, decompress incoming data
+        this.socket.ondata = function(evt) {
+            if (!this.compressed) {
+                return;
+            }
+
+            this._inputInflate(new Uint8Array(evt.data));
+        }.bind(this);
+    };
+
+    /**
+     * Undoes any changes related to compression. This only be called when closing the connection
+     */
+    ImapClient.prototype._disableCompression = function() {
+        if (this.compressed) {
+            this.compressed = false;
+            this.socket.ondata = this._socketOnData;
+            this._socketOnData = null;
+        }
+    };
+
+    /**
+     * Outgoing payload needs to be compressed and sent to socket
+     *
+     * @param {ArrayBuffer} buffer Outgoing uncompressed arraybuffer
+     */
+    ImapClient.prototype._sendCompressed = function(buffer) {
+        // convert incoming arraybuffer to an Uint8Array and decompress
+        this._outputDeflate(new Uint8Array(buffer));
     };
 
     return ImapClient;
