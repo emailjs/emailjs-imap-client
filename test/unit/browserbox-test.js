@@ -1484,6 +1484,54 @@
 
                 br._parseFetchValue.restore();
             });
+
+            it('should merge multiple responses based on sequence number', function() {
+                expect(br._parseFETCH({
+                    payload: {
+                        FETCH: [{
+                            nr: 123,
+                            attributes: [
+                                [{
+                                    type: 'ATOM',
+                                    value: 'UID'
+                                }, {
+                                    type: 'ATOM',
+                                    value: 789
+                                }]
+                            ]
+                        }, {
+                            nr: 124,
+                            attributes: [
+                                [{
+                                    type: 'ATOM',
+                                    value: 'UID'
+                                }, {
+                                    type: 'ATOM',
+                                    value: 790
+                                }]
+                            ]
+                        }, {
+                            nr: 123,
+                            attributes: [
+                                [{
+                                    type: 'ATOM',
+                                    value: 'MODSEQ'
+                                }, {
+                                    type: 'ATOM',
+                                    value: '127'
+                                }]
+                            ]
+                        }]
+                    }
+                })).to.deep.equal([{
+                    '#': 123,
+                    'uid': 789,
+                    'modseq': '127'
+                }, {
+                    '#': 124,
+                    'uid': 790
+                }]);
+            });
         });
 
         describe('#_parseENVELOPE', function() {
