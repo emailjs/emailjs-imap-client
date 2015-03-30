@@ -1172,6 +1172,48 @@
                     uidValidity: 2
                 });
             });
+
+            it('should parse response with NOMODSEQ flag', function() {
+                expect(br._parseSELECT({
+                    code: 'READ-WRITE',
+                    payload: {
+                        EXISTS: [{
+                            nr: 123
+                        }],
+                        FLAGS: [{
+                            attributes: [
+                                [{
+                                    type: 'ATOM',
+                                    value: '\\Answered'
+                                }, {
+                                    type: 'ATOM',
+                                    value: '\\Flagged'
+                                }]
+                            ]
+                        }],
+                        OK: [{
+                            code: 'PERMANENTFLAGS',
+                            permanentflags: ['\\Answered', '\\Flagged']
+                        }, {
+                            code: 'UIDVALIDITY',
+                            uidvalidity: '2'
+                        }, {
+                            code: 'UIDNEXT',
+                            uidnext: '38361'
+                        }, {
+                            code: 'NOMODSEQ'
+                        }]
+                    }
+                })).to.deep.equal({
+                    exists: 123,
+                    flags: ['\\Answered', '\\Flagged'],
+                    permanentFlags: ['\\Answered', '\\Flagged'],
+                    readOnly: false,
+                    uidNext: 38361,
+                    uidValidity: 2,
+                    noModseq: true
+                });
+            });
         });
 
         describe('#_parseNAMESPACE', function() {
