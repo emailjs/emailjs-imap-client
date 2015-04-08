@@ -1369,6 +1369,9 @@
                 case 'HIGHESTMODSEQ':
                     mailbox.highestModseq = ok.highestmodseq || '0'; // keep 64bit uint as a string
                     break;
+                case 'NOMODSEQ':
+                    mailbox.noModseq = true;
+                    break;
             }
         });
 
