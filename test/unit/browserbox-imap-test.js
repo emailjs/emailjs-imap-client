@@ -700,11 +700,8 @@
             });
         });
 
-        describe('enableCompression', function() {
+        describe('#enableCompression', function() {
             it('should create inflater and deflater streams', function() {
-                sinon.stub(client._pako, 'inflater').yields(new Uint8Array([1, 2, 3]));
-                sinon.stub(client._pako, 'deflater').yields(new Uint8Array([4, 5, 6]));
-
                 client.socket.ondata = function() {};
                 sinon.stub(client.socket, 'ondata');
 
@@ -712,13 +709,20 @@
                 client.enableCompression();
                 expect(client.compressed).to.be.true;
 
-                expect(new Uint8Array(socketStub.send.args[0][0])).to.deep.equal(new Uint8Array([4, 5, 6]));
-                expect(client._socketOnData.args[0][0]).to.deep.equal({
-                    data: new Uint8Array([1, 2, 3])
+                sinon.stub(client._compression, 'inflate', function() {
+                    client._compression.inflatedReady(new Uint8Array([1, 2, 3]).buffer);
+                });
+                sinon.stub(client._compression, 'deflate', function() {
+                    client._compression.deflatedReady(new Uint8Array([4, 5, 6]).buffer);
                 });
 
-                client._pako.inflater.restore();
-                client._pako.deflater.restore();
+                client.send('a');
+                client.socket.ondata(new Uint8Array([1]).buffer);
+
+                expect(socketStub.send.args[0][0]).to.deep.equal(new Uint8Array([4, 5, 6]).buffer);
+                expect(client._socketOnData.args[0][0]).to.deep.equal({
+                    data: new Uint8Array([1, 2, 3]).buffer
+                });
             });
         });
     });
