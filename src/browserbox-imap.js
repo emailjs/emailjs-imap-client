@@ -22,18 +22,27 @@
     'use strict';
 
     if (typeof define === 'function' && define.amd) {
-        define(['tcp-socket', 'imap-handler', 'mimefuncs', 'axe'], function(TCPSocket, imapHandler, mimefuncs, axe) {
-            return factory(TCPSocket, imapHandler, mimefuncs, axe);
+        define(['tcp-socket', 'imap-handler', 'mimefuncs', 'browserbox-compression', 'axe'], function(TCPSocket, imapHandler, mimefuncs, compression, axe) {
+            return factory(TCPSocket, imapHandler, mimefuncs, compression, axe);
         });
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('tcp-socket'), require('wo-imap-handler'), require('mimefuncs'), require('axe-logger'));
+        module.exports = factory(require('tcp-socket'), require('wo-imap-handler'), require('mimefuncs'), require('./browserbox-compression'), require('axe-logger'), null);
     } else {
-        root.BrowserboxImapClient = factory(navigator.TCPSocket, root.imapHandler, root.mimefuncs, root.axe);
+        root.BrowserboxImapClient = factory(navigator.TCPSocket, root.imapHandler, root.mimefuncs, root.BrowserboxCompressor, root.axe);
     }
-}(this, function(TCPSocket, imapHandler, mimefuncs, axe) {
+}(this, function(TCPSocket, imapHandler, mimefuncs, Compression, axe) {
     'use strict';
 
     var DEBUG_TAG = 'browserbox IMAP';
+
+    // 
+    // constants used for communication with the worker
+    // 
+    var MESSAGE_START = 'start';
+    var MESSAGE_INFLATE = 'inflate';
+    var MESSAGE_INFLATED_DATA_READY = 'inflated_ready';
+    var MESSAGE_DEFLATE = 'deflate';
+    var MESSAGE_DEFLATED_DATA_READY = 'deflated_ready';
 
     /**
      * Creates a connection object to an IMAP server. Call `connect` method to inititate
@@ -45,6 +54,7 @@
      * @param {Number} [port=143] Port number to connect to
      * @param {Object} [options] Optional options object
      * @param {Boolean} [options.useSecureTransport] Set to true, to use encrypted connection
+     * @param {String} [options.compressionWorkerPath] offloads de-/compression computation to a web worker, this is the path to the browserified browserbox-compressor-worker.js
      */
     function ImapClient(host, port, options) {
         this._TCPSocket = TCPSocket;
@@ -83,7 +93,10 @@
          */
         this.waitDrain = false;
 
-        // Private properties
+        /**
+         * Is the connection compressed and needs inflating/deflating
+         */
+        this.compressed = false;
 
         /**
          * Does the connection use SSL/TLS
@@ -147,6 +160,13 @@
          * Timer waiting to declare the socket dead starting from the last write
          */
         this._socketTimeoutTimer = false;
+
+        /**
+         * The path for the compressor's worker script
+         */
+        this._workerPath = this.options.compressionWorkerPath;
+
+        this._compression = new Compression();
     }
 
     // Constants
@@ -239,6 +259,8 @@
      * Closes the connection to the server
      */
     ImapClient.prototype.close = function() {
+        this._disableCompression();
+
         if (this.socket && this.socket.readyState === 'open') {
             this.socket.close();
         } else {
@@ -303,7 +325,11 @@
         clearTimeout(this._socketTimeoutTimer); // clear pending timeouts
         this._socketTimeoutTimer = setTimeout(this._onTimeout.bind(this), timeout); // arm the next timeout
 
-        this.waitDrain = this.socket.send(buffer);
+        if (this.compressed) {
+            this._sendCompressed(buffer);
+        } else {
+            this.waitDrain = this.socket.send(buffer);
+        }
     };
 
     /**
@@ -327,6 +353,11 @@
      * @param {Event} evt Event object. See evt.data for the error
      */
     ImapClient.prototype._onError = function(evt) {
+        if (this.destroyed) {
+            // ignore errors that happen after we close the connection
+            return;
+        }
+
         if (this.isError(evt)) {
             this.onerror(evt);
         } else if (evt && this.isError(evt.data)) {
@@ -362,6 +393,7 @@
      * @param {Event} evt Event object. Not used
      */
     ImapClient.prototype._onClose = function() {
+        this._disableCompression();
         this._destroy();
     };
 
@@ -813,6 +845,129 @@
     ImapClient.prototype.isError = function(value) {
         return !!Object.prototype.toString.call(value).match(/Error\]$/);
     };
+
+    // COMPRESSION RELATED METHODS
+
+    /**
+     * Sets up deflate/inflate for the IO
+     */
+    ImapClient.prototype.enableCompression = function() {
+        this._socketOnData = this.socket.ondata;
+        this.compressed = true;
+
+        if (typeof window !== 'undefined' && window.Worker && typeof this._workerPath === 'string') {
+
+            //
+            // web worker support
+            // 
+
+            this._compressionWorker = new Worker(this._workerPath);
+            this._compressionWorker.onmessage = function(e) {
+                var message = e.data.message,
+                    buffer = e.data.buffer;
+
+                switch (message) {
+                    case MESSAGE_INFLATED_DATA_READY:
+                        this._socketOnData({
+                            data: buffer
+                        });
+                        break;
+
+                    case MESSAGE_DEFLATED_DATA_READY:
+                        this.waitDrain = this.socket.send(buffer);
+                        break;
+
+                }
+            }.bind(this);
+
+            this._compressionWorker.onerror = function(e) {
+                var error = new Error('Error handling compression web worker: Line ' + e.lineno + ' in ' + e.filename + ': ' + e.message);
+                axe.error(DEBUG_TAG, error);
+                this._onError(error);
+            }.bind(this);
+
+            // first message starts the worker
+            this._compressionWorker.postMessage(this._createMessage(MESSAGE_START));
+
+        } else {
+
+            //
+            // without web worker support
+            // 
+
+            this._compression.inflatedReady = function(buffer) {
+                // emit inflated data
+                this._socketOnData({
+                    data: buffer
+                });
+            }.bind(this);
+
+            this._compression.deflatedReady = function(buffer) {
+                // write deflated data to socket
+                if (!this.compressed) {
+                    return;
+                }
+
+                this.waitDrain = this.socket.send(buffer);
+            }.bind(this);
+        }
+
+        // override data handler, decompress incoming data
+        this.socket.ondata = function(evt) {
+            if (!this.compressed) {
+                return;
+            }
+
+            // inflate
+            if (this._compressionWorker) {
+                this._compressionWorker.postMessage(this._createMessage(MESSAGE_INFLATE, evt.data), [evt.data]);
+            } else {
+                this._compression.inflate(evt.data);
+            }
+        }.bind(this);
+    };
+
+
+
+    /**
+     * Undoes any changes related to compression. This only be called when closing the connection
+     */
+    ImapClient.prototype._disableCompression = function() {
+        if (!this.compressed) {
+            return;
+        }
+        this.compressed = false;
+        this.socket.ondata = this._socketOnData;
+        this._socketOnData = null;
+
+        if (this._compressionWorker) {
+            // terminate the worker
+            this._compressionWorker.terminate();
+            this._compressionWorker = null;
+        }
+    };
+
+    /**
+     * Outgoing payload needs to be compressed and sent to socket
+     *
+     * @param {ArrayBuffer} buffer Outgoing uncompressed arraybuffer
+     */
+    ImapClient.prototype._sendCompressed = function(buffer) {
+        // deflate
+        if (this._compressionWorker) {
+            this._compressionWorker.postMessage(this._createMessage(MESSAGE_DEFLATE, buffer), [buffer]);
+        } else {
+            this._compression.deflate(buffer);
+        }
+    };
+
+    ImapClient.prototype._createMessage = function(message, buffer) {
+        return {
+            message: message,
+            buffer: buffer
+        };
+    };
+
 
     return ImapClient;
 }));

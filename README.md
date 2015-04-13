@@ -73,6 +73,8 @@ Where
     * **tlsWorkerPath** (optional) (only in conjunction with the [TCPSocket shim](https://github.com/whiteout-io/tcp-socket)) if you use TLS with forge, this path indicates where the file for the TLS Web Worker is located. Please refer to the [tcp-socket documentation](https://github.com/whiteout-io/tcp-socket) for more information!
     * **ignoreTLS** – if set to true, do not call STARTTLS before authentication even if the host advertises support for it
     * **requireTLS** – if set to true, always use STARTTLS before authentication even if the host does not advertise it. If STARTTLS fails, do not try to authenticate the user
+    * **enableCompression** - if set to true then use IMAP COMPRESS extension (rfc4978) if the server supports it (Gmail does). All data sent and received in this case is compressed with *deflate*
+    * **compressionWorkerPath** (optional) offloads de-/compression computation to a web worker, this is the path to the browserified browserbox-compressor-worker.js
 
 Default STARTTLS support is opportunistic – if the server advertises STARTTLS capability, the client tries to use it. If STARTTLS is not advertised, the clients sends passwords in the plain. You can use `ignoreTLS` and `requireTLS` to change this behavior by explicitly enabling or disabling STARTTLS usage.
 
@@ -90,6 +92,8 @@ var client = new BrowserBox('localhost', 143, {
     }
 });
 ```
+
+**Use of web workers with compression**: If you use compression, we can spin up a Web Worker to handle the TLS-related computation off the main thread. To do this, you need to **browserify** `browserbox-compressor-worker.js`, specify the path via `options.compressionWorkerPath`
 
 ## Initiate connection
 

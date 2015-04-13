@@ -215,6 +215,7 @@
                     return;
                 }
                 this.updateId(this.options.id, function() {
+                    // ignore errors for exchanging ID values
                     this.login(this.options.auth, function(err) {
                         if (err) {
                             // emit an error
@@ -222,8 +223,12 @@
                             this.close();
                             return;
                         }
-                        // emit
-                        this.onauth();
+                        // can't setup compression before authnetication
+                        this.compressConnection(function() {
+                            // ignore errors for setting up compression
+                            // emit
+                            this.onauth();
+                        }.bind(this));
                     }.bind(this));
                 }.bind(this));
             }.bind(this));
@@ -489,6 +494,51 @@
                 callback(err);
             } else {
                 callback(null, this._parseNAMESPACE(response));
+            }
+            next();
+        }.bind(this));
+
+        return promise;
+    };
+
+    /**
+     * Runs COMPRESS command
+     *
+     * COMPRESS details:
+     *   https://tools.ietf.org/html/rfc4978
+     *
+     * @param {Function} callback Callback function with the namespace information
+     */
+    BrowserBox.prototype.compressConnection = function(callback) {
+        var promise;
+
+        if (!callback) {
+            promise = new Promise(function(resolve, reject) {
+                callback = callbackPromise(resolve, reject);
+            });
+        }
+
+        if (!this.options.enableCompression || this.capability.indexOf('COMPRESS=DEFLATE') < 0 || this.client.compressed) {
+            setTimeout(function() {
+                callback(null, false);
+            }, 0);
+
+            return promise;
+        }
+
+        this.exec({
+            command: 'COMPRESS',
+            attributes: [{
+                type: 'ATOM',
+                value: 'DEFLATE'
+            }]
+        }, function(err, response, next) {
+            if (err) {
+                callback(err);
+            } else {
+                axe.debug(DEBUG_TAG, this.options.sessionId + ' compression enabled, all data sent and received is deflated');
+                this.client.enableCompression();
+                callback(null, true);
             }
             next();
         }.bind(this));

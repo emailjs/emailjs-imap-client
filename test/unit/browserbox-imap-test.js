@@ -631,7 +631,9 @@
                             client._clearIdle.restore();
                             done();
                         };
-                        client._addToClientQueue({}, undefined, {ctx: ctx});
+                        client._addToClientQueue({}, undefined, {
+                            ctx: ctx
+                        });
                     }
                 }];
                 client._sendRequest();
@@ -691,10 +693,36 @@
             });
         });
 
-        define('#isError', function() {
+        describe('#isError', function() {
             it('should detect if an object is an error', function() {
                 expect(client.isError(new RangeError('abc'))).to.be.true;
                 expect(client.isError('abc')).to.be.false;
+            });
+        });
+
+        describe('#enableCompression', function() {
+            it('should create inflater and deflater streams', function() {
+                client.socket.ondata = function() {};
+                sinon.stub(client.socket, 'ondata');
+
+                expect(client.compressed).to.be.false;
+                client.enableCompression();
+                expect(client.compressed).to.be.true;
+
+                sinon.stub(client._compression, 'inflate', function() {
+                    client._compression.inflatedReady(new Uint8Array([1, 2, 3]).buffer);
+                });
+                sinon.stub(client._compression, 'deflate', function() {
+                    client._compression.deflatedReady(new Uint8Array([4, 5, 6]).buffer);
+                });
+
+                client.send('a');
+                client.socket.ondata(new Uint8Array([1]).buffer);
+
+                expect(socketStub.send.args[0][0]).to.deep.equal(new Uint8Array([4, 5, 6]).buffer);
+                expect(client._socketOnData.args[0][0]).to.deep.equal({
+                    data: new Uint8Array([1, 2, 3]).buffer
+                });
             });
         });
     });
