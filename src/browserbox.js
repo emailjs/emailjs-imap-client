@@ -22,16 +22,16 @@
     'use strict';
 
     if (typeof define === 'function' && define.amd) {
-        define(['browserbox-imap', 'utf7', 'imap-handler', 'mimefuncs', 'axe'], function(ImapClient, utf7, imapHandler, mimefuncs, axe) {
-            return factory(ImapClient, utf7, imapHandler, mimefuncs, axe);
+        define(['browserbox-imap', 'utf7', 'imap-handler', 'mimefuncs', 'addressparser', 'axe'], function(ImapClient, utf7, imapHandler, mimefuncs, addressparser, axe) {
+            return factory(ImapClient, utf7, imapHandler, mimefuncs, addressparser, axe);
         });
     } else if (typeof exports === 'object') {
 
-        module.exports = factory(require('./browserbox-imap'), require('wo-utf7'), require('wo-imap-handler'), require('mimefuncs'), require('axe-logger'));
+        module.exports = factory(require('./browserbox-imap'), require('wo-utf7'), require('wo-imap-handler'), require('mimefuncs'), require('wo-addressparser'), require('axe-logger'));
     } else {
-        root.BrowserBox = factory(root.BrowserboxImapClient, root.utf7, root.imapHandler, root.mimefuncs, root.axe);
+        root.BrowserBox = factory(root.BrowserboxImapClient, root.utf7, root.imapHandler, root.mimefuncs, root.addressparser, root.axe);
     }
-}(this, function(ImapClient, utf7, imapHandler, mimefuncs, axe) {
+}(this, function(ImapClient, utf7, imapHandler, mimefuncs, addressparser, axe) {
     'use strict';
 
     var DEBUG_TAG = 'browserbox';
@@ -518,7 +518,7 @@
             });
         }
 
-        if (!this.options.enableCompression || this.capability.indexOf('COMPRESS=DEFLATE') < 0 || this.client.compressed) {
+        if (!this.options.enableCompression || this.capability.indexOf('COMPRESS=DEFLATE') < 0 || this.client.compressed) {
             setTimeout(function() {
                 callback(null, false);
             }, 0);
@@ -1621,10 +1621,28 @@
     BrowserBox.prototype._parseENVELOPE = function(value) {
         var processAddresses = function(list) {
                 return [].concat(list || []).map(function(addr) {
-                    return {
-                        name: mimefuncs.mimeWordsDecode(addr[0] && addr[0].value || ''),
-                        address: (addr[2] && addr[2].value || '') + '@' + (addr[3] && addr[3].value || '')
-                    };
+
+                    // ENVELOPE lists addresses as [name-part, source-route, username, hostname]
+                    // where source-route is not used anymore and can be ignored.
+                    // To get comparable results with other parts of the email.js stack
+                    // browserbox feeds the parsed address values from ENVELOPE
+                    // to addressparser and uses resulting values instead of the
+                    // pre-parsed addresses
+
+                    var name = (addr[0] && addr[0].value || '').trim();
+                    var address = (addr[2] && addr[2].value || '') + '@' + (addr[3] && addr[3].value || '');
+                    var formatted;
+
+                    if (!name) {
+                        formatted = address;
+                    } else {
+                        formatted = encodeAddressName(name) + ' <' + address + '>';
+                    }
+
+                    var parsed = addressparser.parse(formatted).shift(); // there should bu just a single address
+                    parsed.name = mimefuncs.mimeWordsDecode(parsed.name);
+                    return parsed;
+
                 });
             },
             envelope = {};
@@ -2169,6 +2187,23 @@
         ];
         return mimefuncs.base64.encode(authData.join('\x01'));
     };
+
+    /**
+     * If needed, encloses with quotes or mime encodes the name part of an e-mail address
+     *
+     * @param {String} name Name part of an address
+     * @returns {String} Mime word encoded or quoted string
+     */
+    function encodeAddressName(name) {
+        if (!/^[\w ']*$/.test(name)) {
+            if (/^[\x20-\x7e]*$/.test(name)) {
+                return JSON.stringify(name);
+            } else {
+                return mimefuncs.mimeWordEncode(name, 'Q', 52);
+            }
+        }
+        return name;
+    }
 
     /**
      * Wrapper for creating promise aware callback functions
