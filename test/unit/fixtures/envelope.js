@@ -71,6 +71,24 @@ define(function() {
                     }, {
                         value: 'host'
                     }
+                ],
+                [{
+                        value: ''
+                    },
+                    null, {
+                        value: '"evil@attacker.com"'
+                    }, {
+                        value: 'victim.com'
+                    }
+                ],
+                [{
+                        value: 'Last, First'
+                    },
+                    null, {
+                        value: 'first.last'
+                    }, {
+                        value: 'example.com'
+                    }
                 ]
             ],
             [
@@ -161,6 +179,12 @@ define(function() {
             }, {
                 name: 'õäöü 2',
                 address: 'reply.to.2@host'
+            }, {
+                name: '@victim.com',
+                address: 'evil@attacker.com'
+            }, {
+                name: 'Last, First',
+                address: 'first.last@example.com'
             }],
             to: [{
                 name: 'õäöü 1',
