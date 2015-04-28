@@ -1712,7 +1712,9 @@
                     },
                     sentbefore: new Date(2011, 1, 3, 12, 0, 0),
                     since: new Date(2011, 11, 23, 12, 0, 0),
-                    uid: '1:*'
+                    uid: '1:*',
+                    'X-GM-MSGID': '1499257647490662970',
+                    'X-GM-THRID': '1499257647490662971'
                 }, {})).to.deep.equal({
                     command: 'SEARCH',
                     attributes: [{
@@ -1760,6 +1762,18 @@
                     }, {
                         'type': 'sequence',
                         'value': '1:*'
+                    }, {
+                        'type': 'atom',
+                        'value': 'X-GM-MSGID'
+                    }, {
+                        'type': 'number',
+                        'value': '1499257647490662970'
+                    }, {
+                        'type': 'atom',
+                        'value': 'X-GM-THRID'
+                    }, {
+                        'type': 'number',
+                        'value': '1499257647490662971'
                     }]
                 });
             });
