@@ -1959,6 +1959,17 @@
                                 value: param
                             };
                             break;
+                        // The Gmail extension values of X-GM-THRID and
+                        // X-GM-MSGID are defined to be unsigned 64-bit integers
+                        // and they must not be quoted strings or the server
+                        // will report a parse error.
+                        case 'x-gm-thrid':
+                        case 'x-gm-msgid':
+                            param = {
+                                type: "number",
+                                value: param
+                            };
+                            break;
                         default:
                             param = escapeParam(param);
                     }
