@@ -1127,10 +1127,6 @@
             });
         }
     
-        if (err) {
-            return callback(err);
-        }
-    
         this.exec('EXPUNGE', function(err, response, next) {
             if (err) {
                 callback(err);
