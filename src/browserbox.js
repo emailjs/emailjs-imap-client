@@ -1107,6 +1107,37 @@
 
         return promise;
     };
+    
+    /**
+     * Messages with \Deleted flag set are deleted
+     *
+     * EXPUNGE details:
+     *   http://tools.ietf.org/html/rfc3501#section-6.4.3
+     *
+     * Callback returns an error if the operation failed
+     *
+     * @param {Function} callback Callback function
+     */
+    BrowserBox.prototype.expungeFolder = function(callback) {
+        var promise;
+    
+        if (!callback) {
+            promise = new Promise(function(resolve, reject) {
+                callback = callbackPromise(resolve, reject);
+            });
+        }
+    
+        this.exec('EXPUNGE', function(err, response, next) {
+            if (err) {
+                callback(err);
+            } else {
+                callback(null, true);
+            }
+            next();
+        }.bind(this));
+    
+        return promise;
+    };
 
     /**
      * Copies a range of messages from the active mailbox to the destination mailbox.
