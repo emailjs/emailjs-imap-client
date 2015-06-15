@@ -568,7 +568,7 @@ client.search({unseen: true}, {byUid: true}, function(err, result){
 
 ## Update flags
 
-Update message flags with `setFlags()`
+Update message flags with `setFlags()`. This is a wrapper around `store()`
 
 ```javascript
 client.setFlags(sequence, flags[, options], callback)
@@ -586,6 +586,47 @@ Where
     * **messages** is an array of messages from the provided sequence range (or empty when `silent:true` option is set). Includes `flags` property and `uid` if `byUid:true` option was used.
 
 If callback is not specified, the method returns a Promise.
+
+## Store
+
+Store flags or labels with `store()`
+
+```javascript
+client.store(sequence, action, flags[, options], callback)
+```
+
+Where
+
+  * **sequence** defines the range of sequence numbers or UID values (if `byUid` option is set to true). Example: '1', '1:*', '1,2:3,4' etc.
+  * **action** is the STORE argument, eg `'FLAGS'` for setting flags
+  * **flags** is an array of flags or labels
+  * **options** is an optional options object
+    * **byUid** if `true` executes `UID SEARCH` instead of `SEARCH`
+    * **silent** if `true` does not return anything. Useful when updating large range of messages at once (`'1:*'`)
+  * **callback** is the callback function to run once all me messages are processed with the following arguments
+    * **err** is an error object, only set if the request failed
+    * **messages** is an array of messages from the provided sequence range (or empty when `silent:true` option is set). Includes `flags` property and `uid` if `byUid:true` option was used.
+
+Possible actions
+
+ * **FLAGS** - overwrite message flags with provided ones
+ * **+FLAGS** - add provided flags to message flags
+ * **-FLAGS** - remove provided flags from message flags
+ * **X-GM-LABELS** - overwrite message labels with provided ones
+ * **+X-GM-LABELS** - add provided labels to message labels
+ * **-X-GM-LABELS** - remove provided labels from message labels
+
+If callback is not specified, the method returns a Promise.
+
+### Example
+
+Add label `\Sent` to messages
+
+```javascript
+client.store('1:*', '+X-GM-LABELS', ['\\Sent'], function(err, result){
+    ...
+});
+```
 
 ### Reading flags
 

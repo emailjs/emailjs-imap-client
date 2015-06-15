@@ -953,6 +953,39 @@
      * @param {Function} callback Callback function with the array of matching seq. or uid numbers
      */
     BrowserBox.prototype.setFlags = function(sequence, flags, options, callback) {
+        var key = '';
+        var list = [];
+
+        if (Array.isArray(flags) || typeof flags !== 'object') {
+            list = [].concat(flags || []);
+            key = '';
+        } else if (flags.add) {
+            list = [].concat(flags.add || []);
+            key = '+';
+        } else if (flags.set) {
+            key = '';
+            list = [].concat(flags.set || []);
+        } else if (flags.remove) {
+            key = '-';
+            list = [].concat(flags.remove || []);
+        }
+
+        return this.store(sequence, key + 'FLAGS', list, options, callback);
+    };
+
+    /**
+     * Runs STORE command
+     *
+     * STORE details:
+     *   http://tools.ietf.org/html/rfc3501#section-6.4.6
+     *
+     * @param {String} sequence Message selector which the flag change is applied to
+     * @param {String} action STORE method to call, eg "+FLAGS"
+     * @param {Array} flags
+     * @param {Object} [options] Query modifiers
+     * @param {Function} callback Callback function with the array of matching seq. or uid numbers
+     */
+    BrowserBox.prototype.store = function(sequence, action, flags, options, callback) {
         var promise;
 
         if (!callback && typeof options === 'function') {
@@ -968,7 +1001,7 @@
 
         options = options || {};
 
-        var command = this._buildSTORECommand(sequence, flags, options);
+        var command = this._buildSTORECommand(sequence, action, flags, options);
         this.exec(command, 'FETCH', {
             precheck: options.precheck,
             ctx: options.ctx
@@ -1592,6 +1625,7 @@
 
         switch (key) {
             case 'flags':
+            case 'x-gm-labels':
                 value = [].concat(value).map(function(flag) {
                     return flag.value || '';
                 });
@@ -1959,10 +1993,10 @@
                                 value: param
                             };
                             break;
-                        // The Gmail extension values of X-GM-THRID and
-                        // X-GM-MSGID are defined to be unsigned 64-bit integers
-                        // and they must not be quoted strings or the server
-                        // will report a parse error.
+                            // The Gmail extension values of X-GM-THRID and
+                            // X-GM-MSGID are defined to be unsigned 64-bit integers
+                            // and they must not be quoted strings or the server
+                            // will report a parse error.
                         case 'x-gm-thrid':
                         case 'x-gm-msgid':
                             param = {
@@ -2034,40 +2068,21 @@
     /**
      * Creates an IMAP STORE command from the selected arguments
      */
-    BrowserBox.prototype._buildSTORECommand = function(sequence, flags, options) {
+    BrowserBox.prototype._buildSTORECommand = function(sequence, action, flags, options) {
         var command = {
-                command: options.byUid ? 'UID STORE' : 'STORE',
-                attributes: [{
-                    type: 'sequence',
-                    value: sequence
-                }]
-            },
-            key = '',
-            list = [];
-
-        if (Array.isArray(flags) || typeof flags !== 'object') {
-            flags = {
-                set: flags
-            };
-        }
-
-        if (flags.add) {
-            list = [].concat(flags.add || []);
-            key = '+';
-        } else if (flags.set) {
-            key = '';
-            list = [].concat(flags.set || []);
-        } else if (flags.remove) {
-            key = '-';
-            list = [].concat(flags.remove || []);
-        }
+            command: options.byUid ? 'UID STORE' : 'STORE',
+            attributes: [{
+                type: 'sequence',
+                value: sequence
+            }]
+        };
 
         command.attributes.push({
             type: 'atom',
-            value: key + 'FLAGS' + (options.silent ? '.SILENT' : '')
+            value: (action || '').toString().toUpperCase() + (options.silent ? '.SILENT' : '')
         });
 
-        command.attributes.push(list.map(function(flag) {
+        command.attributes.push(flags.map(function(flag) {
             return {
                 type: 'atom',
                 value: flag

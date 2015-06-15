@@ -28,7 +28,7 @@
             // start imap test server
             var options = {
                 //debug: true,
-                plugins: ["STARTTLS"],
+                plugins: ["STARTTLS", "X-GM-EXT-1"],
                 secureConnection: false,
                 storage: {
                     "INBOX": {
@@ -497,6 +497,53 @@
                         }, function(err, result) {
                             expect(err).to.not.exist;
                             expect(result).to.deep.equal([]);
+
+                            done();
+                        });
+                    });
+                });
+            });
+
+            describe('#store', function() {
+                it('should add labels for a message', function(done) {
+                    imap.selectMailbox('inbox', function(err) {
+                        expect(err).to.not.exist;
+                        imap.store('1', '+X-GM-LABELS', ['\\Sent', '\\Junk'], function(err, result) {
+                            expect(err).to.not.exist;
+                            expect(result).to.deep.equal([{
+                                '#': 1,
+                                'x-gm-labels': ['\\Inbox', '\\Sent', '\\Junk']
+                            }]);
+
+                            done();
+                        });
+                    });
+                });
+
+                it('should set labels for a message', function(done) {
+                    imap.selectMailbox('inbox', function(err) {
+                        expect(err).to.not.exist;
+                        imap.store('1', 'X-GM-LABELS', ['\\Sent', '\\Junk'], function(err, result) {
+                            expect(err).to.not.exist;
+                            expect(result).to.deep.equal([{
+                                '#': 1,
+                                'x-gm-labels': ['\\Sent', '\\Junk']
+                            }]);
+
+                            done();
+                        });
+                    });
+                });
+
+                it('should remove labels from a message', function(done) {
+                    imap.selectMailbox('inbox', function(err) {
+                        expect(err).to.not.exist;
+                        imap.store('1', '-X-GM-LABELS', ['\\Sent', '\\Inbox'], function(err, result) {
+                            expect(err).to.not.exist;
+                            expect(result).to.deep.equal([{
+                                '#': 1,
+                                'x-gm-labels': []
+                            }]);
 
                             done();
                         });
