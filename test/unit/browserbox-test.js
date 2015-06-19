@@ -781,8 +781,39 @@
 
                 expect(br._buildSTORECommand.callCount).to.equal(1);
                 expect(br._buildSTORECommand.args[0][0]).to.equal('1:2');
-                expect(br._buildSTORECommand.args[0][1]).to.deep.equal(['\\Seen', '$MyFlag']);
-                expect(br._buildSTORECommand.args[0][2]).to.deep.equal({
+                expect(br._buildSTORECommand.args[0][1]).to.equal('FLAGS');
+                expect(br._buildSTORECommand.args[0][2]).to.deep.equal(['\\Seen', '$MyFlag']);
+                expect(br._buildSTORECommand.args[0][3]).to.deep.equal({
+                    byUid: true
+                });
+                expect(br.exec.callCount).to.equal(1);
+                expect(br._parseFETCH.withArgs('abc').callCount).to.equal(1);
+
+                br.exec.restore();
+                br._buildSTORECommand.restore();
+                br._parseFETCH.restore();
+            });
+        });
+
+        describe('#store', function() {
+            it('should call STORE', function(done) {
+                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
+                    callback(null, 'abc', done);
+                });
+                sinon.stub(br, '_buildSTORECommand', function() {
+                    return {};
+                });
+                sinon.stub(br, '_parseFETCH');
+
+                br.store('1:2', '+X-GM-LABELS', ['\\Sent', '\\Junk'], {
+                    byUid: true
+                }, function() {});
+
+                expect(br._buildSTORECommand.callCount).to.equal(1);
+                expect(br._buildSTORECommand.args[0][0]).to.equal('1:2');
+                expect(br._buildSTORECommand.args[0][1]).to.equal('+X-GM-LABELS');
+                expect(br._buildSTORECommand.args[0][2]).to.deep.equal(['\\Sent', '\\Junk']);
+                expect(br._buildSTORECommand.args[0][3]).to.deep.equal({
                     byUid: true
                 });
                 expect(br.exec.callCount).to.equal(1);
@@ -1832,26 +1863,8 @@
         });
 
         describe('#_buildSTORECommand', function() {
-            it('should compose a store command from a string', function() {
-                expect(br._buildSTORECommand('1,2,3', 'a', {})).to.deep.equal({
-                    command: 'STORE',
-                    attributes: [{
-                            'type': 'sequence',
-                            'value': '1,2,3'
-                        }, {
-                            'type': 'atom',
-                            'value': 'FLAGS'
-                        },
-                        [{
-                            'type': 'atom',
-                            'value': 'a'
-                        }]
-                    ]
-                });
-            });
-
             it('should compose a store command from an array', function() {
-                expect(br._buildSTORECommand('1,2,3', ['a', 'b'], {})).to.deep.equal({
+                expect(br._buildSTORECommand('1,2,3', 'FLAGS', ['a', 'b'], {})).to.deep.equal({
                     command: 'STORE',
                     attributes: [{
                             'type': 'sequence',
@@ -1872,9 +1885,7 @@
             });
 
             it('should compose a store set flags command', function() {
-                expect(br._buildSTORECommand('1,2,3', {
-                    set: ['a', 'b']
-                }, {})).to.deep.equal({
+                expect(br._buildSTORECommand('1,2,3', 'FLAGS', ['a', 'b'], {})).to.deep.equal({
                     command: 'STORE',
                     attributes: [{
                             'type': 'sequence',
@@ -1895,9 +1906,7 @@
             });
 
             it('should compose a store add flags command', function() {
-                expect(br._buildSTORECommand('1,2,3', {
-                    add: ['a', 'b']
-                }, {})).to.deep.equal({
+                expect(br._buildSTORECommand('1,2,3', '+FLAGS', ['a', 'b'], {})).to.deep.equal({
                     command: 'STORE',
                     attributes: [{
                             'type': 'sequence',
@@ -1918,9 +1927,7 @@
             });
 
             it('should compose a store remove flags command', function() {
-                expect(br._buildSTORECommand('1,2,3', {
-                    remove: ['a', 'b']
-                }, {})).to.deep.equal({
+                expect(br._buildSTORECommand('1,2,3', '-FLAGS', ['a', 'b'], {})).to.deep.equal({
                     command: 'STORE',
                     attributes: [{
                             'type': 'sequence',
@@ -1941,9 +1948,7 @@
             });
 
             it('should compose a store remove silent flags command', function() {
-                expect(br._buildSTORECommand('1,2,3', {
-                    remove: ['a', 'b']
-                }, {
+                expect(br._buildSTORECommand('1,2,3', '-FLAGS', ['a', 'b'], {
                     silent: true
                 })).to.deep.equal({
                     command: 'STORE',
@@ -1966,9 +1971,7 @@
             });
 
             it('should compose a uid store flags command', function() {
-                expect(br._buildSTORECommand('1,2,3', {
-                    set: ['a', 'b']
-                }, {
+                expect(br._buildSTORECommand('1,2,3', 'FLAGS', ['a', 'b'], {
                     byUid: true
                 })).to.deep.equal({
                     command: 'UID STORE',
