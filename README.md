@@ -6,7 +6,7 @@ IMAP client for browsers
 
 ## StringEncoding API
 
-This module requires `TextEncoder` and `TextDecoder` to exist as part of the StringEncoding API (see: [MDN](https://developer.mozilla.org/en-US/docs/WebAPI/Encoding_API) [whatwg.org](http://encoding.spec.whatwg.org/#api)). Firefox 19+ is basically the only browser that supports this at the time of writing, while [Chromium in canary, not stable](https://code.google.com/p/chromium/issues/detail?id=243354). Luckily, [there is a polyfill](https://github.com/whiteout-io/stringencoding)!
+This module requires `TextEncoder` and `TextDecoder` to exist as part of the StringEncoding API (see: [MDN](https://developer.mozilla.org/en-US/docs/WebAPI/Encoding_API) [whatwg.org](http://encoding.spec.whatwg.org/#api)). This is supported by Firefox, Chrome and Opera. For other browser environments [there is a polyfill](https://github.com/whiteout-io/stringencoding).
 
 ## TCPSocket API
 
@@ -156,6 +156,7 @@ Mailbox object is with the following structure
   * **listed** (boolean) mailbox was found in the LIST response
   * **subscribed** (boolean) mailbox was found in the LSUB response
   * **specialUse** (string) mailbox was identified as a special use mailbox ('\Trash', '\Sent', '\Junk' etc. see [RFC6154](http://tools.ietf.org/html/rfc6154#section-2))
+  * **specialUseFlag** (string) the same as `specialUse` but without using folder name based heuristics
   * **flags** (array) a list of flags
   * **children** (array) a list of child mailboxes
 
@@ -196,6 +197,7 @@ client.listMailboxes(function(err, mailboxes){
           "flags": ["\\HasNoChildren","\\All"],
           "listed": true,
           "specialUse": "\\All",
+          "specialUseFlag": "\\All",
           "subscribed": true
         }
       ]

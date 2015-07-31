@@ -2173,6 +2173,7 @@
                 type = SPECIAL_USE_FLAGS[i];
                 if ((mailbox.flags || []).indexOf(type) >= 0) {
                     mailbox.specialUse = type;
+                    mailbox.specialUseFlag = type;
                     return type;
                 }
             }

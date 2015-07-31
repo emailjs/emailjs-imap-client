@@ -26,22 +26,22 @@
     "wo-utf7": "~2.0.2"
   },
   "devDependencies": {
-    "chai": "~1.8.1",
+    "chai": "~3.2.0",
     "grunt": "~0.4.1",
-    "grunt-mocha-phantomjs": "~0.4.0",
-    "grunt-contrib-connect": "~0.6.0",
-    "grunt-contrib-jshint": "~0.8.0",
-    "grunt-contrib-copy": "^0.5.0",
-    "grunt-contrib-clean": "^0.5.0",
+    "grunt-mocha-phantomjs": "~1.0.0",
+    "grunt-contrib-connect": "~0.11.0",
+    "grunt-contrib-jshint": "~0.11.2",
+    "grunt-contrib-copy": "^0.8.0",
+    "grunt-contrib-clean": "^0.6.0",
     "grunt-contrib-watch": "^0.6.1",
-    "mocha": "~1.16.2",
+    "mocha": "~2.2.5",
     "phantomjs": "~1.9.7-1",
     "requirejs": "~2.1.10",
     "sinon": "^1.11.0",
     "hoodiecrow": "^1.1.21",
     "node-forge": "~0.6.11",
     "wo-stringencoding": "~0.1.1",
-    "grunt-mocha-test": "^0.10.2",
+    "grunt-mocha-test": "^0.12.7",
     "es6-promise": "^2.0.1"
   }
 }
