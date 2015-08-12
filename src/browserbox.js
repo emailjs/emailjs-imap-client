@@ -204,7 +204,6 @@
     BrowserBox.prototype._onReady = function() {
         clearTimeout(this._connectionTimeout);
         axe.debug(DEBUG_TAG, this.options.sessionId + ' session: connection established');
-        this._changeState(this.STATE_NOT_AUTHENTICATED);
 
         this.updateCapability(function() {
             this.upgradeConnection(function(err) {
@@ -215,6 +214,11 @@
                     return;
                 }
                 this.updateId(this.options.id, function() {
+                    // We're nto done connecting until we've gotten our
+                    // capabilities updated, upgraded our connection,
+                    // an identified the server.
+                    this._changeState(this.STATE_NOT_AUTHENTICATED);
+
                     // ignore errors for exchanging ID values
                     this.login(this.options.auth, function(err) {
                         if (err) {
