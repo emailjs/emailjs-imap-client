@@ -196,8 +196,8 @@
     };
 
     /**
-     * Connection to the server is established. Method performs initial
-     * tasks like updating capabilities and authenticating the user
+     * Connection to the server is established. Update the capabilities, upgrade
+     * the connection if necessary, and identify the server.
      *
      * @event
      */
@@ -218,22 +218,6 @@
                     // capabilities updated, upgraded our connection,
                     // an identified the server.
                     this._changeState(this.STATE_NOT_AUTHENTICATED);
-
-                    // ignore errors for exchanging ID values
-                    this.login(this.options.auth, function(err) {
-                        if (err) {
-                            // emit an error
-                            this.onerror(err);
-                            this.close();
-                            return;
-                        }
-                        // can't setup compression before authnetication
-                        this.compressConnection(function() {
-                            // ignore errors for setting up compression
-                            // emit
-                            this.onauth();
-                        }.bind(this));
-                    }.bind(this));
                 }.bind(this));
             }.bind(this));
         }.bind(this));
@@ -522,6 +506,10 @@
             });
         }
 
+        if (!this.authenticated) {
+            callback('Must be authenticated to enable compression.');
+        }
+
         if (!this.options.enableCompression || this.capability.indexOf('COMPRESS=DEFLATE') < 0 || this.client.compressed) {
             setTimeout(function() {
                 callback(null, false);
@@ -564,10 +552,10 @@
      */
     BrowserBox.prototype.login = function(auth, callback) {
         var command, options = {};
-
         if (!auth) {
-            return callback(new Error('Authentication information not provided'));
+                return callback(new Error('Authentication information not provided'));
         }
+        this.options.auth = auth;
 
         if (this.capability.indexOf('AUTH=XOAUTH2') >= 0 && auth && auth.xoauth2) {
             command = {
@@ -628,6 +616,8 @@
                 this.capability = [].concat(response.capability || []);
                 capabilityUpdated = true;
                 axe.debug(DEBUG_TAG, this.options.sessionId + ' post-auth capabilites updated: ' + this.capability);
+                this.compressConnection();
+                this.onauth();
                 callback(null, true);
             } else if (response.payload && response.payload.CAPABILITY && response.payload.CAPABILITY.length) {
                 // capabilites were listed with * CAPABILITY ... response
@@ -636,6 +626,8 @@
                 });
                 capabilityUpdated = true;
                 axe.debug(DEBUG_TAG, this.options.sessionId + ' post-auth capabilites updated: ' + this.capability);
+                this.compressConnection();
+                this.onauth();
                 callback(null, true);
             } else {
                 // capabilities were not automatically listed, reload
@@ -648,7 +640,6 @@
                     }
                 }.bind(this));
             }
-
             next();
         }.bind(this));
     };

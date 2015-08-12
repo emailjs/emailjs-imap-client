@@ -63,10 +63,6 @@ Where
   * **host** is to hostname to connect to
   * **port** (optional) is the port to connect to (defaults to 143)
   * **options** (optional) is the options object
-    * **auth** is the authentication information object
-      * **user** is the username of the user (also applies to Oauth2)
-      * **pass** is the password of the user
-      * **xoauth2** is the OAuth2 access token to be used instead of password
     * **id** (optional) is the identification object for [RFC2971](http://tools.ietf.org/html/rfc2971#section-3.3) (ex. `{name: 'myclient', version: '1'}`)
     * **useSecureTransport** (optional) enables TLS
     * **ca** (optional) (only in conjunction with the [TCPSocket shim](https://github.com/whiteout-io/tcp-socket)) if you use TLS with forge, pin a PEM-encoded certificate as a string. Please refer to the [tcp-socket documentation](https://github.com/whiteout-io/tcp-socket) for more information!
@@ -82,26 +78,49 @@ Example
 
 ```javascript
 var client = new BrowserBox('localhost', 143, {
-    auth: {
-        user: 'testuser',
-        pass: 'testpass'
-    },
     id: {
         name: 'My Client',
         version: '0.1'
     }
 });
+
+client.connect();
+var auth = { user: 'testuser',   pass: 'testpass' }
+client.login(auth, function(err) {
+      if (err)
+    });
 ```
 
 **Use of web workers with compression**: If you use compression, we can spin up a Web Worker to handle the TLS-related computation off the main thread. To do this, you need to **browserify** `browserbox-compressor-worker.js`, specify the path via `options.compressionWorkerPath`
 
 ## Initiate connection
 
-BrowserBox object by default does not initiate the connection, you need to call `client.connect()` to establish it
+BrowserBox object by default does not initiate the connection, you need to call `client.connect()` to establish it.
 
+```javascript
     client.connect();
+```
 
 This function does not take any arguments and does not return anything. See the events section to handle connection issues.
+
+## Login
+
+Once a connection is established you will need to login.
+
+* **auth** is the authentication information object
+      * **user** is the username of the user (also applies to Oauth2)
+      * **pass** is the password of the user
+      * **xoauth2** is the OAuth2 access token to be used instead of password
+```javascript
+    client.login(auth, function(err) {
+      if (err) {
+        console.log('Error logging in: ' + err);
+      }
+      else {
+        console.log('authentication successful')
+      }
+    });
+```
 
 ## Events
 
