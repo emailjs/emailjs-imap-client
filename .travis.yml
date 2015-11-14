@@ -1,9 +1,10 @@
 language: node_js
 sudo: false
 node_js:
-  - 0.12
+  - 4.1
 before_install:
   - npm install -g grunt-cli
 notifications:
   email:
-    - build@whiteout.io
+    - felix.hammerl@gmail.com
+    - andris.reinman@gmail.com
