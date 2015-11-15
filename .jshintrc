@@ -17,13 +17,12 @@
     "undef": true,
     "unused": true,
     "-W100": true,
+    "esnext": true,
 
     "globals": {
         "Promise": true,
-        "ES6Promise": true,
         "sinon": true,
         "define": true,
-        "chrome": true,
         "TextEncoder": true,
         "TextDecoder": true,
         "mimefuncs" : true,
@@ -42,10 +41,8 @@
         "afterEach": true,
         "window": true,
         "mocha": true,
-        "mochaPhantomJS": true,
         "importScripts": true,
         "postMessage": true,
-        "before": true,
-        "self": true
+        "before": true
     }
 }
