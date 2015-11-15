@@ -43,6 +43,7 @@
         "mocha": true,
         "importScripts": true,
         "postMessage": true,
-        "before": true
+        "before": true,
+        "self": true
     }
 }
