@@ -2,18 +2,15 @@
 
 (function(factory) {
     if (typeof define === 'function' && define.amd) {
-        define(['chai', 'axe', 'browserbox', 'imap-handler', './fixtures/mime-torture-bodystructure', './fixtures/envelope'], factory.bind(null, sinon));
+        define(['chai', 'browserbox', 'imap-handler', './fixtures/mime-torture-bodystructure', './fixtures/envelope'], factory.bind(null, sinon));
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('sinon'), require('chai'), require('axe-logger'), require('../../src/browserbox'), require('imap-handler'), require('./fixtures/mime-torture-bodystructure'), require('./fixtures/envelope'));
+        module.exports = factory(require('sinon'), require('chai'), require('../../src/browserbox'), require('imap-handler'), require('./fixtures/mime-torture-bodystructure'), require('./fixtures/envelope'));
     }
-}(function(sinon, chai, axe, BrowserBox, imapHandler, mimeTorture, testEnvelope) {
+}(function(sinon, chai, BrowserBox, imapHandler, mimeTorture, testEnvelope) {
     var expect = chai.expect;
     chai.Assertion.includeStack = true;
 
     describe('browserbox unit tests', function() {
-        // don't log in the tests
-        axe.removeAppender(axe.defaultAppender);
-
         var br;
 
         beforeEach(function() {

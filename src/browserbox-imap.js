@@ -22,22 +22,20 @@
     'use strict';
 
     if (typeof define === 'function' && define.amd) {
-        define(['tcp-socket', 'imap-handler', 'mimefuncs', 'browserbox-compression', 'axe'], function(TCPSocket, imapHandler, mimefuncs, compression, axe) {
-            return factory(TCPSocket, imapHandler, mimefuncs, compression, axe);
+        define(['tcp-socket', 'imap-handler', 'mimefuncs', 'browserbox-compression'], function(TCPSocket, imapHandler, mimefuncs, compression) {
+            return factory(TCPSocket, imapHandler, mimefuncs, compression);
         });
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('tcp-socket'), require('wo-imap-handler'), require('mimefuncs'), require('./browserbox-compression'), require('axe-logger'), null);
+        module.exports = factory(require('tcp-socket'), require('wo-imap-handler'), require('mimefuncs'), require('./browserbox-compression'), null);
     } else {
-        root.BrowserboxImapClient = factory(navigator.TCPSocket, root.imapHandler, root.mimefuncs, root.BrowserboxCompressor, root.axe);
+        root.BrowserboxImapClient = factory(navigator.TCPSocket, root.imapHandler, root.mimefuncs, root.BrowserboxCompressor);
     }
-}(this, function(TCPSocket, imapHandler, mimefuncs, Compression, axe) {
+}(this, function(TCPSocket, imapHandler, mimefuncs, Compression) {
     'use strict';
 
-    var DEBUG_TAG = 'browserbox IMAP';
-
-    // 
+    //
     // constants used for communication with the worker
-    // 
+    //
     var MESSAGE_START = 'start';
     var MESSAGE_INFLATE = 'inflate';
     var MESSAGE_INFLATED_DATA_READY = 'inflated_ready';
@@ -403,7 +401,7 @@
     ImapClient.prototype._onTimeout = function() {
         // inform about the timeout, _onError takes case of the rest
         var error = new Error(this.options.sessionId + ' Socket timed out!');
-        axe.error(DEBUG_TAG, error);
+        // TODO: axe.error(DEBUG_TAG, error);
         this._onError(error);
     };
 
@@ -485,7 +483,7 @@
      * @event
      */
     ImapClient.prototype._onOpen = function() {
-        axe.debug(DEBUG_TAG, this.options.sessionId + ' tcp socket opened');
+        // TODO: axe.debug(DEBUG_TAG, this.options.sessionId + ' tcp socket opened');
         this.socket.ondata = this._onData.bind(this);
         this.socket.onclose = this._onClose.bind(this);
         this.socket.ondrain = this._onDrain.bind(this);
@@ -533,10 +531,10 @@
                 };
             } else {
                 response = imapHandler.parser(data);
-                axe.debug(DEBUG_TAG, this.options.sessionId + ' S: ' + imapHandler.compiler(response, false, true));
+                // TODO: axe.debug(DEBUG_TAG, this.options.sessionId + ' S: ' + imapHandler.compiler(response, false, true));
             }
         } catch (e) {
-            axe.error(DEBUG_TAG, this.options.sessionId + ' error parsing imap response: ' + e + '\n' + e.stack + '\nraw:' + data);
+            // TODO: axe.error(DEBUG_TAG, this.options.sessionId + ' error parsing imap response: ' + e + '\n' + e.stack + '\nraw:' + data);
             return this._onError(e);
         }
 
@@ -749,11 +747,11 @@
             this._currentCommand.data = imapHandler.compiler(this._currentCommand.request, true);
             loggedCommand = imapHandler.compiler(this._currentCommand.request, false, true);
         } catch (e) {
-            axe.error(DEBUG_TAG, this.options.sessionId + ' error compiling imap command: ' + e + '\nstack trace: ' + e.stack + '\nraw:' + this._currentCommand.request);
+            // TODO: axe.error(DEBUG_TAG, this.options.sessionId + ' error compiling imap command: ' + e + '\nstack trace: ' + e.stack + '\nraw:' + this._currentCommand.request);
             return this._onError(e);
         }
 
-        axe.debug(DEBUG_TAG, this.options.sessionId + ' C: ' + loggedCommand);
+        // TODO: axe.debug(DEBUG_TAG, this.options.sessionId + ' C: ' + loggedCommand);
         var data = this._currentCommand.data.shift();
 
         this.send(data + (!this._currentCommand.data.length ? '\r\n' : ''));
@@ -859,7 +857,7 @@
 
             //
             // web worker support
-            // 
+            //
 
             this._compressionWorker = new Worker(this._workerPath);
             this._compressionWorker.onmessage = function(e) {
@@ -882,7 +880,7 @@
 
             this._compressionWorker.onerror = function(e) {
                 var error = new Error('Error handling compression web worker: Line ' + e.lineno + ' in ' + e.filename + ': ' + e.message);
-                axe.error(DEBUG_TAG, error);
+                // TODO: axe.error(DEBUG_TAG, error);
                 this._onError(error);
             }.bind(this);
 
@@ -893,7 +891,7 @@
 
             //
             // without web worker support
-            // 
+            //
 
             this._compression.inflatedReady = function(buffer) {
                 // emit inflated data
