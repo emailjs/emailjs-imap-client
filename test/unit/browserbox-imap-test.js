@@ -4,7 +4,7 @@
     if (typeof define === 'function' && define.amd) {
         define(['chai', 'axe', 'browserbox-imap', 'mimefuncs'], factory.bind(null, sinon));
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('sinon'), require('chai'), require('axe-logger'), require('browserbox-imap'), require('mimefuncs'));
+        module.exports = factory(require('sinon'), require('chai'), require('axe-logger'), require('../../src/browserbox-imap'), require('mimefuncs'));
     }
 }(function(sinon, chai, axe, ImapClient, mimefuncs) {
     var expect = chai.expect;

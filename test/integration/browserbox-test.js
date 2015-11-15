@@ -2,17 +2,12 @@
 
 (function(factory) {
     if (typeof define === 'function' && define.amd) {
-        define(['chai', '../../src/browserbox', 'hoodiecrow', 'axe', 'es6-promise'], factory);
+        define(['chai', '../../src/browserbox', 'hoodiecrow', 'axe'], factory);
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('chai'), require('../../src/browserbox'), require('hoodiecrow'), require('axe-logger'), require('es6-promise'));
+        module.exports = factory(require('chai'), require('../../src/browserbox'), require('hoodiecrow'), require('axe-logger'));
     }
-}(function(chai, BrowserBox, hoodiecrow, axe, ES6Promise) {
+}(function(chai, BrowserBox, hoodiecrow, axe) {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-
-    if (typeof Promise === 'undefined') {
-        // load ES6 Promises polyfill
-        ES6Promise.polyfill();
-    }
 
     var expect = chai.expect;
     chai.Assertion.includeStack = true;
