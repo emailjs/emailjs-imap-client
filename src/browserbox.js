@@ -200,37 +200,39 @@
      * @event
      */
     BrowserBox.prototype._onReady = function() {
-        clearTimeout(this._connectionTimeout);
-        console.log(this.options.sessionId + ' session: connection established');
-        this._changeState(this.STATE_NOT_AUTHENTICATED);
+        var self = this;
 
-        this.updateCapability(function() {
-            this.upgradeConnection(function(err) {
+        clearTimeout(self._connectionTimeout);
+        console.log(self.options.sessionId + ' session: connection established');
+        self._changeState(self.STATE_NOT_AUTHENTICATED);
+
+        self.updateCapability(function() {
+            self.upgradeConnection(function(err) {
                 if (err) {
                     // emit an error
-                    this.onerror(err);
-                    this.close();
+                    self.onerror(err);
+                    self.close();
                     return;
                 }
-                this.updateId(this.options.id, function() {
+                self.updateId(self.options.id, function() {
                     // ignore errors for exchanging ID values
-                    this.login(this.options.auth, function(err) {
+                    self.login(self.options.auth, function(err) {
                         if (err) {
                             // emit an error
-                            this.onerror(err);
-                            this.close();
+                            self.onerror(err);
+                            self.close();
                             return;
                         }
                         // can't setup compression before authnetication
-                        this.compressConnection(function() {
+                        self.compressConnection(function() {
                             // ignore errors for setting up compression
                             // emit
-                            this.onauth();
-                        }.bind(this));
-                    }.bind(this));
-                }.bind(this));
-            }.bind(this));
-        }.bind(this));
+                            self.onauth();
+                        });
+                    });
+                });
+            });
+        });
     };
 
     /**
@@ -266,6 +268,7 @@
      * Close current connection
      */
     BrowserBox.prototype.close = function(callback) {
+        var self = this;
         var promise;
 
         if (!callback) {
@@ -274,16 +277,16 @@
             });
         }
 
-        console.log(this.options.sessionId + ' closing connection');
-        this._changeState(this.STATE_LOGOUT);
+        console.log(self.options.sessionId + ' closing connection');
+        self._changeState(self.STATE_LOGOUT);
 
-        this.exec('LOGOUT', function(err) {
+        self.exec('LOGOUT', function(err) {
             if (typeof callback === 'function') {
                 callback(err || null);
             }
 
-            this.client.close();
-        }.bind(this));
+            self.client.close();
+        });
 
         return promise;
     };
@@ -296,6 +299,7 @@
      * @param {Function} callback Callback function to run once the command has been processed
      */
     BrowserBox.prototype.exec = function() {
+        var self = this;
         var args = Array.prototype.slice.call(arguments),
             callback = args.pop();
 
@@ -308,10 +312,10 @@
             var error = null;
 
             if (response && response.capability) {
-                this.capability = response.capability;
+                self.capability = response.capability;
             }
 
-            if (this.client.isError(response)) {
+            if (self.client.isError(response)) {
                 error = response;
             } else if (['NO', 'BAD'].indexOf((response && response.command || '').toString().toUpperCase().trim()) >= 0) {
                 error = new Error(response.humanReadable || 'Error');
@@ -324,11 +328,11 @@
             } else {
                 next();
             }
-        }.bind(this));
+        });
 
-        this.breakIdle(function() {
-            this.client.exec.apply(this.client, args);
-        }.bind(this));
+        self.breakIdle(function() {
+            self.client.exec.apply(self.client, args);
+        });
     };
 
     // IMAP macros
@@ -340,27 +344,29 @@
      *   https://tools.ietf.org/html/rfc2177
      */
     BrowserBox.prototype.enterIdle = function() {
-        if (this._enteredIdle) {
+        var self = this;
+
+        if (self._enteredIdle) {
             return;
         }
-        this._enteredIdle = this.capability.indexOf('IDLE') >= 0 ? 'IDLE' : 'NOOP';
-        console.log(this.options.sessionId + ' entering idle with ' + this._enteredIdle);
+        self._enteredIdle = self.capability.indexOf('IDLE') >= 0 ? 'IDLE' : 'NOOP';
+        console.log(self.options.sessionId + ' entering idle with ' + self._enteredIdle);
 
-        if (this._enteredIdle === 'NOOP') {
-            this._idleTimeout = setTimeout(function() {
-                this.exec('NOOP');
-            }.bind(this), this.TIMEOUT_NOOP);
-        } else if (this._enteredIdle === 'IDLE') {
-            this.client.exec({
+        if (self._enteredIdle === 'NOOP') {
+            self._idleTimeout = setTimeout(function() {
+                self.exec('NOOP');
+            }, self.TIMEOUT_NOOP);
+        } else if (self._enteredIdle === 'IDLE') {
+            self.client.exec({
                 command: 'IDLE'
             }, function(response, next) {
                 next();
-            }.bind(this));
-            this._idleTimeout = setTimeout(function() {
-                console.log(this.options.sessionId + ' sending idle DONE');
-                this.client.send('DONE\r\n');
-                this._enteredIdle = false;
-            }.bind(this), this.TIMEOUT_IDLE);
+            });
+            self._idleTimeout = setTimeout(function() {
+                console.log(self.options.sessionId + ' sending idle DONE');
+                self.client.send('DONE\r\n');
+                self._enteredIdle = false;
+            }, self.TIMEOUT_IDLE);
         }
     };
 
@@ -396,31 +402,32 @@
      * @param {Function} callback Callback function
      */
     BrowserBox.prototype.upgradeConnection = function(callback) {
+        var self = this;
 
         // skip request, if already secured
-        if (this.client.secureMode) {
+        if (self.client.secureMode) {
             return callback(null, false);
         }
 
         // skip if STARTTLS not available or starttls support disabled
-        if ((this.capability.indexOf('STARTTLS') < 0 || this.options.ignoreTLS) && !this.options.requireTLS) {
+        if ((self.capability.indexOf('STARTTLS') < 0 || self.options.ignoreTLS) && !self.options.requireTLS) {
             return callback(null, false);
         }
 
-        this.exec('STARTTLS', function(err, response, next) {
+        self.exec('STARTTLS', function(err, response, next) {
             if (err) {
                 callback(err);
                 next();
             } else {
-                this.capability = [];
-                this.client.upgrade(function(err, upgraded) {
-                    this.updateCapability(function() {
+                self.capability = [];
+                self.client.upgrade(function(err, upgraded) {
+                    self.updateCapability(function() {
                         callback(err, upgraded);
                     });
                     next();
-                }.bind(this));
+                });
             }
-        }.bind(this));
+        });
     };
 
     /**
@@ -471,6 +478,7 @@
      * @param {Function} callback Callback function with the namespace information
      */
     BrowserBox.prototype.listNamespaces = function(callback) {
+        var self = this;
         var promise;
 
         if (!callback) {
@@ -479,7 +487,7 @@
             });
         }
 
-        if (this.capability.indexOf('NAMESPACE') < 0) {
+        if (self.capability.indexOf('NAMESPACE') < 0) {
             setTimeout(function() {
                 callback(null, false);
             }, 0);
@@ -487,14 +495,14 @@
             return promise;
         }
 
-        this.exec('NAMESPACE', 'NAMESPACE', function(err, response, next) {
+        self.exec('NAMESPACE', 'NAMESPACE', function(err, response, next) {
             if (err) {
                 callback(err);
             } else {
-                callback(null, this._parseNAMESPACE(response));
+                callback(null, self._parseNAMESPACE(response));
             }
             next();
-        }.bind(this));
+        });
 
         return promise;
     };
@@ -508,6 +516,7 @@
      * @param {Function} callback Callback function with the namespace information
      */
     BrowserBox.prototype.compressConnection = function(callback) {
+        var self = this;
         var promise;
 
         if (!callback) {
@@ -516,7 +525,7 @@
             });
         }
 
-        if (!this.options.enableCompression || this.capability.indexOf('COMPRESS=DEFLATE') < 0 || this.client.compressed) {
+        if (!self.options.enableCompression || self.capability.indexOf('COMPRESS=DEFLATE') < 0 || self.client.compressed) {
             setTimeout(function() {
                 callback(null, false);
             }, 0);
@@ -524,7 +533,7 @@
             return promise;
         }
 
-        this.exec({
+        self.exec({
             command: 'COMPRESS',
             attributes: [{
                 type: 'ATOM',
@@ -534,12 +543,12 @@
             if (err) {
                 callback(err);
             } else {
-                console.log(this.options.sessionId + ' compression enabled, all data sent and received is deflated');
-                this.client.enableCompression();
+                console.log(self.options.sessionId + ' compression enabled, all data sent and received is deflated');
+                self.client.enableCompression();
                 callback(null, true);
             }
             next();
-        }.bind(this));
+        });
 
         return promise;
     };
@@ -557,13 +566,14 @@
      * @param {Function} callback Returns error if login failed
      */
     BrowserBox.prototype.login = function(auth, callback) {
+        var self = this;
         var command, options = {};
 
         if (!auth) {
             return callback(new Error('Authentication information not provided'));
         }
 
-        if (this.capability.indexOf('AUTH=XOAUTH2') >= 0 && auth && auth.xoauth2) {
+        if (self.capability.indexOf('AUTH=XOAUTH2') >= 0 && auth && auth.xoauth2) {
             command = {
                 command: 'AUTHENTICATE',
                 attributes: [{
@@ -571,7 +581,7 @@
                     value: 'XOAUTH2'
                 }, {
                     type: 'ATOM',
-                    value: this._buildXOAuth2Token(auth.user, auth.xoauth2),
+                    value: self._buildXOAuth2Token(auth.user, auth.xoauth2),
                     sensitive: true
                 }]
             };
@@ -581,13 +591,13 @@
                     try {
                         payload = JSON.parse(mimefuncs.base64Decode(response.payload));
                     } catch (e) {
-                        console.error(this.options.sessionId + ' error parsing XOAUTH2 payload: ' + e + '\nstack trace: ' + e.stack);
+                        console.error(self.options.sessionId + ' error parsing XOAUTH2 payload: ' + e + '\nstack trace: ' + e.stack);
                     }
                 }
                 // + tagged error response expects an empty line in return
-                this.client.send('\r\n');
+                self.client.send('\r\n');
                 next();
-            }.bind(this);
+            };
         } else {
             command = {
                 command: 'login',
@@ -602,7 +612,7 @@
             };
         }
 
-        this.exec(command, 'capability', options, function(err, response, next) {
+        self.exec(command, 'capability', options, function(err, response, next) {
             var capabilityUpdated = false;
 
             if (err) {
@@ -610,8 +620,8 @@
                 return next();
             }
 
-            this._changeState(this.STATE_AUTHENTICATED);
-            this.authenticated = true;
+            self._changeState(self.STATE_AUTHENTICATED);
+            self.authenticated = true;
 
             // update post-auth capabilites
             // capability list shouldn't contain auth related stuff anymore
@@ -619,32 +629,32 @@
             // make much sense in the non-auth state
             if (response.capability && response.capability.length) {
                 // capabilites were listed with the OK [CAPABILITY ...] response
-                this.capability = [].concat(response.capability || []);
+                self.capability = [].concat(response.capability || []);
                 capabilityUpdated = true;
-                console.log(this.options.sessionId + ' post-auth capabilites updated: ' + this.capability);
+                console.log(self.options.sessionId + ' post-auth capabilites updated: ' + self.capability);
                 callback(null, true);
             } else if (response.payload && response.payload.CAPABILITY && response.payload.CAPABILITY.length) {
                 // capabilites were listed with * CAPABILITY ... response
-                this.capability = [].concat(response.payload.CAPABILITY.pop().attributes || []).map(function(capa) {
+                self.capability = [].concat(response.payload.CAPABILITY.pop().attributes || []).map(function(capa) {
                     return (capa.value || '').toString().toUpperCase().trim();
                 });
                 capabilityUpdated = true;
-                console.log(this.options.sessionId + ' post-auth capabilites updated: ' + this.capability);
+                console.log(self.options.sessionId + ' post-auth capabilites updated: ' + self.capability);
                 callback(null, true);
             } else {
                 // capabilities were not automatically listed, reload
-                this.updateCapability(true, function(err) {
+                self.updateCapability(true, function(err) {
                     if (err) {
                         callback(err);
                     } else {
-                        console.log(this.options.sessionId + ' post-auth capabilites updated: ' + this.capability);
+                        console.log(self.options.sessionId + ' post-auth capabilites updated: ' + self.capability);
                         callback(null, true);
                     }
-                }.bind(this));
+                });
             }
 
             next();
-        }.bind(this));
+        });
     };
 
     /**
@@ -659,7 +669,9 @@
      * @param {Function} callback
      */
     BrowserBox.prototype.updateId = function(id, callback) {
-        if (this.capability.indexOf('ID') < 0) {
+        var self = this;
+
+        if (self.capability.indexOf('ID') < 0) {
             return callback(null, false);
         }
 
@@ -680,12 +692,12 @@
             attributes[0] = null;
         }
 
-        this.exec({
+        self.exec({
             command: 'ID',
             attributes: attributes
         }, 'ID', function(err, response, next) {
             if (err) {
-                console.error(this.options.sessionId + ' error updating server id: ' + err + '\n' + err.stack);
+                console.error(self.options.sessionId + ' error updating server id: ' + err + '\n' + err.stack);
                 callback(err);
                 return next();
             }
@@ -695,21 +707,21 @@
                 return next();
             }
 
-            this.serverId = {};
+            self.serverId = {};
 
             var key;
             [].concat([].concat(response.payload.ID.shift().attributes || []).shift() || []).forEach(function(val, i) {
                 if (i % 2 === 0) {
                     key = (val && val.value || '').toString().toLowerCase().trim();
                 } else {
-                    this.serverId[key] = (val && val.value || '').toString();
+                    self.serverId[key] = (val && val.value || '').toString();
                 }
-            }.bind(this));
+            });
 
-            callback(null, this.serverId);
+            callback(null, self.serverId);
 
             next();
-        }.bind(this));
+        });
     };
 
     /**
@@ -723,6 +735,7 @@
      * @param {Function} callback Returns mailbox tree object
      */
     BrowserBox.prototype.listMailboxes = function(callback) {
+        var self = this;
         var promise;
 
         if (!callback) {
@@ -731,7 +744,7 @@
             });
         }
 
-        this.exec({
+        self.exec({
             command: 'LIST',
             attributes: ['', '*']
         }, 'LIST', function(err, response, next) {
@@ -754,20 +767,20 @@
                 if (!item || !item.attributes || item.attributes.length < 3) {
                     return;
                 }
-                var branch = this._ensurePath(tree, (item.attributes[2].value || '').toString(), (item.attributes[1] ? item.attributes[1].value : '/').toString());
+                var branch = self._ensurePath(tree, (item.attributes[2].value || '').toString(), (item.attributes[1] ? item.attributes[1].value : '/').toString());
                 branch.flags = [].concat(item.attributes[0] || []).map(function(flag) {
                     return (flag.value || '').toString();
                 });
                 branch.listed = true;
-                this._checkSpecialUse(branch);
-            }.bind(this));
+                self._checkSpecialUse(branch);
+            });
 
-            this.exec({
+            self.exec({
                 command: 'LSUB',
                 attributes: ['', '*']
             }, 'LSUB', function(err, response, next) {
                 if (err) {
-                    console.error(this.options.sessionId + ' error while listing subscribed mailboxes: ' + err + '\n' + err.stack);
+                    console.error(self.options.sessionId + ' error while listing subscribed mailboxes: ' + err + '\n' + err.stack);
                     callback(null, tree);
                     return next();
                 }
@@ -781,7 +794,7 @@
                     if (!item || !item.attributes || item.attributes.length < 3) {
                         return;
                     }
-                    var branch = this._ensurePath(tree, (item.attributes[2].value || '').toString(), (item.attributes[1] ? item.attributes[1].value : '/').toString());
+                    var branch = self._ensurePath(tree, (item.attributes[2].value || '').toString(), (item.attributes[1] ? item.attributes[1].value : '/').toString());
                     [].concat(item.attributes[0] || []).map(function(flag) {
                         flag = (flag.value || '').toString();
                         if (!branch.flags || branch.flags.indexOf(flag) < 0) {
@@ -789,15 +802,15 @@
                         }
                     });
                     branch.subscribed = true;
-                }.bind(this));
+                });
 
                 callback(null, tree);
 
                 next();
-            }.bind(this));
+            });
 
             next();
-        }.bind(this));
+        });
 
         return promise;
     };
@@ -857,6 +870,7 @@
      * @param {Function} callback Callback function with fetched message info
      */
     BrowserBox.prototype.listMessages = function(sequence, items, options, callback) {
+        var self = this;
         var promise;
 
         if (!callback && typeof options === 'function') {
@@ -881,18 +895,18 @@
 
         options = options || {};
 
-        var command = this._buildFETCHCommand(sequence, items, options);
-        this.exec(command, 'FETCH', {
+        var command = self._buildFETCHCommand(sequence, items, options);
+        self.exec(command, 'FETCH', {
             precheck: options.precheck,
             ctx: options.ctx
         }, function(err, response, next) {
             if (err) {
                 callback(err);
             } else {
-                callback(null, this._parseFETCH(response));
+                callback(null, self._parseFETCH(response));
             }
             next();
-        }.bind(this));
+        });
 
         return promise;
     };
@@ -908,6 +922,7 @@
      * @param {Function} callback Callback function with the array of matching seq. or uid numbers
      */
     BrowserBox.prototype.search = function(query, options, callback) {
+        var self = this;
         var promise;
 
         if (!callback && typeof options === 'function') {
@@ -923,18 +938,18 @@
 
         options = options || {};
 
-        var command = this._buildSEARCHCommand(query, options);
-        this.exec(command, 'SEARCH', {
+        var command = self._buildSEARCHCommand(query, options);
+        self.exec(command, 'SEARCH', {
             precheck: options.precheck,
             ctx: options.ctx
         }, function(err, response, next) {
             if (err) {
                 callback(err);
             } else {
-                callback(null, this._parseSEARCH(response));
+                callback(null, self._parseSEARCH(response));
             }
             next();
-        }.bind(this));
+        });
 
         return promise;
     };
@@ -984,6 +999,7 @@
      * @param {Function} callback Callback function with the array of matching seq. or uid numbers
      */
     BrowserBox.prototype.store = function(sequence, action, flags, options, callback) {
+        var self = this;
         var promise;
 
         if (!callback && typeof options === 'function') {
@@ -999,18 +1015,18 @@
 
         options = options || {};
 
-        var command = this._buildSTORECommand(sequence, action, flags, options);
-        this.exec(command, 'FETCH', {
+        var command = self._buildSTORECommand(sequence, action, flags, options);
+        self.exec(command, 'FETCH', {
             precheck: options.precheck,
             ctx: options.ctx
         }, function(err, response, next) {
             if (err) {
                 callback(err);
             } else {
-                callback(null, this._parseFETCH(response));
+                callback(null, self._parseFETCH(response));
             }
             next();
-        }.bind(this));
+        });
 
         return promise;
     };
@@ -1027,6 +1043,7 @@
      * @param {Function} callback Callback function with the array of matching seq. or uid numbers
      */
     BrowserBox.prototype.upload = function(destination, message, options, callback) {
+        var self = this;
         var promise;
 
         if (!callback && typeof options === 'function') {
@@ -1063,13 +1080,13 @@
             }
         ];
 
-        this.exec(command, {
+        self.exec(command, {
             precheck: options.precheck,
             ctx: options.ctx
         }, function(err, response, next) {
             callback(err, err ? undefined : true);
             next();
-        }.bind(this));
+        });
 
         return promise;
     };
@@ -1095,6 +1112,7 @@
      * @param {Function} callback Callback function
      */
     BrowserBox.prototype.deleteMessages = function(sequence, options, callback) {
+        var self = this;
         var promise;
 
         if (!callback && typeof options === 'function') {
@@ -1111,15 +1129,15 @@
         options = options || {};
 
         // add \Deleted flag to the messages and run EXPUNGE or UID EXPUNGE
-        this.setFlags(sequence, {
+        self.setFlags(sequence, {
             add: '\\Deleted'
         }, options, function(err) {
             if (err) {
                 return callback(err);
             }
 
-            this.exec(
-                options.byUid && this.capability.indexOf('UIDPLUS') >= 0 ? {
+            self.exec(
+                options.byUid && self.capability.indexOf('UIDPLUS') >= 0 ? {
                     command: 'UID EXPUNGE',
                     attributes: [{
                         type: 'sequence',
@@ -1133,8 +1151,8 @@
                         callback(null, true);
                     }
                     next();
-                }.bind(this));
-        }.bind(this));
+                });
+        });
 
         return promise;
     };
@@ -1153,6 +1171,7 @@
      * @param {Function} callback Callback function
      */
     BrowserBox.prototype.copyMessages = function(sequence, destination, options, callback) {
+        var self = this;
         var promise;
 
         if (!callback && typeof options === 'function') {
@@ -1168,7 +1187,7 @@
 
         options = options || {};
 
-        this.exec({
+        self.exec({
                 command: options.byUid ? 'UID COPY' : 'COPY',
                 attributes: [{
                     type: 'sequence',
@@ -1188,7 +1207,7 @@
                     callback(null, response.humanReadable || 'COPY completed');
                 }
                 next();
-            }.bind(this));
+            });
 
         return promise;
     };
@@ -1209,6 +1228,7 @@
      * @param {Function} callback Callback function
      */
     BrowserBox.prototype.moveMessages = function(sequence, destination, options, callback) {
+        var self = this;
         var promise;
 
         if (!callback && typeof options === 'function') {
@@ -1223,9 +1243,9 @@
         }
 
         options = options || {};
-        if (this.capability.indexOf('MOVE') >= 0) {
+        if (self.capability.indexOf('MOVE') >= 0) {
             // If possible, use MOVE
-            this.exec({
+            self.exec({
                     command: options.byUid ? 'UID MOVE' : 'MOVE',
                     attributes: [{
                         type: 'sequence',
@@ -1245,16 +1265,16 @@
                         callback(null, true);
                     }
                     next();
-                }.bind(this));
+                });
         } else {
             // Fallback to COPY + EXPUNGE
-            this.copyMessages(sequence, destination, options, function(err) {
+            self.copyMessages(sequence, destination, options, function(err) {
                 if (err) {
                     return callback(err);
                 }
                 delete options.precheck;
-                this.deleteMessages(sequence, options, callback);
-            }.bind(this));
+                self.deleteMessages(sequence, options, callback);
+            });
         }
 
         return promise;
@@ -1273,6 +1293,7 @@
      * @param {Function} callback Return information about selected mailbox
      */
     BrowserBox.prototype.selectMailbox = function(path, options, callback) {
+        var self = this;
         var promise;
 
         if (!callback && typeof options === 'function') {
@@ -1296,14 +1317,14 @@
             }]
         };
 
-        if (options.condstore && this.capability.indexOf('CONDSTORE') >= 0) {
+        if (options.condstore && self.capability.indexOf('CONDSTORE') >= 0) {
             query.attributes.push([{
                 type: 'ATOM',
                 value: 'CONDSTORE'
             }]);
         }
 
-        this.exec(query, ['EXISTS', 'FLAGS', 'OK'], {
+        self.exec(query, ['EXISTS', 'FLAGS', 'OK'], {
             precheck: options.precheck,
             ctx: options.ctx
         }, function(err, response, next) {
@@ -1312,22 +1333,22 @@
                 return next();
             }
 
-            this._changeState(this.STATE_SELECTED);
+            self._changeState(self.STATE_SELECTED);
 
-            if (this.selectedMailbox && this.selectedMailbox !== path) {
-                this.onclosemailbox(this.selectedMailbox);
+            if (self.selectedMailbox && self.selectedMailbox !== path) {
+                self.onclosemailbox(self.selectedMailbox);
             }
 
-            this.selectedMailbox = path;
+            self.selectedMailbox = path;
 
-            var mailboxInfo = this._parseSELECT(response);
+            var mailboxInfo = self._parseSELECT(response);
 
             callback(null, mailboxInfo);
 
-            this.onselectmailbox(path, mailboxInfo);
+            self.onselectmailbox(path, mailboxInfo);
 
             next();
-        }.bind(this));
+        });
 
         return promise;
     };
@@ -1562,6 +1583,8 @@
      * @return {Object} Message object
      */
     BrowserBox.prototype._parseFETCH = function(response) {
+        var self = this;
+
         if (!response || !response.payload || !response.payload.FETCH || !response.payload.FETCH.length) {
             return [];
         }
@@ -1591,9 +1614,9 @@
                     }).toLowerCase().replace(/<\d+>$/, '');
                     continue;
                 }
-                message[key] = this._parseFetchValue(key, params[i]);
+                message[key] = self._parseFetchValue(key, params[i]);
             }
-        }.bind(this));
+        });
 
         return list;
     };
@@ -2054,7 +2077,7 @@
                     list.push(nr);
                 }
             });
-        }.bind(this));
+        });
 
         list.sort(function(a, b) {
             return a - b;
