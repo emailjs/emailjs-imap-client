@@ -54,6 +54,7 @@
         describe('#_onReady', function() {
             it('should call updateCapability', function() {
                 sinon.stub(br, 'updateCapability');
+                br.updateCapability.returns(Promise.resolve(true));
 
                 br._onReady();
 
@@ -271,43 +272,48 @@
         });
 
         describe('#updateCapability', function() {
-            it('should do nothing if capability is set', function() {
-                br.capability = ['abc'];
-                br.updateCapability(function(err, updated) {
-                    expect(err).to.not.exist;
-                    expect(updated).to.be.false;
-                });
+            beforeEach(function() {
+                sinon.stub(br, 'exec');
             });
 
-            it('should run CAPABILITY if capability not set', function() {
-                sinon.stub(br, 'exec');
+            afterEach(function() {
+                br.exec.restore();
+            });
+
+            it('should do nothing if capability is set', function(done) {
+                br.capability = ['abc'];
+                br.updateCapability().then(function(updated) {
+                    expect(updated).to.be.false;
+                }).then(done);
+            });
+
+            it('should run CAPABILITY if capability not set', function(done) {
+                br.exec.yields(null, null, function() {});
 
                 br.capability = [];
-                br.updateCapability();
-                expect(br.exec.args[0][0]).to.equal('CAPABILITY');
 
-                br.exec.restore();
+                br.updateCapability().then(function() {
+                    expect(br.exec.args[0][0]).to.equal('CAPABILITY');
+                }).then(done);
             });
 
-            it('should force run CAPABILITY', function() {
-                sinon.stub(br, 'exec');
-
+            it('should force run CAPABILITY', function(done) {
+                br.exec.yields();
                 br.capability = ['abc'];
-                br.updateCapability(true);
-                expect(br.exec.args[0][0]).to.equal('CAPABILITY');
 
-                br.exec.restore();
+                br.updateCapability(true).then(function() {
+                    expect(br.exec.args[0][0]).to.equal('CAPABILITY');
+                }).then(done);
             });
 
-            it('should do nothing if connection is not yet upgraded', function() {
+            it('should do nothing if connection is not yet upgraded', function(done) {
                 br.capability = [];
                 br.client.secureMode = false;
                 br.options.requireTLS = true;
 
-                br.updateCapability(function(err, updated) {
-                    expect(err).to.not.exist;
+                br.updateCapability().then(function(updated) {
                     expect(updated).to.be.false;
-                });
+                }).then(done);
             });
         });
 

@@ -206,7 +206,7 @@
         console.log(self.options.sessionId + ' session: connection established');
         self._changeState(self.STATE_NOT_AUTHENTICATED);
 
-        self.updateCapability(function() {
+        self.updateCapability().then(function() {
             self.upgradeConnection(function(err) {
                 if (err) {
                     // emit an error
@@ -419,9 +419,9 @@
             } else {
                 self.capability = [];
                 self.client.upgrade(function(err, upgraded) {
-                    self.updateCapability(function() {
-                        callback(err, upgraded);
-                    });
+                    self.updateCapability().then(function() {
+                        callback(null, upgraded);
+                    }).catch(callback);
                     next();
                 });
             }
@@ -438,32 +438,29 @@
      * handled by global handler
      *
      * @param {Boolean} [forced] By default the command is not run if capability is already listed. Set to true to skip this validation
-     * @param {Function} callback Callback function
      */
-    BrowserBox.prototype.updateCapability = function(forced, callback) {
-        if (!callback && typeof forced === 'function') {
-            callback = forced;
-            forced = undefined;
-        }
-
+    BrowserBox.prototype.updateCapability = function(forced) {
+        var self = this;
         // skip request, if not forced update and capabilities are already loaded
         if (!forced && this.capability.length) {
-            return callback(null, false);
+            return Promise.resolve(false);
         }
 
         // If STARTTLS is required then skip capability listing as we are going to try
         // STARTTLS anyway and we re-check capabilities after connection is secured
         if (!this.client.secureMode && this.options.requireTLS) {
-            return callback(null, false);
+            return Promise.resolve(false);
         }
 
-        this.exec('CAPABILITY', function(err, response, next) {
-            if (err) {
-                callback(err);
-            } else {
-                callback(null, true);
-            }
-            next();
+        return new Promise(function(resolve, reject) {
+            self.exec('CAPABILITY', function(err, response, next) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(true);
+                }
+                next();
+            });
         });
     };
 
@@ -641,14 +638,10 @@
                 callback(null, true);
             } else {
                 // capabilities were not automatically listed, reload
-                self.updateCapability(true, function(err) {
-                    if (err) {
-                        callback(err);
-                    } else {
-                        console.log(self.options.sessionId + ' post-auth capabilites updated: ' + self.capability);
-                        callback(null, true);
-                    }
-                });
+                self.updateCapability(true).then(function() {
+                    console.log(self.options.sessionId + ' post-auth capabilites updated: ' + self.capability);
+                    callback(null, true);
+                }).catch(callback);
             }
 
             next();
