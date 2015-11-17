@@ -141,8 +141,8 @@
 
         describe('#exec', function() {
             beforeEach(function() {
-                sinon.stub(br, 'breakIdle', function(callback) {
-                    return callback();
+                sinon.stub(br, 'breakIdle', function() {
+                    return Promise.resolve();
                 });
             });
 
@@ -185,14 +185,6 @@
                     next();
                 });
             });
-
-            it('should continue with no callback', function(done) {
-                sinon.stub(br.client, 'exec', function() {
-                    arguments[arguments.length - 1]({}, done);
-                });
-                br.exec('TEST');
-                expect(br.client.exec.callCount).to.equal(1);
-            });
         });
 
         describe('#enterIdle', function() {
@@ -232,13 +224,10 @@
                 sinon.stub(br.client.socket, 'send');
 
                 br._enteredIdle = 'IDLE';
-                br.breakIdle(function() {
-
+                br.breakIdle().then(function() {
                     expect([].slice.call(new Uint8Array(br.client.socket.send.args[0][0]))).to.deep.equal([0x44, 0x4f, 0x4e, 0x45, 0x0d, 0x0a]);
                     br.client.socket.send.restore();
-
-                    done();
-                });
+                }).then(done);
             });
         });
 

@@ -330,7 +330,7 @@
             }
         });
 
-        self.breakIdle(function() {
+        self.breakIdle().then(function() {
             self.client.exec.apply(self.client, args);
         });
     };
@@ -372,12 +372,10 @@
 
     /**
      * Stops actions related idling, if IDLE is supported, sends DONE to stop it
-     *
-     * @param {Function} callback Function to run after required actions are performed
      */
-    BrowserBox.prototype.breakIdle = function(callback) {
+    BrowserBox.prototype.breakIdle = function() {
         if (!this._enteredIdle) {
-            return callback();
+            return Promise.resolve();
         }
 
         clearTimeout(this._idleTimeout);
@@ -389,7 +387,7 @@
 
         console.log(this.options.sessionId + ' idle terminated');
 
-        return callback();
+        return Promise.resolve();
     };
 
     /**
