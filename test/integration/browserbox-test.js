@@ -27,26 +27,15 @@
                 secureConnection: false,
                 storage: {
                     "INBOX": {
-                        messages: [{
-                            raw: "Subject: hello 1\r\n\r\nWorld 1!"
-                        }, {
-                            raw: "Subject: hello 2\r\n\r\nWorld 2!",
-                            flags: ["\\Seen"]
-                        }, {
-                            raw: "Subject: hello 3\r\n\r\nWorld 3!",
-                            uid: 555
-                        }, {
-                            raw: "From: sender name <sender@example.com>\r\nTo: Receiver name <receiver@example.com>\r\nSubject: hello 4\r\nMessage-Id: <abcde>\r\nDate: Fri, 13 Sep 2013 15:01:00 +0300\r\n\r\nWorld 4!"
-                        }, {
-                            raw: "Subject: hello 5\r\n\r\nWorld 5!",
-                            flags: ["$MyFlag", "\\Deleted"],
-                            uid: 557
-                        }, {
-                            raw: "Subject: hello 6\r\n\r\nWorld 6!"
-                        }, {
-                            raw: "Subject: hello 7\r\n\r\nWorld 7!",
-                            uid: 600
-                        }]
+                        messages: [
+                            { raw: "Subject: hello 1\r\n\r\nWorld 1!" },
+                            { raw: "Subject: hello 2\r\n\r\nWorld 2!", flags: ["\\Seen"] },
+                            { raw: "Subject: hello 3\r\n\r\nWorld 3!", uid: 555 },
+                            { raw: "From: sender name <sender@example.com>\r\nTo: Receiver name <receiver@example.com>\r\nSubject: hello 4\r\nMessage-Id: <abcde>\r\nDate: Fri, 13 Sep 2013 15:01:00 +0300\r\n\r\nWorld 4!" },
+                            { raw: "Subject: hello 5\r\n\r\nWorld 5!", flags: ["$MyFlag", "\\Deleted"], uid: 557 },
+                            { raw: "Subject: hello 6\r\n\r\nWorld 6!" },
+                            { raw: "Subject: hello 7\r\n\r\nWorld 7!", uid: 600}
+                        ]
                     },
                     "": {
                         "separator": "/",
@@ -54,27 +43,13 @@
                             "[Gmail]": {
                                 "flags": ["\\Noselect"],
                                 "folders": {
-                                    "All Mail": {
-                                        "special-use": "\\All"
-                                    },
-                                    "Drafts": {
-                                        "special-use": "\\Drafts"
-                                    },
-                                    "Important": {
-                                        "special-use": "\\Important"
-                                    },
-                                    "Sent Mail": {
-                                        "special-use": "\\Sent"
-                                    },
-                                    "Spam": {
-                                        "special-use": "\\Junk"
-                                    },
-                                    "Starred": {
-                                        "special-use": "\\Flagged"
-                                    },
-                                    "Trash": {
-                                        "special-use": "\\Trash"
-                                    }
+                                    "All Mail": { "special-use": "\\All" },
+                                    "Drafts": { "special-use": "\\Drafts" },
+                                    "Important": { "special-use": "\\Important" },
+                                    "Sent Mail": { "special-use": "\\Sent" },
+                                    "Spam": { "special-use": "\\Junk" },
+                                    "Starred": { "special-use": "\\Flagged" },
+                                    "Trash": { "special-use": "\\Trash" }
                                 }
                             }
                         }
