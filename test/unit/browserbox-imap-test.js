@@ -409,7 +409,7 @@
                 client._processServerResponse({
                     tag: '*',
                     command: 'test'
-                });
+                }, function() {});
 
                 expect(client._globalAcceptUntagged.TEST.withArgs({
                     tag: '*',
@@ -431,7 +431,7 @@
                 client._processServerResponse({
                     tag: '*',
                     command: 'test'
-                });
+                }, function() {});
 
                 expect(client._globalAcceptUntagged.TEST.withArgs({
                     tag: '*',

@@ -154,11 +154,12 @@
 
             it('should send string command', function(done) {
                 sinon.stub(br.client, 'exec', function() {
-                    arguments[arguments.length - 1]({}, done);
+                    arguments[arguments.length - 1]({});
                 });
-                br.exec('TEST', function(err, response, next) {
+                br.exec('TEST', function(err) {
+                    expect(err).to.not.exist;
                     expect(br.client.exec.args[0][0]).to.equal('TEST');
-                    next();
+                    done();
                 });
             });
 
@@ -166,12 +167,12 @@
                 sinon.stub(br.client, 'exec', function() {
                     arguments[arguments.length - 1]({
                         capability: ['A', 'B']
-                    }, done);
+                    });
                 });
-                br.exec('TEST', function(err, response, next) {
+                br.exec('TEST', function(err) {
                     expect(err).to.not.exist;
                     expect(br.capability).to.deep.equal(['A', 'B']);
-                    next();
+                    done();
                 });
             });
 
@@ -179,11 +180,11 @@
                 sinon.stub(br.client, 'exec', function() {
                     arguments[arguments.length - 1]({
                         command: 'NO'
-                    }, done);
+                    });
                 });
-                br.exec('TEST', function(err, response, next) {
+                br.exec('TEST', function(err) {
                     expect(err).to.exist;
-                    next();
+                    done();
                 });
             });
         });
@@ -253,7 +254,7 @@
 
             it('should run STARTTLS', function(done) {
                 sinon.stub(br.client, 'upgrade').yields(null, false);
-                sinon.stub(br, 'exec').withArgs('STARTTLS').yields(null, null, function() {});
+                sinon.stub(br, 'exec').withArgs('STARTTLS').yields(null, null);
                 sinon.stub(br, 'updateCapability').returns(Promise.resolve());
 
                 br.capability = ['STARTTLS'];
@@ -289,7 +290,7 @@
             });
 
             it('should run CAPABILITY if capability not set', function(done) {
-                br.exec.yields(null, null, function() {});
+                br.exec.yields(null, null);
 
                 br.capability = [];
 
@@ -344,7 +345,7 @@
 
         describe('#compressConnection', function() {
             it('should run COMPRESS=DEFLATE if supported', function() {
-                sinon.stub(br, 'exec').yields(null, {}, function() {});
+                sinon.stub(br, 'exec').yields(null, {});
                 sinon.stub(br.client, 'enableCompression');
 
                 br.options.enableCompression = true;
@@ -466,9 +467,6 @@
                                 ]
                             }]
                         }
-                    }, function() {
-                        br.exec.restore();
-                        done();
                     });
                 });
 
@@ -476,6 +474,9 @@
                 br.updateId(null, function(err, id) {
                     expect(err).to.not.exist;
                     expect(id).to.deep.equal({});
+
+                    br.exec.restore();
+                    done();
                 });
             });
 
@@ -504,9 +505,6 @@
                                 ]
                             }]
                         }
-                    }, function() {
-                        br.exec.restore();
-                        done();
                     });
                 });
 
@@ -520,6 +518,9 @@
                         skey1: 'sval1',
                         skey2: 'sval2'
                     });
+
+                    br.exec.restore();
+                    done();
                 });
             });
         });
@@ -539,8 +540,6 @@
                             payload: {
                                 LSUB: [false]
                             }
-                        }, function() {
-                            done();
                         });
                     });
 
@@ -552,12 +551,14 @@
                         payload: {
                             LIST: [false]
                         }
-                    }, function() {});
+                    });
                 });
 
                 br.listMailboxes(function(err, tree) {
                     expect(err).to.not.exist;
                     expect(tree).to.exist;
+
+                    done();
                 });
             });
 
@@ -577,8 +578,6 @@
                                     imapHandler.parser('* LSUB (\\NoInferiors) NIL "INBOX"')
                                 ]
                             }
-                        }, function() {
-                            done();
                         });
                     });
 
@@ -592,12 +591,14 @@
                                 imapHandler.parser('* LIST (\\NoInferiors) NIL "INBOX"')
                             ]
                         }
-                    }, function() {});
+                    });
                 });
 
                 br.listMailboxes(function(err, tree) {
                     expect(err).to.not.exist;
                     expect(tree).to.exist;
+
+                    done();
                 });
             });
         });
@@ -607,7 +608,7 @@
             // simplicity we always generate a string even if it could be
             // expressed as an atom.
             it('should call CREATE with a string payload', function(done) {
-                sinon.stub(br, 'exec').yields(null, null, done);
+                sinon.stub(br, 'exec').yields(null, null);
                 var mailboxName = 'foo';
                 br.createMailbox(mailboxName, function(err) {
                     expect(err).to.not.exist;
@@ -619,12 +620,13 @@
 
                     expect(br.exec.callCount).to.equal(1);
 
+                    done();
                     br.exec.restore();
                 });
             });
 
             it('should call mutf7 encode the argument', function(done) {
-                sinon.stub(br, 'exec').yields(null, null, done);
+                sinon.stub(br, 'exec').yields(null, null);
                 // From RFC 3501
                 var localName = '~peter/mail/\u53f0\u5317/\u65e5\u672c\u8a9e';
                 var serverName = '~peter/mail/&U,BTFw-/&ZeVnLIqe-';
@@ -639,6 +641,7 @@
                     expect(br.exec.callCount).to.equal(1);
 
                     br.exec.restore();
+                    done();
                 });
             });
 
@@ -649,7 +652,7 @@
                 var fakeResp = {
                     code: 'ALREADYEXISTS'
                 };
-                sinon.stub(br, 'exec').yields(fakeErr, fakeResp, done);
+                sinon.stub(br, 'exec').yields(fakeErr, fakeResp);
                 var mailboxName = 'foo';
                 br.createMailbox(mailboxName, function(err, alreadyExists) {
                     expect(err).to.not.exist;
@@ -663,6 +666,7 @@
                     expect(br.exec.callCount).to.equal(1);
 
                     br.exec.restore();
+                    done();
                 });
             });
         });
@@ -670,7 +674,7 @@
         describe('#listMessages', function() {
             it('should call FETCH', function(done) {
                 sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc', done);
+                    callback(null, 'abc');
                 });
                 sinon.stub(br, '_buildFETCHCommand', function() {
                     return {};
@@ -693,13 +697,15 @@
                 br.exec.restore();
                 br._buildFETCHCommand.restore();
                 br._parseFETCH.restore();
+
+                done();
             });
         });
 
         describe('#search', function() {
             it('should call SEARCH', function(done) {
                 sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc', done);
+                    callback(null, 'abc');
                 });
                 sinon.stub(br, '_buildSEARCHCommand', function() {
                     return {};
@@ -725,12 +731,14 @@
                 br.exec.restore();
                 br._buildSEARCHCommand.restore();
                 br._parseSEARCH.restore();
+
+                done();
             });
         });
 
         describe('#upload', function() {
             it('should call APPEND with custom flag', function(done) {
-                sinon.stub(br, 'exec').yields(null, null, done);
+                sinon.stub(br, 'exec').yields(null, null);
 
                 br.upload('mailbox', 'this is a message', {
                     flags: ['\\$MyFlag']
@@ -741,11 +749,12 @@
                     expect(br.exec.callCount).to.equal(1);
 
                     br.exec.restore();
+                    done();
                 });
             });
 
             it('should call APPEND w/o flags', function(done) {
-                sinon.stub(br, 'exec').yields(null, null, done);
+                sinon.stub(br, 'exec').yields(null, null);
 
                 br.upload('mailbox', 'this is a message', function(err, success) {
                     expect(err).to.not.exist;
@@ -753,6 +762,7 @@
 
                     expect(br.exec.callCount).to.equal(1);
 
+                    done();
                     br.exec.restore();
                 });
             });
@@ -761,7 +771,7 @@
         describe('#setFlags', function() {
             it('should call STORE', function(done) {
                 sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc', done);
+                    callback(null, 'abc');
                 });
                 sinon.stub(br, '_buildSTORECommand', function() {
                     return {};
@@ -785,13 +795,15 @@
                 br.exec.restore();
                 br._buildSTORECommand.restore();
                 br._parseFETCH.restore();
+
+                done();
             });
         });
 
         describe('#store', function() {
             it('should call STORE', function(done) {
                 sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc', done);
+                    callback(null, 'abc');
                 });
                 sinon.stub(br, '_buildSTORECommand', function() {
                     return {};
@@ -815,6 +827,8 @@
                 br.exec.restore();
                 br._buildSTORECommand.restore();
                 br._parseFETCH.restore();
+
+                done();
             });
         });
 
@@ -827,7 +841,7 @@
                     callback();
                 });
                 sinon.stub(br, 'exec', function(command, callback) {
-                    callback(null, 'abc', function() {});
+                    callback(null, 'abc');
                 });
             });
 
@@ -868,7 +882,7 @@
                 sinon.stub(br, 'exec', function(command, options, callback) {
                     callback(null, {
                         humanReadable: 'abc'
-                    }, done);
+                    });
                 });
 
                 br.copyMessages('1:2', '[Gmail]/Trash', {
@@ -891,13 +905,14 @@
                 });
 
                 br.exec.restore();
+                done();
             });
         });
 
         describe('#moveMessages', function() {
             it('should call MOVE if supported', function(done) {
                 sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc', done);
+                    callback(null, 'abc');
                 });
 
                 br.capability = ['MOVE'];
@@ -919,6 +934,7 @@
                 expect(br.exec.args[0][1]).to.deep.equal(['OK']);
 
                 br.exec.restore();
+                done();
             });
 
             it('should fallback to copy+expunge', function() {
@@ -951,7 +967,7 @@
         describe('#selectMailbox', function() {
             it('should run SELECT', function(done) {
                 sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc', done);
+                    callback(null, 'abc');
                 });
                 sinon.stub(br, '_parseSELECT');
 
@@ -970,11 +986,13 @@
 
                 br.exec.restore();
                 br._parseSELECT.restore();
+
+                done();
             });
 
             it('should run SELECT with CONDSTORE', function(done) {
                 sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc', done);
+                    callback(null, 'abc');
                 });
                 sinon.stub(br, '_parseSELECT');
 
@@ -1001,11 +1019,13 @@
 
                 br.exec.restore();
                 br._parseSELECT.restore();
+
+                done();
             });
 
             it('should emit onselectmailbox', function(done) {
                 sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc', done);
+                    callback(null, 'abc');
                 });
                 sinon.stub(br, '_parseSELECT').returns('def');
                 sinon.stub(br, 'onselectmailbox');
@@ -1018,11 +1038,13 @@
                 br.exec.restore();
                 br._parseSELECT.restore();
                 br.onselectmailbox.restore();
+
+                done();
             });
 
             it('should emit onclosemailbox', function(done) {
                 sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc', done);
+                    callback(null, 'abc');
                 });
                 sinon.stub(br, '_parseSELECT').returns('def');
                 sinon.stub(br, 'onclosemailbox');
@@ -1035,6 +1057,8 @@
                 br.exec.restore();
                 br._parseSELECT.restore();
                 br.onclosemailbox.restore();
+
+                done();
             });
         });
 

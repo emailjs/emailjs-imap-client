@@ -592,20 +592,19 @@
 
         if (!this._currentCommand) {
             if (response.tag === '*' && command in this._globalAcceptUntagged) {
-                return this._globalAcceptUntagged[command](response, callback);
-            } else {
-                return callback();
+                this._globalAcceptUntagged[command](response);
             }
+
+            return callback();
         }
 
         if (this._currentCommand.payload && response.tag === '*' && command in this._currentCommand.payload) {
-
             this._currentCommand.payload[command].push(response);
             return callback();
 
         } else if (response.tag === '*' && command in this._globalAcceptUntagged) {
-
             this._globalAcceptUntagged[command](response, callback);
+            return callback();
 
         } else if (response.tag === this._currentCommand.tag) {
 
@@ -615,7 +614,8 @@
                     response.payload = this._currentCommand.payload;
                 }
 
-                return this._currentCommand.callback(response, callback);
+                this._currentCommand.callback(response);
+                return callback();
             } else {
                 return callback();
             }

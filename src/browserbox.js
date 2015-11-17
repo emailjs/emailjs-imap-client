@@ -299,7 +299,7 @@
             callback = undefined;
         }
 
-        args.push(function(response, next) {
+        args.push(function(response) {
             var error = null;
 
             if (response && response.capability) {
@@ -315,9 +315,7 @@
                 }
             }
             if (typeof callback === 'function') {
-                callback(error, response, next);
-            } else {
-                next();
+                callback(error, response);
             }
         });
 
@@ -350,8 +348,6 @@
         } else if (self._enteredIdle === 'IDLE') {
             self.client.exec({
                 command: 'IDLE'
-            }, function(response, next) {
-                next();
             });
             self._idleTimeout = setTimeout(function() {
                 console.log(self.options.sessionId + ' sending idle DONE');
@@ -403,10 +399,9 @@
         }
 
         return new Promise(function(resolve, reject) {
-            self.exec('STARTTLS', function(err, response, next) {
+            self.exec('STARTTLS', function(err) {
                 if (err) {
                     reject(err);
-                    next();
                     return;
                 }
 
@@ -415,7 +410,6 @@
                     self.updateCapability().then(function() {
                         resolve(upgraded);
                     }).catch(reject);
-                    next();
                 });
             });
         });
@@ -446,13 +440,12 @@
         }
 
         return new Promise(function(resolve, reject) {
-            self.exec('CAPABILITY', function(err, response, next) {
+            self.exec('CAPABILITY', function(err) {
                 if (err) {
                     reject(err);
                 } else {
                     resolve(true);
                 }
-                next();
             });
         });
     };
@@ -483,13 +476,12 @@
             return promise;
         }
 
-        self.exec('NAMESPACE', 'NAMESPACE', function(err, response, next) {
+        self.exec('NAMESPACE', 'NAMESPACE', function(err, response) {
             if (err) {
                 callback(err);
             } else {
                 callback(null, self._parseNAMESPACE(response));
             }
-            next();
         });
 
         return promise;
@@ -527,7 +519,7 @@
                 type: 'ATOM',
                 value: 'DEFLATE'
             }]
-        }, function(err, response, next) {
+        }, function(err) {
             if (err) {
                 callback(err);
             } else {
@@ -535,7 +527,6 @@
                 self.client.enableCompression();
                 callback(null, true);
             }
-            next();
         });
 
         return promise;
@@ -573,7 +564,7 @@
                     sensitive: true
                 }]
             };
-            options.onplustagged = function(response, next) {
+            options.onplustagged = function(response) {
                 var payload;
                 if (response && response.payload) {
                     try {
@@ -584,7 +575,6 @@
                 }
                 // + tagged error response expects an empty line in return
                 self.client.send('\r\n');
-                next();
             };
         } else {
             command = {
@@ -600,12 +590,12 @@
             };
         }
 
-        self.exec(command, 'capability', options, function(err, response, next) {
+        self.exec(command, 'capability', options, function(err, response) {
             var capabilityUpdated = false;
 
             if (err) {
                 callback(err);
-                return next();
+                return;
             }
 
             self._changeState(self.STATE_AUTHENTICATED);
@@ -636,8 +626,6 @@
                     callback(null, true);
                 }).catch(callback);
             }
-
-            next();
         });
     };
 
@@ -679,16 +667,16 @@
         self.exec({
             command: 'ID',
             attributes: attributes
-        }, 'ID', function(err, response, next) {
+        }, 'ID', function(err, response) {
             if (err) {
                 console.error(self.options.sessionId + ' error updating server id: ' + err + '\n' + err.stack);
                 callback(err);
-                return next();
+                return;
             }
 
             if (!response.payload || !response.payload.ID || !response.payload.ID.length) {
                 callback(null, false);
-                return next();
+                return;
             }
 
             self.serverId = {};
@@ -703,8 +691,6 @@
             });
 
             callback(null, self.serverId);
-
-            next();
         });
     };
 
@@ -731,10 +717,10 @@
         self.exec({
             command: 'LIST',
             attributes: ['', '*']
-        }, 'LIST', function(err, response, next) {
+        }, 'LIST', function(err, response) {
             if (err) {
                 callback(err);
-                return next();
+                return;
             }
 
             var tree = {
@@ -744,7 +730,7 @@
 
             if (!response.payload || !response.payload.LIST || !response.payload.LIST.length) {
                 callback(null, false);
-                return next();
+                return;
             }
 
             response.payload.LIST.forEach(function(item) {
@@ -762,16 +748,16 @@
             self.exec({
                 command: 'LSUB',
                 attributes: ['', '*']
-            }, 'LSUB', function(err, response, next) {
+            }, 'LSUB', function(err, response) {
                 if (err) {
                     console.error(self.options.sessionId + ' error while listing subscribed mailboxes: ' + err + '\n' + err.stack);
                     callback(null, tree);
-                    return next();
+                    return;
                 }
 
                 if (!response.payload || !response.payload.LSUB || !response.payload.LSUB.length) {
                     callback(null, tree);
-                    return next();
+                    return;
                 }
 
                 response.payload.LSUB.forEach(function(item) {
@@ -790,10 +776,8 @@
 
                 callback(null, tree);
 
-                next();
             });
 
-            next();
         });
 
         return promise;
@@ -828,13 +812,12 @@
         this.exec({
             command: 'CREATE',
             attributes: [utf7.imap.encode(path)]
-        }, function(err, response, next) {
+        }, function(err) {
             if (err && err.code === 'ALREADYEXISTS') {
                 callback(null, true);
             } else {
                 callback(err, false);
             }
-            next();
         });
 
         return promise;
@@ -883,13 +866,12 @@
         self.exec(command, 'FETCH', {
             precheck: options.precheck,
             ctx: options.ctx
-        }, function(err, response, next) {
+        }, function(err, response) {
             if (err) {
                 callback(err);
             } else {
                 callback(null, self._parseFETCH(response));
             }
-            next();
         });
 
         return promise;
@@ -926,13 +908,12 @@
         self.exec(command, 'SEARCH', {
             precheck: options.precheck,
             ctx: options.ctx
-        }, function(err, response, next) {
+        }, function(err, response) {
             if (err) {
                 callback(err);
             } else {
                 callback(null, self._parseSEARCH(response));
             }
-            next();
         });
 
         return promise;
@@ -1003,13 +984,12 @@
         self.exec(command, 'FETCH', {
             precheck: options.precheck,
             ctx: options.ctx
-        }, function(err, response, next) {
+        }, function(err, response) {
             if (err) {
                 callback(err);
             } else {
                 callback(null, self._parseFETCH(response));
             }
-            next();
         });
 
         return promise;
@@ -1067,9 +1047,8 @@
         self.exec(command, {
             precheck: options.precheck,
             ctx: options.ctx
-        }, function(err, response, next) {
+        }, function(err) {
             callback(err, err ? undefined : true);
-            next();
         });
 
         return promise;
@@ -1128,13 +1107,12 @@
                         value: sequence
                     }]
                 } : 'EXPUNGE',
-                function(err, response, next) {
+                function(err) {
                     if (err) {
                         callback(err);
                     } else {
                         callback(null, true);
                     }
-                    next();
                 });
         });
 
@@ -1184,13 +1162,12 @@
                 precheck: options.precheck,
                 ctx: options.ctx
             },
-            function(err, response, next) {
+            function(err, response) {
                 if (err) {
                     callback(err);
                 } else {
                     callback(null, response.humanReadable || 'COPY completed');
                 }
-                next();
             });
 
         return promise;
@@ -1242,13 +1219,12 @@
                     precheck: options.precheck,
                     ctx: options.ctx
                 },
-                function(err, response, next) {
+                function(err) {
                     if (err) {
                         callback(err);
                     } else {
                         callback(null, true);
                     }
-                    next();
                 });
         } else {
             // Fallback to COPY + EXPUNGE
@@ -1311,10 +1287,10 @@
         self.exec(query, ['EXISTS', 'FLAGS', 'OK'], {
             precheck: options.precheck,
             ctx: options.ctx
-        }, function(err, response, next) {
+        }, function(err, response) {
             if (err) {
                 callback(err);
-                return next();
+                return;
             }
 
             self._changeState(self.STATE_SELECTED);
@@ -1331,7 +1307,6 @@
 
             self.onselectmailbox(path, mailboxInfo);
 
-            next();
         });
 
         return promise;
@@ -1349,11 +1324,10 @@
      * @param {Object} response Parsed server response
      * @param {Function} next Until called, server responses are not processed
      */
-    BrowserBox.prototype._untaggedOkHandler = function(response, next) {
+    BrowserBox.prototype._untaggedOkHandler = function(response) {
         if (response && response.capability) {
             this.capability = response.capability;
         }
-        next();
     };
 
     /**
@@ -1362,11 +1336,10 @@
      * @param {Object} response Parsed server response
      * @param {Function} next Until called, server responses are not processed
      */
-    BrowserBox.prototype._untaggedCapabilityHandler = function(response, next) {
+    BrowserBox.prototype._untaggedCapabilityHandler = function(response) {
         this.capability = [].concat(response && response.attributes || []).map(function(capa) {
             return (capa.value || '').toString().toUpperCase().trim();
         });
-        next();
     };
 
     /**
@@ -1375,11 +1348,10 @@
      * @param {Object} response Parsed server response
      * @param {Function} next Until called, server responses are not processed
      */
-    BrowserBox.prototype._untaggedExistsHandler = function(response, next) {
+    BrowserBox.prototype._untaggedExistsHandler = function(response) {
         if (response && response.hasOwnProperty('nr')) {
             this.onupdate('exists', response.nr);
         }
-        next();
     };
 
     /**
@@ -1388,11 +1360,10 @@
      * @param {Object} response Parsed server response
      * @param {Function} next Until called, server responses are not processed
      */
-    BrowserBox.prototype._untaggedExpungeHandler = function(response, next) {
+    BrowserBox.prototype._untaggedExpungeHandler = function(response) {
         if (response && response.hasOwnProperty('nr')) {
             this.onupdate('expunge', response.nr);
         }
-        next();
     };
 
     /**
@@ -1401,13 +1372,12 @@
      * @param {Object} response Parsed server response
      * @param {Function} next Until called, server responses are not processed
      */
-    BrowserBox.prototype._untaggedFetchHandler = function(response, next) {
+    BrowserBox.prototype._untaggedFetchHandler = function(response) {
         this.onupdate('fetch', [].concat(this._parseFETCH({
             payload: {
                 FETCH: [response]
             }
         }) || []).shift());
-        next();
     };
 
     // Private helpers
