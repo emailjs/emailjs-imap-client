@@ -53,8 +53,7 @@
 
         describe('#_onReady', function() {
             it('should call updateCapability', function() {
-                sinon.stub(br, 'updateCapability');
-                br.updateCapability.returns(Promise.resolve(true));
+                sinon.stub(br, 'updateCapability').returns(Promise.resolve(true));
 
                 br._onReady();
 
@@ -122,10 +121,7 @@
         describe('#close', function() {
             it('should send LOGOUT', function(done) {
                 sinon.stub(br.client, 'close');
-                sinon.stub(br, 'exec', function(cmd, callback) {
-                    expect(cmd).to.equal('LOGOUT');
-                    callback();
-                });
+                sinon.stub(br, 'exec').withArgs('LOGOUT').returns(Promise.resolve());
 
                 br.close(function() {
                     // the close call comes after the current event loop iteration hass been handled.
@@ -156,11 +152,10 @@
                 sinon.stub(br.client, 'exec', function() {
                     arguments[arguments.length - 1]({});
                 });
-                br.exec('TEST', function(err) {
-                    expect(err).to.not.exist;
+                br.exec('TEST').then(function(res) {
+                    expect(res).to.deep.equal({});
                     expect(br.client.exec.args[0][0]).to.equal('TEST');
-                    done();
-                });
+                }).then(done);
             });
 
             it('should update capability from response', function(done) {
@@ -169,11 +164,12 @@
                         capability: ['A', 'B']
                     });
                 });
-                br.exec('TEST', function(err) {
-                    expect(err).to.not.exist;
+                br.exec('TEST').then(function(res) {
+                    expect(res).to.deep.equal({
+                        capability: ['A', 'B']
+                    });
                     expect(br.capability).to.deep.equal(['A', 'B']);
-                    done();
-                });
+                }).then(done);
             });
 
             it('should return error on NO/BAD', function(done) {
@@ -182,7 +178,7 @@
                         command: 'NO'
                     });
                 });
-                br.exec('TEST', function(err) {
+                br.exec('TEST').catch(function(err) {
                     expect(err).to.exist;
                     done();
                 });
@@ -254,7 +250,7 @@
 
             it('should run STARTTLS', function(done) {
                 sinon.stub(br.client, 'upgrade').yields(null, false);
-                sinon.stub(br, 'exec').withArgs('STARTTLS').yields(null, null);
+                sinon.stub(br, 'exec').withArgs('STARTTLS').returns(Promise.resolve());
                 sinon.stub(br, 'updateCapability').returns(Promise.resolve());
 
                 br.capability = ['STARTTLS'];
@@ -290,7 +286,7 @@
             });
 
             it('should run CAPABILITY if capability not set', function(done) {
-                br.exec.yields(null, null);
+                br.exec.returns(Promise.resolve());
 
                 br.capability = [];
 
@@ -300,7 +296,7 @@
             });
 
             it('should force run CAPABILITY', function(done) {
-                br.exec.yields();
+                br.exec.returns(Promise.resolve());
                 br.capability = ['abc'];
 
                 br.updateCapability(true).then(function() {
@@ -321,8 +317,7 @@
 
         describe('#listNamespaces', function() {
             it('should run NAMESPACE if supported', function() {
-                sinon.stub(br, 'exec');
-
+                sinon.stub(br, 'exec').returns(Promise.resolve());
                 br.capability = ['NAMESPACE'];
                 br.listNamespaces();
                 expect(br.exec.callCount).to.equal(1);
@@ -344,25 +339,27 @@
         });
 
         describe('#compressConnection', function() {
-            it('should run COMPRESS=DEFLATE if supported', function() {
-                sinon.stub(br, 'exec').yields(null, {});
+            it('should run COMPRESS=DEFLATE if supported', function(done) {
+                sinon.stub(br, 'exec').returns(Promise.resolve({}));
                 sinon.stub(br.client, 'enableCompression');
 
                 br.options.enableCompression = true;
                 br.capability = ['COMPRESS=DEFLATE'];
-                br.compressConnection();
-                expect(br.exec.callCount).to.equal(1);
-                expect(br.client.enableCompression.callCount).to.equal(1);
-                expect(br.exec.args[0][0]).to.deep.equal({
-                    command: 'COMPRESS',
-                    attributes: [{
-                        type: 'ATOM',
-                        value: 'DEFLATE'
-                    }]
-                });
+                br.compressConnection().then(function() {
+                    expect(br.exec.callCount).to.equal(1);
+                    expect(br.client.enableCompression.callCount).to.equal(1);
+                    expect(br.exec.args[0][0]).to.deep.equal({
+                        command: 'COMPRESS',
+                        attributes: [{
+                            type: 'ATOM',
+                            value: 'DEFLATE'
+                        }]
+                    });
 
-                br.exec.restore();
-                br.client.enableCompression.restore();
+                    br.exec.restore();
+                    br.client.enableCompression.restore();
+                    done();
+                });
             });
 
             it('should do nothing if not supported', function() {
@@ -388,53 +385,57 @@
         });
 
         describe('#login', function() {
-            it('should call LOGIN', function() {
-                sinon.stub(br, 'exec');
+            it('should call LOGIN', function(done) {
+                sinon.stub(br, 'exec').returns(Promise.resolve({}));
+                sinon.stub(br, 'updateCapability').returns(Promise.resolve(true));
 
                 br.login({
                     user: 'u1',
                     pass: 'p1'
+                }).then(function() {
+                    expect(br.exec.callCount).to.equal(1);
+                    expect(br.exec.args[0][0]).to.deep.equal({
+                        command: 'login',
+                        attributes: [{
+                            type: 'STRING',
+                            value: 'u1'
+                        }, {
+                            type: 'STRING',
+                            value: 'p1',
+                            sensitive: true
+                        }]
+                    });
+
+                    br.exec.restore();
+                    done();
                 });
 
-                expect(br.exec.callCount).to.equal(1);
-                expect(br.exec.args[0][0]).to.deep.equal({
-                    command: 'login',
-                    attributes: [{
-                        type: 'STRING',
-                        value: 'u1'
-                    }, {
-                        type: 'STRING',
-                        value: 'p1',
-                        sensitive: true
-                    }]
-                });
-
-                br.exec.restore();
             });
 
             it('should call XOAUTH2', function() {
-                sinon.stub(br, 'exec');
+                sinon.stub(br, 'exec').returns(Promise.resolve({}));
+                sinon.stub(br, 'updateCapability').returns(Promise.resolve(true));
 
                 br.capability = ['AUTH=XOAUTH2'];
                 br.login({
                     user: 'u1',
                     xoauth2: 'abc'
-                });
+                }).then(function() {
+                    expect(br.exec.callCount).to.equal(1);
+                    expect(br.exec.args[0][0]).to.deep.equal({
+                        command: 'AUTHENTICATE',
+                        attributes: [{
+                            type: 'ATOM',
+                            value: 'XOAUTH2'
+                        }, {
+                            type: 'ATOM',
+                            value: 'dXNlcj11MQFhdXRoPUJlYXJlciBhYmMBAQ==',
+                            sensitive: true
+                        }]
+                    });
 
-                expect(br.exec.callCount).to.equal(1);
-                expect(br.exec.args[0][0]).to.deep.equal({
-                    command: 'AUTHENTICATE',
-                    attributes: [{
-                        type: 'ATOM',
-                        value: 'XOAUTH2'
-                    }, {
-                        type: 'ATOM',
-                        value: 'dXNlcj11MQFhdXRoPUJlYXJlciBhYmMBAQ==',
-                        sensitive: true
-                    }]
+                    br.exec.restore();
                 });
-
-                br.exec.restore();
             });
         });
 
@@ -451,7 +452,7 @@
             });
 
             it('should send NIL', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, callback) {
+                sinon.stub(br, 'exec', function(command) {
                     expect(command).to.deep.equal({
                         command: 'ID',
                         attributes: [
@@ -459,7 +460,7 @@
                         ]
                     });
 
-                    callback(null, {
+                    return Promise.resolve({
                         payload: {
                             ID: [{
                                 attributes: [
@@ -481,7 +482,7 @@
             });
 
             it('should exhange ID values', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, callback) {
+                sinon.stub(br, 'exec', function(command) {
                     expect(command).to.deep.equal({
                         command: 'ID',
                         attributes: [
@@ -489,7 +490,7 @@
                         ]
                     });
 
-                    callback(null, {
+                    return Promise.resolve({
                         payload: {
                             ID: [{
                                 attributes: [
@@ -527,32 +528,25 @@
 
         describe('#listMailboxes', function() {
             it('should call LIST and LSUB in sequence', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, callback) {
-                    br.exec.restore();
-                    sinon.stub(br, 'exec', function(command, untagged, callback) {
-                        br.exec.restore();
+                sinon.stub(br, 'exec');
 
-                        expect(command).to.deep.equal({
-                            command: 'LSUB',
-                            attributes: ['', '*']
-                        });
-                        callback(null, {
-                            payload: {
-                                LSUB: [false]
-                            }
-                        });
-                    });
+                br.exec.withArgs({
+                    command: 'LIST',
+                    attributes: ['', '*']
+                }).returns(Promise.resolve({
+                    payload: {
+                        LIST: [false]
+                    }
+                }));
 
-                    expect(command).to.deep.equal({
-                        command: 'LIST',
-                        attributes: ['', '*']
-                    });
-                    callback(null, {
-                        payload: {
-                            LIST: [false]
-                        }
-                    });
-                });
+                br.exec.withArgs({
+                    command: 'LSUB',
+                    attributes: ['', '*']
+                }).returns(Promise.resolve({
+                    payload: {
+                        LSUB: [false]
+                    }
+                }));
 
                 br.listMailboxes(function(err, tree) {
                     expect(err).to.not.exist;
@@ -563,16 +557,16 @@
             });
 
             it.skip('should not die on NIL separators', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, callback) {
+                sinon.stub(br, 'exec', function(command) {
                     br.exec.restore();
-                    sinon.stub(br, 'exec', function(command, untagged, callback) {
+                    sinon.stub(br, 'exec', function(command) {
                         br.exec.restore();
 
                         expect(command).to.deep.equal({
                             command: 'LSUB',
                             attributes: ['', '*']
                         });
-                        callback(null, {
+                        return Promise.resolve({
                             payload: {
                                 LSUB: [
                                     imapHandler.parser('* LSUB (\\NoInferiors) NIL "INBOX"')
@@ -585,7 +579,7 @@
                         command: 'LIST',
                         attributes: ['', '*']
                     });
-                    callback(null, {
+                    return Promise.resolve({
                         payload: {
                             LIST: [
                                 imapHandler.parser('* LIST (\\NoInferiors) NIL "INBOX"')
@@ -608,7 +602,7 @@
             // simplicity we always generate a string even if it could be
             // expressed as an atom.
             it('should call CREATE with a string payload', function(done) {
-                sinon.stub(br, 'exec').yields(null, null);
+                sinon.stub(br, 'exec').returns(Promise.resolve());
                 var mailboxName = 'foo';
                 br.createMailbox(mailboxName, function(err) {
                     expect(err).to.not.exist;
@@ -626,7 +620,7 @@
             });
 
             it('should call mutf7 encode the argument', function(done) {
-                sinon.stub(br, 'exec').yields(null, null);
+                sinon.stub(br, 'exec').returns(Promise.resolve());
                 // From RFC 3501
                 var localName = '~peter/mail/\u53f0\u5317/\u65e5\u672c\u8a9e';
                 var serverName = '~peter/mail/&U,BTFw-/&ZeVnLIqe-';
@@ -649,10 +643,7 @@
                 var fakeErr = {
                     code: 'ALREADYEXISTS'
                 };
-                var fakeResp = {
-                    code: 'ALREADYEXISTS'
-                };
-                sinon.stub(br, 'exec').yields(fakeErr, fakeResp);
+                sinon.stub(br, 'exec').returns(Promise.reject(fakeErr));
                 var mailboxName = 'foo';
                 br.createMailbox(mailboxName, function(err, alreadyExists) {
                     expect(err).to.not.exist;
@@ -673,9 +664,7 @@
 
         describe('#listMessages', function() {
             it('should call FETCH', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc');
-                });
+                sinon.stub(br, 'exec').returns(Promise.resolve('abc'));
                 sinon.stub(br, '_buildFETCHCommand', function() {
                     return {};
                 });
@@ -683,30 +672,29 @@
 
                 br.listMessages('1:2', ['uid', 'flags'], {
                     byUid: true
-                }, function() {});
+                }, function() {
+                    expect(br._buildFETCHCommand.callCount).to.equal(1);
+                    expect(br._buildFETCHCommand.args[0][0]).to.equal('1:2');
+                    expect(br._buildFETCHCommand.args[0][1]).to.deep.equal(['uid', 'flags']);
+                    expect(br._buildFETCHCommand.args[0][2]).to.deep.equal({
+                        byUid: true
+                    });
+                    expect(br.exec.callCount).to.equal(1);
+                    expect(br._parseFETCH.withArgs('abc').callCount).to.equal(1);
 
-                expect(br._buildFETCHCommand.callCount).to.equal(1);
-                expect(br._buildFETCHCommand.args[0][0]).to.equal('1:2');
-                expect(br._buildFETCHCommand.args[0][1]).to.deep.equal(['uid', 'flags']);
-                expect(br._buildFETCHCommand.args[0][2]).to.deep.equal({
-                    byUid: true
+                    br.exec.restore();
+                    br._buildFETCHCommand.restore();
+                    br._parseFETCH.restore();
+
+                    done();
                 });
-                expect(br.exec.callCount).to.equal(1);
-                expect(br._parseFETCH.withArgs('abc').callCount).to.equal(1);
 
-                br.exec.restore();
-                br._buildFETCHCommand.restore();
-                br._parseFETCH.restore();
-
-                done();
             });
         });
 
         describe('#search', function() {
             it('should call SEARCH', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc');
-                });
+                sinon.stub(br, 'exec').returns(Promise.resolve('abc'));
                 sinon.stub(br, '_buildSEARCHCommand', function() {
                     return {};
                 });
@@ -716,29 +704,29 @@
                     uid: 1
                 }, {
                     byUid: true
-                }, function() {});
+                }, function() {
+                    expect(br._buildSEARCHCommand.callCount).to.equal(1);
+                    expect(br._buildSEARCHCommand.args[0][0]).to.deep.equal({
+                        uid: 1
+                    });
+                    expect(br._buildSEARCHCommand.args[0][1]).to.deep.equal({
+                        byUid: true
+                    });
+                    expect(br.exec.callCount).to.equal(1);
+                    expect(br._parseSEARCH.withArgs('abc').callCount).to.equal(1);
 
-                expect(br._buildSEARCHCommand.callCount).to.equal(1);
-                expect(br._buildSEARCHCommand.args[0][0]).to.deep.equal({
-                    uid: 1
+                    br.exec.restore();
+                    br._buildSEARCHCommand.restore();
+                    br._parseSEARCH.restore();
+
+                    done();
                 });
-                expect(br._buildSEARCHCommand.args[0][1]).to.deep.equal({
-                    byUid: true
-                });
-                expect(br.exec.callCount).to.equal(1);
-                expect(br._parseSEARCH.withArgs('abc').callCount).to.equal(1);
-
-                br.exec.restore();
-                br._buildSEARCHCommand.restore();
-                br._parseSEARCH.restore();
-
-                done();
             });
         });
 
         describe('#upload', function() {
             it('should call APPEND with custom flag', function(done) {
-                sinon.stub(br, 'exec').yields(null, null);
+                sinon.stub(br, 'exec').returns(Promise.resolve());
 
                 br.upload('mailbox', 'this is a message', {
                     flags: ['\\$MyFlag']
@@ -754,7 +742,7 @@
             });
 
             it('should call APPEND w/o flags', function(done) {
-                sinon.stub(br, 'exec').yields(null, null);
+                sinon.stub(br, 'exec').returns(Promise.resolve());
 
                 br.upload('mailbox', 'this is a message', function(err, success) {
                     expect(err).to.not.exist;
@@ -770,41 +758,35 @@
 
         describe('#setFlags', function() {
             it('should call STORE', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc');
-                });
-                sinon.stub(br, '_buildSTORECommand', function() {
-                    return {};
-                });
+                sinon.stub(br, 'exec').returns(Promise.resolve('abc'));
+                sinon.stub(br, '_buildSTORECommand').returns({});
                 sinon.stub(br, '_parseFETCH');
 
                 br.setFlags('1:2', ['\\Seen', '$MyFlag'], {
                     byUid: true
-                }, function() {});
+                }, function() {
+                    expect(br._buildSTORECommand.callCount).to.equal(1);
+                    expect(br._buildSTORECommand.args[0][0]).to.equal('1:2');
+                    expect(br._buildSTORECommand.args[0][1]).to.equal('FLAGS');
+                    expect(br._buildSTORECommand.args[0][2]).to.deep.equal(['\\Seen', '$MyFlag']);
+                    expect(br._buildSTORECommand.args[0][3]).to.deep.equal({
+                        byUid: true
+                    });
+                    expect(br.exec.callCount).to.equal(1);
+                    expect(br._parseFETCH.withArgs('abc').callCount).to.equal(1);
 
-                expect(br._buildSTORECommand.callCount).to.equal(1);
-                expect(br._buildSTORECommand.args[0][0]).to.equal('1:2');
-                expect(br._buildSTORECommand.args[0][1]).to.equal('FLAGS');
-                expect(br._buildSTORECommand.args[0][2]).to.deep.equal(['\\Seen', '$MyFlag']);
-                expect(br._buildSTORECommand.args[0][3]).to.deep.equal({
-                    byUid: true
+                    br.exec.restore();
+                    br._buildSTORECommand.restore();
+                    br._parseFETCH.restore();
+
+                    done();
                 });
-                expect(br.exec.callCount).to.equal(1);
-                expect(br._parseFETCH.withArgs('abc').callCount).to.equal(1);
-
-                br.exec.restore();
-                br._buildSTORECommand.restore();
-                br._parseFETCH.restore();
-
-                done();
             });
         });
 
         describe('#store', function() {
             it('should call STORE', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc');
-                });
+                sinon.stub(br, 'exec').returns(Promise.resolve('abc'));
                 sinon.stub(br, '_buildSTORECommand', function() {
                     return {};
                 });
@@ -812,23 +794,23 @@
 
                 br.store('1:2', '+X-GM-LABELS', ['\\Sent', '\\Junk'], {
                     byUid: true
-                }, function() {});
+                }, function() {
+                    expect(br._buildSTORECommand.callCount).to.equal(1);
+                    expect(br._buildSTORECommand.args[0][0]).to.equal('1:2');
+                    expect(br._buildSTORECommand.args[0][1]).to.equal('+X-GM-LABELS');
+                    expect(br._buildSTORECommand.args[0][2]).to.deep.equal(['\\Sent', '\\Junk']);
+                    expect(br._buildSTORECommand.args[0][3]).to.deep.equal({
+                        byUid: true
+                    });
+                    expect(br.exec.callCount).to.equal(1);
+                    expect(br._parseFETCH.withArgs('abc').callCount).to.equal(1);
 
-                expect(br._buildSTORECommand.callCount).to.equal(1);
-                expect(br._buildSTORECommand.args[0][0]).to.equal('1:2');
-                expect(br._buildSTORECommand.args[0][1]).to.equal('+X-GM-LABELS');
-                expect(br._buildSTORECommand.args[0][2]).to.deep.equal(['\\Sent', '\\Junk']);
-                expect(br._buildSTORECommand.args[0][3]).to.deep.equal({
-                    byUid: true
+                    br.exec.restore();
+                    br._buildSTORECommand.restore();
+                    br._parseFETCH.restore();
+
+                    done();
                 });
-                expect(br.exec.callCount).to.equal(1);
-                expect(br._parseFETCH.withArgs('abc').callCount).to.equal(1);
-
-                br.exec.restore();
-                br._buildSTORECommand.restore();
-                br._parseFETCH.restore();
-
-                done();
             });
         });
 
@@ -840,9 +822,7 @@
                     });
                     callback();
                 });
-                sinon.stub(br, 'exec', function(command, callback) {
-                    callback(null, 'abc');
-                });
+                sinon.stub(br, 'exec').returns(Promise.resolve('abc'));
             });
 
             afterEach(function() {
@@ -879,11 +859,9 @@
 
         describe('#copyMessages', function() {
             it('should call COPY', function(done) {
-                sinon.stub(br, 'exec', function(command, options, callback) {
-                    callback(null, {
-                        humanReadable: 'abc'
-                    });
-                });
+                sinon.stub(br, 'exec').returns(Promise.resolve({
+                    humanReadable: 'abc'
+                }));
 
                 br.copyMessages('1:2', '[Gmail]/Trash', {
                     byUid: true
@@ -911,9 +889,7 @@
 
         describe('#moveMessages', function() {
             it('should call MOVE if supported', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc');
-                });
+                sinon.stub(br, 'exec').returns(Promise.resolve('abc'));
 
                 br.capability = ['MOVE'];
                 br.moveMessages('1:2', '[Gmail]/Trash', {
@@ -966,99 +942,91 @@
 
         describe('#selectMailbox', function() {
             it('should run SELECT', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc');
-                });
+                sinon.stub(br, 'exec').returns(Promise.resolve('abc'));
                 sinon.stub(br, '_parseSELECT');
 
-                br.selectMailbox('[Gmail]/Trash', function() {});
+                br.selectMailbox('[Gmail]/Trash', function() {
+                    expect(br.exec.callCount).to.equal(1);
+                    expect(br.exec.args[0][0]).to.deep.equal({
+                        command: 'SELECT',
+                        attributes: [{
+                            type: 'STRING',
+                            value: '[Gmail]/Trash'
+                        }]
+                    });
+                    expect(br._parseSELECT.withArgs('abc').callCount).to.equal(1);
+                    expect(br.state).to.equal(br.STATE_SELECTED);
 
-                expect(br.exec.callCount).to.equal(1);
-                expect(br.exec.args[0][0]).to.deep.equal({
-                    command: 'SELECT',
-                    attributes: [{
-                        type: 'STRING',
-                        value: '[Gmail]/Trash'
-                    }]
+                    br.exec.restore();
+                    br._parseSELECT.restore();
+
+                    done();
                 });
-                expect(br._parseSELECT.withArgs('abc').callCount).to.equal(1);
-                expect(br.state).to.equal(br.STATE_SELECTED);
-
-                br.exec.restore();
-                br._parseSELECT.restore();
-
-                done();
             });
 
             it('should run SELECT with CONDSTORE', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc');
-                });
+                sinon.stub(br, 'exec').returns(Promise.resolve('abc'));
                 sinon.stub(br, '_parseSELECT');
 
                 br.capability = ['CONDSTORE'];
                 br.selectMailbox('[Gmail]/Trash', {
                     condstore: true
-                }, function() {});
+                }, function() {
+                    expect(br.exec.callCount).to.equal(1);
+                    expect(br.exec.args[0][0]).to.deep.equal({
+                        command: 'SELECT',
+                        attributes: [{
+                                type: 'STRING',
+                                value: '[Gmail]/Trash'
+                            },
+                            [{
+                                type: 'ATOM',
+                                value: 'CONDSTORE'
+                            }]
+                        ]
+                    });
+                    expect(br._parseSELECT.withArgs('abc').callCount).to.equal(1);
+                    expect(br.state).to.equal(br.STATE_SELECTED);
 
-                expect(br.exec.callCount).to.equal(1);
-                expect(br.exec.args[0][0]).to.deep.equal({
-                    command: 'SELECT',
-                    attributes: [{
-                            type: 'STRING',
-                            value: '[Gmail]/Trash'
-                        },
-                        [{
-                            type: 'ATOM',
-                            value: 'CONDSTORE'
-                        }]
-                    ]
+                    br.exec.restore();
+                    br._parseSELECT.restore();
+
+                    done();
                 });
-                expect(br._parseSELECT.withArgs('abc').callCount).to.equal(1);
-                expect(br.state).to.equal(br.STATE_SELECTED);
-
-                br.exec.restore();
-                br._parseSELECT.restore();
-
-                done();
             });
 
             it('should emit onselectmailbox', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc');
-                });
+                sinon.stub(br, 'exec').returns(Promise.resolve('abc'));
                 sinon.stub(br, '_parseSELECT').returns('def');
-                sinon.stub(br, 'onselectmailbox');
+                sinon.stub(br, 'onselectmailbox', function() {
+                    done();
+                });
 
-                br.selectMailbox('[Gmail]/Trash', function() {});
+                br.selectMailbox('[Gmail]/Trash', function() {
+                    expect(br._parseSELECT.withArgs('abc').callCount).to.equal(1);
+                    expect(br.onselectmailbox.withArgs('[Gmail]/Trash', 'def').callCount).to.equal(1);
 
-                expect(br._parseSELECT.withArgs('abc').callCount).to.equal(1);
-                expect(br.onselectmailbox.withArgs('[Gmail]/Trash', 'def').callCount).to.equal(1);
-
-                br.exec.restore();
-                br._parseSELECT.restore();
-                br.onselectmailbox.restore();
-
-                done();
+                    br.exec.restore();
+                    br._parseSELECT.restore();
+                    br.onselectmailbox.restore();
+                });
             });
 
             it('should emit onclosemailbox', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc');
-                });
+                sinon.stub(br, 'exec').returns(Promise.resolve('abc'));
                 sinon.stub(br, '_parseSELECT').returns('def');
                 sinon.stub(br, 'onclosemailbox');
 
                 br.selectedMailbox = 'yyy';
-                br.selectMailbox('[Gmail]/Trash', function() {});
+                br.selectMailbox('[Gmail]/Trash', function() {
+                    expect(br.onclosemailbox.withArgs('yyy').callCount).to.equal(1);
 
-                expect(br.onclosemailbox.withArgs('yyy').callCount).to.equal(1);
+                    br.exec.restore();
+                    br._parseSELECT.restore();
+                    br.onclosemailbox.restore();
 
-                br.exec.restore();
-                br._parseSELECT.restore();
-                br.onclosemailbox.restore();
-
-                done();
+                    done();
+                });
             });
         });
 

@@ -211,7 +211,7 @@
         }).then(function() {
             self.updateId(self.options.id, function() {
                 // ignore errors for exchanging ID values
-                self.login(self.options.auth, function() {
+                self.login(self.options.auth).then(function() {
                     // can't setup compression before authnetication
                     self.compressConnection(function() {
                         // ignore errors for setting up compression
@@ -271,12 +271,11 @@
         console.log(self.options.sessionId + ' closing connection');
         self._changeState(self.STATE_LOGOUT);
 
-        self.exec('LOGOUT', function(err) {
-            if (typeof callback === 'function') {
-                callback(err || null);
-            }
-
+        self.exec('LOGOUT').then(function() {
+            callback();
             self.client.close();
+        }).catch(function(err) {
+            callback(err);
         });
 
         return promise;
@@ -287,40 +286,30 @@
      *
      * @param {Object} request Structured request object
      * @param {Array} acceptUntagged a list of untagged responses that will be included in 'payload' property
-     * @param {Function} callback Callback function to run once the command has been processed
      */
-    BrowserBox.prototype.exec = function() {
+    BrowserBox.prototype.exec = function(request, acceptUntagged) {
         var self = this;
-        var args = Array.prototype.slice.call(arguments),
-            callback = args.pop();
 
-        if (typeof callback !== 'function') {
-            args.push(callback);
-            callback = undefined;
-        }
+        return self.breakIdle().then(function() {
+            return new Promise(function(resolve, reject) {
+                self.client.exec(request, acceptUntagged, function(response) {
+                    if (response && response.capability) {
+                        self.capability = response.capability;
+                    }
 
-        args.push(function(response) {
-            var error = null;
+                    if (self.client.isError(response)) {
+                        return reject(response);
+                    } else if (['NO', 'BAD'].indexOf((response && response.command || '').toString().toUpperCase().trim()) >= 0) {
+                        const error = new Error(response.humanReadable || 'Error');
+                        if (response.code) {
+                            error.code = response.code;
+                        }
+                        return reject(error);
+                    }
 
-            if (response && response.capability) {
-                self.capability = response.capability;
-            }
-
-            if (self.client.isError(response)) {
-                error = response;
-            } else if (['NO', 'BAD'].indexOf((response && response.command || '').toString().toUpperCase().trim()) >= 0) {
-                error = new Error(response.humanReadable || 'Error');
-                if (response.code) {
-                    error.code = response.code;
-                }
-            }
-            if (typeof callback === 'function') {
-                callback(error, response);
-            }
-        });
-
-        self.breakIdle().then(function() {
-            self.client.exec.apply(self.client, args);
+                    resolve(response);
+                });
+            });
         });
     };
 
@@ -398,13 +387,8 @@
             return Promise.resolve(false);
         }
 
-        return new Promise(function(resolve, reject) {
-            self.exec('STARTTLS', function(err) {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-
+        return self.exec('STARTTLS').then(function() {
+            return new Promise(function(resolve, reject) {
                 self.capability = [];
                 self.client.upgrade(function(err, upgraded) {
                     self.updateCapability().then(function() {
@@ -439,14 +423,8 @@
             return Promise.resolve(false);
         }
 
-        return new Promise(function(resolve, reject) {
-            self.exec('CAPABILITY', function(err) {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(true);
-                }
-            });
+        return self.exec('CAPABILITY').then(function() {
+            return true;
         });
     };
 
@@ -476,12 +454,10 @@
             return promise;
         }
 
-        self.exec('NAMESPACE', 'NAMESPACE', function(err, response) {
-            if (err) {
-                callback(err);
-            } else {
-                callback(null, self._parseNAMESPACE(response));
-            }
+        self.exec('NAMESPACE', 'NAMESPACE').then(function(response) {
+            callback(null, self._parseNAMESPACE(response));
+        }).catch(function(err) {
+            callback(err);
         });
 
         return promise;
@@ -519,14 +495,12 @@
                 type: 'ATOM',
                 value: 'DEFLATE'
             }]
-        }, function(err) {
-            if (err) {
-                callback(err);
-            } else {
-                console.log(self.options.sessionId + ' compression enabled, all data sent and received is deflated');
-                self.client.enableCompression();
-                callback(null, true);
-            }
+        }).then(function() {
+            console.log(self.options.sessionId + ' compression enabled, all data sent and received is deflated');
+            self.client.enableCompression();
+            callback(null, true);
+        }).catch(function(err) {
+            callback(err);
         });
 
         return promise;
@@ -544,9 +518,13 @@
      * @param {String} password
      * @param {Function} callback Returns error if login failed
      */
-    BrowserBox.prototype.login = function(auth, callback) {
+    BrowserBox.prototype.login = function(auth) {
         var self = this;
         var command, options = {};
+        var callback;
+        var promise = new Promise(function(resolve, reject) {
+            callback = callbackPromise(resolve, reject);
+        });
 
         if (!auth) {
             return callback(new Error('Authentication information not provided'));
@@ -590,13 +568,8 @@
             };
         }
 
-        self.exec(command, 'capability', options, function(err, response) {
+        self.exec(command, 'capability', options).then(function(response) {
             var capabilityUpdated = false;
-
-            if (err) {
-                callback(err);
-                return;
-            }
 
             self._changeState(self.STATE_AUTHENTICATED);
             self.authenticated = true;
@@ -626,7 +599,11 @@
                     callback(null, true);
                 }).catch(callback);
             }
+        }).catch(function(err) {
+            callback(err);
         });
+
+        return promise;
     };
 
     /**
@@ -667,13 +644,7 @@
         self.exec({
             command: 'ID',
             attributes: attributes
-        }, 'ID', function(err, response) {
-            if (err) {
-                console.error(self.options.sessionId + ' error updating server id: ' + err + '\n' + err.stack);
-                callback(err);
-                return;
-            }
-
+        }, 'ID').then(function(response) {
             if (!response.payload || !response.payload.ID || !response.payload.ID.length) {
                 callback(null, false);
                 return;
@@ -691,6 +662,8 @@
             });
 
             callback(null, self.serverId);
+        }).catch(function(err) {
+            callback(err);
         });
     };
 
@@ -717,12 +690,7 @@
         self.exec({
             command: 'LIST',
             attributes: ['', '*']
-        }, 'LIST', function(err, response) {
-            if (err) {
-                callback(err);
-                return;
-            }
-
+        }, 'LIST').then(function(response) {
             var tree = {
                 root: true,
                 children: []
@@ -748,13 +716,7 @@
             self.exec({
                 command: 'LSUB',
                 attributes: ['', '*']
-            }, 'LSUB', function(err, response) {
-                if (err) {
-                    console.error(self.options.sessionId + ' error while listing subscribed mailboxes: ' + err + '\n' + err.stack);
-                    callback(null, tree);
-                    return;
-                }
-
+            }, 'LSUB').then(function(response) {
                 if (!response.payload || !response.payload.LSUB || !response.payload.LSUB.length) {
                     callback(null, tree);
                     return;
@@ -776,8 +738,13 @@
 
                 callback(null, tree);
 
+            }).catch(function(err) {
+                console.error(self.options.sessionId + ' error while listing subscribed mailboxes: ' + err + '\n' + err.stack);
+                callback(null, tree);
             });
 
+        }).catch(function(err) {
+            callback(err);
         });
 
         return promise;
@@ -812,7 +779,9 @@
         this.exec({
             command: 'CREATE',
             attributes: [utf7.imap.encode(path)]
-        }, function(err) {
+        }).then(function() {
+            callback(null, false);
+        }).catch(function(err) {
             if (err && err.code === 'ALREADYEXISTS') {
                 callback(null, true);
             } else {
@@ -866,12 +835,10 @@
         self.exec(command, 'FETCH', {
             precheck: options.precheck,
             ctx: options.ctx
-        }, function(err, response) {
-            if (err) {
-                callback(err);
-            } else {
-                callback(null, self._parseFETCH(response));
-            }
+        }).then(function(response) {
+            callback(null, self._parseFETCH(response));
+        }).catch(function(err) {
+            callback(err);
         });
 
         return promise;
@@ -908,12 +875,10 @@
         self.exec(command, 'SEARCH', {
             precheck: options.precheck,
             ctx: options.ctx
-        }, function(err, response) {
-            if (err) {
-                callback(err);
-            } else {
-                callback(null, self._parseSEARCH(response));
-            }
+        }).then(function(response) {
+            callback(null, self._parseSEARCH(response));
+        }).catch(function(err) {
+            callback(err);
         });
 
         return promise;
@@ -984,12 +949,10 @@
         self.exec(command, 'FETCH', {
             precheck: options.precheck,
             ctx: options.ctx
-        }, function(err, response) {
-            if (err) {
-                callback(err);
-            } else {
-                callback(null, self._parseFETCH(response));
-            }
+        }).then(function(response) {
+            callback(null, self._parseFETCH(response));
+        }).catch(function(err) {
+            callback(err);
         });
 
         return promise;
@@ -1047,8 +1010,10 @@
         self.exec(command, {
             precheck: options.precheck,
             ctx: options.ctx
-        }, function(err) {
-            callback(err, err ? undefined : true);
+        }).then(function() {
+            callback(null, true);
+        }).catch(function(err) {
+            callback(err);
         });
 
         return promise;
@@ -1106,13 +1071,10 @@
                         type: 'sequence',
                         value: sequence
                     }]
-                } : 'EXPUNGE',
-                function(err) {
-                    if (err) {
-                        callback(err);
-                    } else {
-                        callback(null, true);
-                    }
+                } : 'EXPUNGE').then(function() {
+                    callback(null, true);
+                }).catch(function(err) {
+                    callback(err);
                 });
         });
 
@@ -1150,25 +1112,22 @@
         options = options || {};
 
         self.exec({
-                command: options.byUid ? 'UID COPY' : 'COPY',
-                attributes: [{
-                    type: 'sequence',
-                    value: sequence
-                }, {
-                    type: 'atom',
-                    value: destination
-                }]
+            command: options.byUid ? 'UID COPY' : 'COPY',
+            attributes: [{
+                type: 'sequence',
+                value: sequence
             }, {
-                precheck: options.precheck,
-                ctx: options.ctx
-            },
-            function(err, response) {
-                if (err) {
-                    callback(err);
-                } else {
-                    callback(null, response.humanReadable || 'COPY completed');
-                }
-            });
+                type: 'atom',
+                value: destination
+            }]
+        }, {
+            precheck: options.precheck,
+            ctx: options.ctx
+        }).then(function(response) {
+            callback(null, response.humanReadable || 'COPY completed');
+        }).catch(function(err) {
+            callback(err);
+        });
 
         return promise;
     };
@@ -1207,25 +1166,22 @@
         if (self.capability.indexOf('MOVE') >= 0) {
             // If possible, use MOVE
             self.exec({
-                    command: options.byUid ? 'UID MOVE' : 'MOVE',
-                    attributes: [{
-                        type: 'sequence',
-                        value: sequence
-                    }, {
-                        type: 'atom',
-                        value: destination
-                    }]
-                }, ['OK'], {
-                    precheck: options.precheck,
-                    ctx: options.ctx
-                },
-                function(err) {
-                    if (err) {
-                        callback(err);
-                    } else {
-                        callback(null, true);
-                    }
-                });
+                command: options.byUid ? 'UID MOVE' : 'MOVE',
+                attributes: [{
+                    type: 'sequence',
+                    value: sequence
+                }, {
+                    type: 'atom',
+                    value: destination
+                }]
+            }, ['OK'], {
+                precheck: options.precheck,
+                ctx: options.ctx
+            }).then(function() {
+                callback(null, true);
+            }).catch(function(err) {
+                callback(err);
+            });
         } else {
             // Fallback to COPY + EXPUNGE
             self.copyMessages(sequence, destination, options, function(err) {
@@ -1287,12 +1243,7 @@
         self.exec(query, ['EXISTS', 'FLAGS', 'OK'], {
             precheck: options.precheck,
             ctx: options.ctx
-        }, function(err, response) {
-            if (err) {
-                callback(err);
-                return;
-            }
-
+        }).then(function(response) {
             self._changeState(self.STATE_SELECTED);
 
             if (self.selectedMailbox && self.selectedMailbox !== path) {
@@ -1303,10 +1254,13 @@
 
             var mailboxInfo = self._parseSELECT(response);
 
+            setTimeout(function () {
+                self.onselectmailbox(path, mailboxInfo);
+            }, 0);
+
             callback(null, mailboxInfo);
-
-            self.onselectmailbox(path, mailboxInfo);
-
+        }).catch(function(err) {
+            callback(err);
         });
 
         return promise;
