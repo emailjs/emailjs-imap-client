@@ -2,11 +2,11 @@
 
 (function(factory) {
     if (typeof define === 'function' && define.amd) {
-        define(['chai', 'axe', 'browserbox-imap', 'mimefuncs'], factory.bind(null, sinon));
+        define(['chai', 'browserbox-imap', 'mimefuncs'], factory.bind(null, sinon));
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('sinon'), require('chai'), require('axe-logger'), require('../../src/browserbox-imap'), require('mimefuncs'));
+        module.exports = factory(require('sinon'), require('chai'), require('../../src/browserbox-imap'), require('mimefuncs'));
     }
-}(function(sinon, chai, axe, ImapClient, mimefuncs) {
+}(function(sinon, chai, ImapClient, mimefuncs) {
     var expect = chai.expect;
     chai.Assertion.includeStack = true;
 
@@ -14,9 +14,6 @@
     var port = 10000;
 
     describe('browserbox imap unit tests', function() {
-        // don't log in the tests
-        axe.removeAppender(axe.defaultAppender);
-
         var client, TCPSocket, openStub, socketStub;
 
         /* jshint indent:false */

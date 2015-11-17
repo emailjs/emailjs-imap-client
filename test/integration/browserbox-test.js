@@ -2,11 +2,11 @@
 
 (function(factory) {
     if (typeof define === 'function' && define.amd) {
-        define(['chai', '../../src/browserbox', 'hoodiecrow', 'axe'], factory);
+        define(['chai', '../../src/browserbox', 'hoodiecrow'], factory);
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('chai'), require('../../src/browserbox'), require('hoodiecrow'), require('axe-logger'));
+        module.exports = factory(require('chai'), require('../../src/browserbox'), require('hoodiecrow'));
     }
-}(function(chai, BrowserBox, hoodiecrow, axe) {
+}(function(chai, BrowserBox, hoodiecrow) {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
     var expect = chai.expect;
@@ -17,9 +17,6 @@
             server;
 
         beforeEach(function(done) {
-            // don't log in the tests
-            axe.removeAppender(axe.defaultAppender);
-
             // start imap test server
             var options = {
                 //debug: true,
