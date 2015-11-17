@@ -207,31 +207,22 @@
         self._changeState(self.STATE_NOT_AUTHENTICATED);
 
         self.updateCapability().then(function() {
-            self.upgradeConnection(function(err) {
-                if (err) {
-                    // emit an error
-                    self.onerror(err);
-                    self.close();
-                    return;
-                }
-                self.updateId(self.options.id, function() {
-                    // ignore errors for exchanging ID values
-                    self.login(self.options.auth, function(err) {
-                        if (err) {
-                            // emit an error
-                            self.onerror(err);
-                            self.close();
-                            return;
-                        }
-                        // can't setup compression before authnetication
-                        self.compressConnection(function() {
-                            // ignore errors for setting up compression
-                            // emit
-                            self.onauth();
-                        });
+            return self.upgradeConnection();
+        }).then(function() {
+            self.updateId(self.options.id, function() {
+                // ignore errors for exchanging ID values
+                self.login(self.options.auth, function() {
+                    // can't setup compression before authnetication
+                    self.compressConnection(function() {
+                        // ignore errors for setting up compression
+                        // emit
+                        self.onauth();
                     });
                 });
             });
+        }).catch(function(err) {
+            self.onerror(err);
+            self.close();
         });
     };
 
@@ -397,34 +388,36 @@
      *   http://tools.ietf.org/html/rfc3501#section-6.2.1
      *
      * @param {Boolean} [forced] By default the command is not run if capability is already listed. Set to true to skip this validation
-     * @param {Function} callback Callback function
      */
-    BrowserBox.prototype.upgradeConnection = function(callback) {
+    BrowserBox.prototype.upgradeConnection = function() {
         var self = this;
 
         // skip request, if already secured
         if (self.client.secureMode) {
-            return callback(null, false);
+            return Promise.resolve(false);
         }
 
         // skip if STARTTLS not available or starttls support disabled
         if ((self.capability.indexOf('STARTTLS') < 0 || self.options.ignoreTLS) && !self.options.requireTLS) {
-            return callback(null, false);
+            return Promise.resolve(false);
         }
 
-        self.exec('STARTTLS', function(err, response, next) {
-            if (err) {
-                callback(err);
-                next();
-            } else {
+        return new Promise(function(resolve, reject) {
+            self.exec('STARTTLS', function(err, response, next) {
+                if (err) {
+                    reject(err);
+                    next();
+                    return;
+                }
+
                 self.capability = [];
                 self.client.upgrade(function(err, upgraded) {
                     self.updateCapability().then(function() {
-                        callback(null, upgraded);
-                    }).catch(callback);
+                        resolve(upgraded);
+                    }).catch(reject);
                     next();
                 });
-            }
+            });
         });
     };
 

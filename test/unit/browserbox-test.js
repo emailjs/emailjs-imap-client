@@ -234,39 +234,40 @@
 
         describe('#upgradeConnection', function() {
             describe('Skip upgrade', function() {
-                it('should do nothing if already secured', function() {
+                it('should do nothing if already secured', function(done) {
                     br.client.secureMode = true;
                     br.capability = ['starttls'];
-                    br.upgradeConnection(function(err, upgraded) {
-                        expect(err).to.not.exist;
+                    br.upgradeConnection().then(function(upgraded) {
                         expect(upgraded).to.be.false;
-                    });
+                    }).then(done);
                 });
 
-                it('should do nothing if STARTTLS not available', function() {
+                it('should do nothing if STARTTLS not available', function(done) {
                     br.client.secureMode = false;
                     br.capability = [];
-                    br.upgradeConnection(function(err, upgraded) {
-                        expect(err).to.not.exist;
+                    br.upgradeConnection().then(function(upgraded) {
                         expect(upgraded).to.be.false;
-                    });
+                    }).then(done);
                 });
             });
 
             it('should run STARTTLS', function(done) {
-                sinon.stub(br.client, 'upgrade');
-                sinon.stub(br, 'exec', function(cmd, cb) {
-                    expect(cmd).to.equal('STARTTLS');
-                    cb();
+                sinon.stub(br.client, 'upgrade').yields(null, false);
+                sinon.stub(br, 'exec').withArgs('STARTTLS').yields(null, null, function() {});
+                sinon.stub(br, 'updateCapability').returns(Promise.resolve());
+
+                br.capability = ['STARTTLS'];
+
+                br.upgradeConnection().then(function(upgraded) {
+                    expect(upgraded).to.be.false;
+
                     expect(br.client.upgrade.callCount).to.equal(1);
                     expect(br.capability.length).to.equal(0);
 
                     br.exec.restore();
                     br.client.upgrade.restore();
-                    done();
-                });
-                br.capability = ['STARTTLS'];
-                br.upgradeConnection();
+                    br.updateCapability.restore();
+                }).then(done);
             });
 
         });
