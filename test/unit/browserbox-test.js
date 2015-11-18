@@ -696,34 +696,37 @@
         });
 
         describe('#search', function() {
-            it('should call SEARCH', function(done) {
-                sinon.stub(br, 'exec').returns(Promise.resolve('abc'));
-                sinon.stub(br, '_buildSEARCHCommand', function() {
-                    return {};
-                });
+            beforeEach(function() {
+                sinon.stub(br, 'exec');
+                sinon.stub(br, '_buildSEARCHCommand');
                 sinon.stub(br, '_parseSEARCH');
+            });
+
+            afterEach(function() {
+                br.exec.restore();
+                br._buildSEARCHCommand.restore();
+                br._parseSEARCH.restore();
+            });
+
+
+            it('should call SEARCH', function(done) {
+                br.exec.returns(Promise.resolve('abc'));
+                br._buildSEARCHCommand.withArgs({
+                    uid: 1
+                }, {
+                    byUid: true
+                }).returns({});
 
                 br.search({
                     uid: 1
                 }, {
                     byUid: true
-                }, function() {
+                }).then(function() {
                     expect(br._buildSEARCHCommand.callCount).to.equal(1);
-                    expect(br._buildSEARCHCommand.args[0][0]).to.deep.equal({
-                        uid: 1
-                    });
-                    expect(br._buildSEARCHCommand.args[0][1]).to.deep.equal({
-                        byUid: true
-                    });
                     expect(br.exec.callCount).to.equal(1);
-                    expect(br._parseSEARCH.withArgs('abc').callCount).to.equal(1);
-
-                    br.exec.restore();
-                    br._buildSEARCHCommand.restore();
-                    br._parseSEARCH.restore();
-
-                    done();
-                });
+                    expect(br._parseSEARCH.calledWith('abc')).to.be.true;
+                    expect(br._parseSEARCH.callCount).to.equal(1);
+                }).then(done);
             });
         });
 

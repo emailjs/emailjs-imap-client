@@ -753,36 +753,19 @@
      *
      * @param {Object} query Search terms
      * @param {Object} [options] Query modifiers
-     * @param {Function} callback Callback function with the array of matching seq. or uid numbers
+     * @returns {Promise} Promise with the array of matching seq. or uid numbers
      */
-    BrowserBox.prototype.search = function(query, options, callback) {
+    BrowserBox.prototype.search = function(query, options) {
         var self = this;
-        var promise;
-
-        if (!callback && typeof options === 'function') {
-            callback = options;
-            options = undefined;
-        }
-
-        if (!callback) {
-            promise = new Promise(function(resolve, reject) {
-                callback = callbackPromise(resolve, reject);
-            });
-        }
-
         options = options || {};
 
         var command = self._buildSEARCHCommand(query, options);
-        self.exec(command, 'SEARCH', {
+        return self.exec(command, 'SEARCH', {
             precheck: options.precheck,
             ctx: options.ctx
         }).then(function(response) {
-            callback(null, self._parseSEARCH(response));
-        }).catch(function(err) {
-            callback(err);
+            return self._parseSEARCH(response);
         });
-
-        return promise;
     };
 
     /**
