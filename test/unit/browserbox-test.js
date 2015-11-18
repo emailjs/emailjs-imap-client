@@ -316,25 +316,54 @@
         });
 
         describe('#listNamespaces', function() {
-            it('should run NAMESPACE if supported', function() {
-                sinon.stub(br, 'exec').returns(Promise.resolve());
-                br.capability = ['NAMESPACE'];
-                br.listNamespaces();
-                expect(br.exec.callCount).to.equal(1);
-                expect(br.exec.args[0][0]).to.equal('NAMESPACE');
-                expect(br.exec.args[0][1]).to.equal('NAMESPACE');
+            beforeEach(function() {
+                sinon.stub(br, 'exec');
+            });
 
+            afterEach(function() {
                 br.exec.restore();
             });
 
-            it('should do nothing if not supported', function() {
-                sinon.stub(br, 'exec');
+            it('should run NAMESPACE if supported', function(done) {
+                br.exec.returns(Promise.resolve({
+                    payload: {
+                        NAMESPACE: [{
+                            attributes: [
+                                [
+                                    [{
+                                        type: 'STRING',
+                                        value: 'INBOX.'
+                                    }, {
+                                        type: 'STRING',
+                                        value: '.'
+                                    }]
+                                ], null, null
+                            ]
+                        }]
+                    }
+                }));
+                br.capability = ['NAMESPACE'];
 
+                br.listNamespaces().then(function(namespaces) {
+                    expect(namespaces).to.deep.equal({
+                        personal: [{
+                            prefix: 'INBOX.',
+                            delimiter: '.'
+                        }],
+                        users: false,
+                        shared: false
+                    });
+                    expect(br.exec.args[0][0]).to.equal('NAMESPACE');
+                    expect(br.exec.args[0][1]).to.equal('NAMESPACE');
+                }).then(done);
+            });
+
+            it('should do nothing if not supported', function(done) {
                 br.capability = [];
-                br.listNamespaces(function() {});
-                expect(br.exec.callCount).to.equal(0);
-
-                br.exec.restore();
+                br.listNamespaces().then(function(namespaces) {
+                    expect(namespaces).to.be.false;
+                    expect(br.exec.callCount).to.equal(0);
+                }).then(done);
             });
         });
 

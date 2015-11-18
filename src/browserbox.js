@@ -433,34 +433,18 @@
      *
      * NAMESPACE details:
      *   https://tools.ietf.org/html/rfc2342
-     *
-     * @param {Function} callback Callback function with the namespace information
      */
-    BrowserBox.prototype.listNamespaces = function(callback) {
+    BrowserBox.prototype.listNamespaces = function() {
         var self = this;
-        var promise;
-
-        if (!callback) {
-            promise = new Promise(function(resolve, reject) {
-                callback = callbackPromise(resolve, reject);
-            });
-        }
 
         if (self.capability.indexOf('NAMESPACE') < 0) {
-            setTimeout(function() {
-                callback(null, false);
-            }, 0);
-
-            return promise;
+            return Promise.resolve(false);
         }
 
-        self.exec('NAMESPACE', 'NAMESPACE').then(function(response) {
-            callback(null, self._parseNAMESPACE(response));
-        }).catch(function(err) {
-            callback(err);
+        return self.exec('NAMESPACE', 'NAMESPACE').then(function(response) {
+            console.log(response);
+            return self._parseNAMESPACE(response);
         });
-
-        return promise;
     };
 
     /**

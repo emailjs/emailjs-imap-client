@@ -204,6 +204,10 @@
                 imap.close();
             });
 
+            it('foofooo', function(done) {
+                imap.listNamespaces().then(done);
+            });
+
             describe('#listMailboxes', function() {
                 it('should succeed', function(done) {
                     imap.listMailboxes(function(err, mailboxes) {
