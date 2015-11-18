@@ -254,27 +254,15 @@
     /**
      * Close current connection
      */
-    BrowserBox.prototype.close = function(callback) {
+    BrowserBox.prototype.close = function() {
         var self = this;
-        var promise;
-
-        if (!callback) {
-            promise = new Promise(function(resolve, reject) {
-                callback = callbackPromise(resolve, reject);
-            });
-        }
 
         console.log(self.options.sessionId + ' closing connection');
         self._changeState(self.STATE_LOGOUT);
 
-        self.exec('LOGOUT').then(function() {
-            callback();
+        return self.exec('LOGOUT').then(function() {
             self.client.close();
-        }).catch(function(err) {
-            callback(err);
         });
-
-        return promise;
     };
 
     /**
@@ -1373,33 +1361,33 @@
      * @param {Object} Envelope object
      */
     BrowserBox.prototype._parseENVELOPE = function(value) {
+        var envelope = {};
         var processAddresses = function(list) {
-                return [].concat(list || []).map(function(addr) {
+            return [].concat(list || []).map(function(addr) {
 
-                    // ENVELOPE lists addresses as [name-part, source-route, username, hostname]
-                    // where source-route is not used anymore and can be ignored.
-                    // To get comparable results with other parts of the email.js stack
-                    // browserbox feeds the parsed address values from ENVELOPE
-                    // to addressparser and uses resulting values instead of the
-                    // pre-parsed addresses
+                // ENVELOPE lists addresses as [name-part, source-route, username, hostname]
+                // where source-route is not used anymore and can be ignored.
+                // To get comparable results with other parts of the email.js stack
+                // browserbox feeds the parsed address values from ENVELOPE
+                // to addressparser and uses resulting values instead of the
+                // pre-parsed addresses
 
-                    var name = (addr[0] && addr[0].value || '').trim();
-                    var address = (addr[2] && addr[2].value || '') + '@' + (addr[3] && addr[3].value || '');
-                    var formatted;
+                var name = (addr[0] && addr[0].value || '').trim();
+                var address = (addr[2] && addr[2].value || '') + '@' + (addr[3] && addr[3].value || '');
+                var formatted;
 
-                    if (!name) {
-                        formatted = address;
-                    } else {
-                        formatted = encodeAddressName(name) + ' <' + address + '>';
-                    }
+                if (!name) {
+                    formatted = address;
+                } else {
+                    formatted = encodeAddressName(name) + ' <' + address + '>';
+                }
 
-                    var parsed = addressparser.parse(formatted).shift(); // there should bu just a single address
-                    parsed.name = mimefuncs.mimeWordsDecode(parsed.name);
-                    return parsed;
+                var parsed = addressparser.parse(formatted).shift(); // there should bu just a single address
+                parsed.name = mimefuncs.mimeWordsDecode(parsed.name);
+                return parsed;
 
-                });
-            },
-            envelope = {};
+            });
+        };
 
         if (value[0] && value[0].value) {
             envelope.date = value[0].value;

@@ -123,7 +123,7 @@
                 sinon.stub(br.client, 'close');
                 sinon.stub(br, 'exec').withArgs('LOGOUT').returns(Promise.resolve());
 
-                br.close(function() {
+                br.close().then(function() {
                     // the close call comes after the current event loop iteration hass been handled.
                     setTimeout(function() {
                         expect(br.state).to.equal(br.STATE_LOGOUT);
