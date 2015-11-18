@@ -209,16 +209,13 @@
         self.updateCapability().then(function() {
             return self.upgradeConnection();
         }).then(function() {
-            self.updateId(self.options.id, function() {
-                // ignore errors for exchanging ID values
-                self.login(self.options.auth).then(function() {
-                    // can't setup compression before authnetication
-                    return self.compressConnection();
-                }).then(function() {
-                    // emit
-                    self.onauth();
-                });
-            });
+            return self.updateId(self.options.id);
+        }).then(function() {
+            return self.login(self.options.auth);
+        }).then(function() {
+            return self.compressConnection();
+        }).then(function() {
+            self.onauth(); // emit
         }).catch(function(err) {
             self.onerror(err);
             self.close();
@@ -580,13 +577,12 @@
      * Sets this.serverId value
      *
      * @param {Object} id ID as key value pairs. See http://tools.ietf.org/html/rfc2971#section-3.3 for possible values
-     * @param {Function} callback
      */
-    BrowserBox.prototype.updateId = function(id, callback) {
+    BrowserBox.prototype.updateId = function(id) {
         var self = this;
 
         if (self.capability.indexOf('ID') < 0) {
-            return callback(null, false);
+            return Promise.resolve(false);
         }
 
         var attributes = [
@@ -606,13 +602,12 @@
             attributes[0] = null;
         }
 
-        self.exec({
+        return self.exec({
             command: 'ID',
             attributes: attributes
         }, 'ID').then(function(response) {
             if (!response.payload || !response.payload.ID || !response.payload.ID.length) {
-                callback(null, false);
-                return;
+                return false;
             }
 
             self.serverId = {};
@@ -626,9 +621,7 @@
                 }
             });
 
-            callback(null, self.serverId);
-        }).catch(function(err) {
-            callback(err);
+            return self.serverId;
         });
     };
 

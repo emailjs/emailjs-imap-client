@@ -473,89 +473,81 @@
         });
 
         describe('#updateId', function() {
-            it('should not nothing if not supported', function() {
+            beforeEach(function() {
+                sinon.stub(br, 'exec');
+            });
+
+            afterEach(function() {
+                br.exec.restore();
+            });
+
+            it('should not nothing if not supported', function(done) {
                 br.capability = [];
+
                 br.updateId({
                     a: 'b',
                     c: 'd'
-                }, function(err, id) {
-                    expect(err).to.not.exist;
+                }).then(function(id) {
                     expect(id).to.be.false;
-                });
+                }).then(done);
             });
 
             it('should send NIL', function(done) {
-                sinon.stub(br, 'exec', function(command) {
-                    expect(command).to.deep.equal({
-                        command: 'ID',
-                        attributes: [
-                            null
-                        ]
-                    });
-
-                    return Promise.resolve({
-                        payload: {
-                            ID: [{
-                                attributes: [
-                                    null
-                                ]
-                            }]
-                        }
-                    });
-                });
-
+                br.exec.withArgs({
+                    command: 'ID',
+                    attributes: [
+                        null
+                    ]
+                }).returns(Promise.resolve({
+                    payload: {
+                        ID: [{
+                            attributes: [
+                                null
+                            ]
+                        }]
+                    }
+                }));
                 br.capability = ['ID'];
-                br.updateId(null, function(err, id) {
-                    expect(err).to.not.exist;
-                    expect(id).to.deep.equal({});
 
-                    br.exec.restore();
-                    done();
-                });
+                br.updateId(null).then(function(id) {
+                    expect(id).to.deep.equal({});
+                }).then(done);
             });
 
             it('should exhange ID values', function(done) {
-                sinon.stub(br, 'exec', function(command) {
-                    expect(command).to.deep.equal({
-                        command: 'ID',
-                        attributes: [
-                            ['ckey1', 'cval1', 'ckey2', 'cval2']
-                        ]
-                    });
-
-                    return Promise.resolve({
-                        payload: {
-                            ID: [{
-                                attributes: [
-                                    [{
-                                        value: 'skey1'
-                                    }, {
-                                        value: 'sval1'
-                                    }, {
-                                        value: 'skey2'
-                                    }, {
-                                        value: 'sval2'
-                                    }]
-                                ]
-                            }]
-                        }
-                    });
-                });
-
+                br.exec.withArgs({
+                    command: 'ID',
+                    attributes: [
+                        ['ckey1', 'cval1', 'ckey2', 'cval2']
+                    ]
+                }).returns(Promise.resolve({
+                    payload: {
+                        ID: [{
+                            attributes: [
+                                [{
+                                    value: 'skey1'
+                                }, {
+                                    value: 'sval1'
+                                }, {
+                                    value: 'skey2'
+                                }, {
+                                    value: 'sval2'
+                                }]
+                            ]
+                        }]
+                    }
+                }));
                 br.capability = ['ID'];
+
                 br.updateId({
                     ckey1: 'cval1',
                     ckey2: 'cval2'
-                }, function(err, id) {
-                    expect(err).to.not.exist;
+                }).then(function(id) {
                     expect(id).to.deep.equal({
                         skey1: 'sval1',
                         skey2: 'sval2'
                     });
-
-                    br.exec.restore();
-                    done();
-                });
+                }).then(done);
             });
         });
 
