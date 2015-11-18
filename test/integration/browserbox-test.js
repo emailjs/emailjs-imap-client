@@ -208,7 +208,7 @@
                 it('should succeed', function(done) {
                     imap.listMailboxes().then(function(mailboxes) {
                         expect(mailboxes).to.exist;
-                    }).then(done);
+                    }).then(done).catch(done);
                 });
             });
 
@@ -222,7 +222,7 @@
                 it('should succeed', function(done) {
                     imap.listMessages("1:*", ["uid", "flags", "envelope", "bodystructure", "body.peek[]"]).then(function(messages) {
                         expect(messages).to.not.be.empty;
-                    }).then(done);
+                    }).then(done).catch(done);
                 });
             });
 
@@ -247,7 +247,7 @@
                         return imap.listMessages("1:*", ["uid", "flags", "envelope", "bodystructure"]);
                     }).then(function(messages) {
                         expect(messages.length).to.equal(msgCount + 1);
-                    }).then(done);
+                    }).then(done).catch(done);
                 });
             });
 
@@ -263,7 +263,7 @@
                         header: ['subject', 'hello 3']
                     }).then(function(result) {
                         expect(result).to.deep.equal([3]);
-                    }).then(done);
+                    }).then(done).catch(done);
                 });
 
                 it('should return an uid', function(done) {
@@ -273,7 +273,7 @@
                         byUid: true
                     }).then(function(result) {
                         expect(result).to.deep.equal([555]);
-                    }).then(done);
+                    }).then(done).catch(done);
                 });
 
                 it('should work with complex queries', function(done) {
@@ -282,7 +282,7 @@
                         seen: true
                     }).then(function(result) {
                         expect(result).to.deep.equal([2]);
-                    }).then(done);
+                    }).then(done).catch(done);
                 });
             });
 
@@ -299,7 +299,7 @@
                             '#': 1,
                             'flags': ['\\Seen', '$MyFlag']
                         }]);
-                    }).then(done);
+                    }).then(done).catch(done);
                 });
 
                 it('should add flags to a message', function(done) {
@@ -310,7 +310,7 @@
                             '#': 2,
                             'flags': ['\\Seen', '$MyFlag']
                         }]);
-                    }).then(done);
+                    }).then(done).catch(done);
                 });
 
                 it('should remove flags from a message', function(done) {
@@ -324,7 +324,7 @@
                             'flags': ['$MyFlag'],
                             'uid': 557
                         }]);
-                    }).then(done);
+                    }).then(done).catch(done);
                 });
 
                 it('should not return anything on silent mode', function(done) {
@@ -332,7 +332,7 @@
                         silent: true
                     }).then(function(result) {
                         expect(result).to.deep.equal([]);
-                    }).then(done);
+                    }).then(done).catch(done);
                 });
             });
 
@@ -349,7 +349,7 @@
                             '#': 1,
                             'x-gm-labels': ['\\Inbox', '\\Sent', '\\Junk']
                         }]);
-                    }).then(done);
+                    }).then(done).catch(done);
                 });
 
                 it('should set labels for a message', function(done) {
@@ -358,7 +358,7 @@
                             '#': 1,
                             'x-gm-labels': ['\\Sent', '\\Junk']
                         }]);
-                    }).then(done);
+                    }).then(done).catch(done);
                 });
 
                 it('should remove labels from a message', function(done) {
@@ -367,7 +367,7 @@
                             '#': 1,
                             'x-gm-labels': []
                         }]);
-                    }).then(done);
+                    }).then(done).catch(done);
                 });
             });
 
@@ -385,7 +385,7 @@
                         return imap.selectMailbox('inbox');
                     }).then(function(resultInfo) {
                         expect(initialInfo.exists !== resultInfo.exists).to.be.true;
-                    }).then(done);
+                    }).then(done).catch(done);
                 });
             });
 
@@ -399,7 +399,7 @@
                         return imap.selectMailbox('[Gmail]/Trash');
                     }).then(function(info) {
                         expect(info.exists).to.equal(1);
-                    }).then(done);
+                    }).then(done).catch(done);
                 });
             });
 
@@ -418,8 +418,8 @@
                         expect(info.exists).to.equal(1);
                         return imap.selectMailbox('inbox');
                     }).then(function(resultInfo) {
-                        expect(initialInfo.exists !== resultInfo.exists).to.be.true;
-                    }).then(done);
+                        expect(initialInfo.exists).to.not.equal(resultInfo.exists);
+                    }).then(done).catch(done);
                 });
             });
 

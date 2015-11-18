@@ -886,43 +886,26 @@
      *
      * @param {String} sequence Message range to be deleted
      * @param {Object} [options] Query modifiers
-     * @param {Function} callback Callback function
+     * @returns {Promise} Promise
      */
-    BrowserBox.prototype.deleteMessages = function(sequence, options, callback) {
+    BrowserBox.prototype.deleteMessages = function(sequence, options) {
         var self = this;
-        var promise;
-
-        if (!callback && typeof options === 'function') {
-            callback = options;
-            options = undefined;
-        }
-
-        if (!callback) {
-            promise = new Promise(function(resolve, reject) {
-                callback = callbackPromise(resolve, reject);
-            });
-        }
-
         options = options || {};
 
         // add \Deleted flag to the messages and run EXPUNGE or UID EXPUNGE
-        self.setFlags(sequence, {
+        return self.setFlags(sequence, {
             add: '\\Deleted'
         }, options).then(function() {
-            self.exec(options.byUid && self.capability.indexOf('UIDPLUS') >= 0 ? {
+            return self.exec(options.byUid && self.capability.indexOf('UIDPLUS') >= 0 ? {
                 command: 'UID EXPUNGE',
                 attributes: [{
                     type: 'sequence',
                     value: sequence
                 }]
-            } : 'EXPUNGE').then(function() {
-                callback(null, true);
-            }).catch(function(err) {
-                callback(err);
-            });
+            } : 'EXPUNGE');
+        }).then(function() {
+            return true;
         });
-
-        return promise;
     };
 
     /**
@@ -989,55 +972,36 @@
      * @param {String} sequence Message range to be moved
      * @param {String} destination Destination mailbox path
      * @param {Object} [options] Query modifiers
-     * @param {Function} callback Callback function
+     * @returns {Promise} Promise
      */
-    BrowserBox.prototype.moveMessages = function(sequence, destination, options, callback) {
+    BrowserBox.prototype.moveMessages = function(sequence, destination, options) {
         var self = this;
-        var promise;
-
-        if (!callback && typeof options === 'function') {
-            callback = options;
-            options = undefined;
-        }
-
-        if (!callback) {
-            promise = new Promise(function(resolve, reject) {
-                callback = callbackPromise(resolve, reject);
-            });
-        }
-
         options = options || {};
-        if (self.capability.indexOf('MOVE') >= 0) {
-            // If possible, use MOVE
-            self.exec({
-                command: options.byUid ? 'UID MOVE' : 'MOVE',
-                attributes: [{
-                    type: 'sequence',
-                    value: sequence
-                }, {
-                    type: 'atom',
-                    value: destination
-                }]
-            }, ['OK'], {
-                precheck: options.precheck,
-                ctx: options.ctx
-            }).then(function() {
-                callback(null, true);
-            }).catch(function(err) {
-                callback(err);
-            });
-        } else {
+
+        if (self.capability.indexOf('MOVE') === -1) {
             // Fallback to COPY + EXPUNGE
-            self.copyMessages(sequence, destination, options, function(err) {
-                if (err) {
-                    return callback(err);
-                }
+            return self.copyMessages(sequence, destination, options).then(function() {
                 delete options.precheck;
-                self.deleteMessages(sequence, options, callback);
+                return self.deleteMessages(sequence, options);
             });
         }
 
-        return promise;
+        // If possible, use MOVE
+        return self.exec({
+            command: options.byUid ? 'UID MOVE' : 'MOVE',
+            attributes: [{
+                type: 'sequence',
+                value: sequence
+            }, {
+                type: 'atom',
+                value: destination
+            }]
+        }, ['OK'], {
+            precheck: options.precheck,
+            ctx: options.ctx
+        }).then(function() {
+            return true;
+        });
     };
 
     /**

@@ -155,7 +155,7 @@
                 br.exec('TEST').then(function(res) {
                     expect(res).to.deep.equal({});
                     expect(br.client.exec.args[0][0]).to.equal('TEST');
-                }).then(done);
+                }).then(done).catch(done);
             });
 
             it('should update capability from response', function(done) {
@@ -169,7 +169,7 @@
                         capability: ['A', 'B']
                     });
                     expect(br.capability).to.deep.equal(['A', 'B']);
-                }).then(done);
+                }).then(done).catch(done);
             });
 
             it('should return error on NO/BAD', function(done) {
@@ -225,7 +225,7 @@
                 br.breakIdle().then(function() {
                     expect([].slice.call(new Uint8Array(br.client.socket.send.args[0][0]))).to.deep.equal([0x44, 0x4f, 0x4e, 0x45, 0x0d, 0x0a]);
                     br.client.socket.send.restore();
-                }).then(done);
+                }).then(done).catch(done);
             });
         });
 
@@ -236,7 +236,7 @@
                     br.capability = ['starttls'];
                     br.upgradeConnection().then(function(upgraded) {
                         expect(upgraded).to.be.false;
-                    }).then(done);
+                    }).then(done).catch(done);
                 });
 
                 it('should do nothing if STARTTLS not available', function(done) {
@@ -244,7 +244,7 @@
                     br.capability = [];
                     br.upgradeConnection().then(function(upgraded) {
                         expect(upgraded).to.be.false;
-                    }).then(done);
+                    }).then(done).catch(done);
                 });
             });
 
@@ -264,7 +264,7 @@
                     br.exec.restore();
                     br.client.upgrade.restore();
                     br.updateCapability.restore();
-                }).then(done);
+                }).then(done).catch(done);
             });
 
         });
@@ -282,7 +282,7 @@
                 br.capability = ['abc'];
                 br.updateCapability().then(function(updated) {
                     expect(updated).to.be.false;
-                }).then(done);
+                }).then(done).catch(done);
             });
 
             it('should run CAPABILITY if capability not set', function(done) {
@@ -292,7 +292,7 @@
 
                 br.updateCapability().then(function() {
                     expect(br.exec.args[0][0]).to.equal('CAPABILITY');
-                }).then(done);
+                }).then(done).catch(done);
             });
 
             it('should force run CAPABILITY', function(done) {
@@ -301,7 +301,7 @@
 
                 br.updateCapability(true).then(function() {
                     expect(br.exec.args[0][0]).to.equal('CAPABILITY');
-                }).then(done);
+                }).then(done).catch(done);
             });
 
             it('should do nothing if connection is not yet upgraded', function(done) {
@@ -311,7 +311,7 @@
 
                 br.updateCapability().then(function(updated) {
                     expect(updated).to.be.false;
-                }).then(done);
+                }).then(done).catch(done);
             });
         });
 
@@ -355,7 +355,7 @@
                     });
                     expect(br.exec.args[0][0]).to.equal('NAMESPACE');
                     expect(br.exec.args[0][1]).to.equal('NAMESPACE');
-                }).then(done);
+                }).then(done).catch(done);
             });
 
             it('should do nothing if not supported', function(done) {
@@ -363,7 +363,7 @@
                 br.listNamespaces().then(function(namespaces) {
                     expect(namespaces).to.be.false;
                     expect(br.exec.callCount).to.equal(0);
-                }).then(done);
+                }).then(done).catch(done);
             });
         });
 
@@ -394,7 +394,7 @@
 
                     expect(br.exec.callCount).to.equal(1);
                     expect(br.client.enableCompression.callCount).to.equal(1);
-                }).then(done);
+                }).then(done).catch(done);
             });
 
             it('should do nothing if not supported', function(done) {
@@ -403,7 +403,7 @@
                 br.compressConnection().then(function(result) {
                     expect(result).to.be.false;
                     expect(br.exec.callCount).to.equal(0);
-                }).then(done);
+                }).then(done).catch(done);
             });
 
             it('should do nothing if not enabled', function(done) {
@@ -413,7 +413,7 @@
                 br.compressConnection().then(function(result) {
                     expect(result).to.be.false;
                     expect(br.exec.callCount).to.equal(0);
-                }).then(done);
+                }).then(done).catch(done);
             });
         });
 
@@ -489,7 +489,7 @@
                     c: 'd'
                 }).then(function(id) {
                     expect(id).to.be.false;
-                }).then(done);
+                }).then(done).catch(done);
             });
 
             it('should send NIL', function(done) {
@@ -511,7 +511,7 @@
 
                 br.updateId(null).then(function(id) {
                     expect(id).to.deep.equal({});
-                }).then(done);
+                }).then(done).catch(done);
             });
 
             it('should exhange ID values', function(done) {
@@ -547,7 +547,7 @@
                         skey1: 'sval1',
                         skey2: 'sval2'
                     });
-                }).then(done);
+                }).then(done).catch(done);
             });
         });
 
@@ -581,7 +581,7 @@
 
                 br.listMailboxes().then(function(tree) {
                     expect(tree).to.exist;
-                }).then(done);
+                }).then(done).catch(done);
             });
 
             it.skip('should not die on NIL separators', function(done) {
@@ -609,7 +609,7 @@
 
                 br.listMailboxes().then(function(tree) {
                     expect(tree).to.exist;
-                }).then(done);
+                }).then(done).catch(done);
             });
         });
 
@@ -634,7 +634,7 @@
                 br.createMailbox('mailboxname').then(function(alreadyExists) {
                     expect(alreadyExists).to.be.false;
                     expect(br.exec.callCount).to.equal(1);
-                }).then(done);
+                }).then(done).catch(done);
             });
 
             it('should call mutf7 encode the argument', function(done) {
@@ -647,7 +647,7 @@
                 br.createMailbox('~peter/mail/\u53f0\u5317/\u65e5\u672c\u8a9e').then(function(alreadyExists) {
                     expect(alreadyExists).to.be.false;
                     expect(br.exec.callCount).to.equal(1);
-                }).then(done);
+                }).then(done).catch(done);
             });
 
             it('should treat an ALREADYEXISTS response as success', function(done) {
@@ -662,7 +662,7 @@
                 br.createMailbox('mailboxname').then(function(alreadyExists) {
                     expect(alreadyExists).to.be.true;
                     expect(br.exec.callCount).to.equal(1);
-                }).then(done);
+                }).then(done).catch(done);
             });
         });
 
@@ -691,7 +691,7 @@
                     expect(br._buildFETCHCommand.callCount).to.equal(1);
                     expect(br._parseFETCH.calledWith('abc')).to.be.true;
                     expect(br._parseFETCH.callCount).to.equal(1);
-                }).then(done);
+                }).then(done).catch(done);
             });
         });
 
@@ -726,7 +726,7 @@
                     expect(br.exec.callCount).to.equal(1);
                     expect(br._parseSEARCH.calledWith('abc')).to.be.true;
                     expect(br._parseSEARCH.callCount).to.equal(1);
-                }).then(done);
+                }).then(done).catch(done);
             });
         });
 
@@ -747,7 +747,7 @@
                 }).then(function(success) {
                     expect(success).to.be.true;
                     expect(br.exec.callCount).to.equal(1);
-                }).then(done);
+                }).then(done).catch(done);
             });
 
             it('should call APPEND w/o flags', function(done) {
@@ -756,7 +756,7 @@
                 br.upload('mailbox', 'this is a message').then(function(success) {
                     expect(success).to.be.true;
                     expect(br.exec.callCount).to.equal(1);
-                }).then(done);
+                }).then(done).catch(done);
             });
         });
 
@@ -785,7 +785,7 @@
                     expect(br.exec.callCount).to.equal(1);
                     expect(br._parseFETCH.calledWith('abc')).to.be.true;
                     expect(br._parseFETCH.callCount).to.equal(1);
-                }).then(done);
+                }).then(done).catch(done);
             });
         });
 
@@ -814,7 +814,7 @@
                     expect(br._buildSTORECommand.callCount).to.equal(1);
                     expect(br.exec.callCount).to.equal(1);
                     expect(br._parseFETCH.withArgs('abc').callCount).to.equal(1);
-                }).then(done);
+                }).then(done).catch(done);
             });
         });
 
@@ -844,10 +844,9 @@
                 br.capability = ['UIDPLUS'];
                 br.deleteMessages('1:2', {
                     byUid: true
-                }, function() {
+                }).then(function() {
                     expect(br.exec.callCount).to.equal(1);
-                    done();
-                });
+                }).then(done).catch(done);
             });
 
             it('should call EXPUNGE', function(done) {
@@ -859,10 +858,9 @@
                 br.capability = [];
                 br.deleteMessages('1:2', {
                     byUid: true
-                }, function() {
+                }).then(function() {
                     expect(br.exec.callCount).to.equal(1);
-                    done();
-                });
+                }).then(done).catch(done);
             });
         });
 
@@ -898,15 +896,7 @@
 
         describe('#moveMessages', function() {
             it('should call MOVE if supported', function(done) {
-                sinon.stub(br, 'exec').returns(Promise.resolve('abc'));
-
-                br.capability = ['MOVE'];
-                br.moveMessages('1:2', '[Gmail]/Trash', {
-                    byUid: true
-                }, function() {});
-
-                expect(br.exec.callCount).to.equal(1);
-                expect(br.exec.args[0][0]).to.deep.equal({
+                sinon.stub(br, 'exec').withArgs({
                     command: 'UID MOVE',
                     attributes: [{
                         type: 'sequence',
@@ -915,37 +905,35 @@
                         type: 'atom',
                         value: '[Gmail]/Trash'
                     }]
-                });
-                expect(br.exec.args[0][1]).to.deep.equal(['OK']);
+                }, ['OK']).returns(Promise.resolve('abc'));
 
-                br.exec.restore();
-                done();
+                br.capability = ['MOVE'];
+                br.moveMessages('1:2', '[Gmail]/Trash', {
+                    byUid: true
+                }).then(function() {
+                    expect(br.exec.callCount).to.equal(1);
+                }).then(function() {
+                    br.exec.restore();
+                }).then(done).catch(done);
             });
 
-            it('should fallback to copy+expunge', function() {
-                sinon.stub(br, 'copyMessages', function(sequence, destination, options, callback) {
-                    expect(sequence).to.equal('1:2');
-                    expect(destination).to.equal('[Gmail]/Trash');
-                    expect(options).to.deep.equal({
-                        byUid: true
-                    });
-                    callback();
-                });
-                sinon.stub(br, 'deleteMessages');
+            it('should fallback to copy+expunge', function(done) {
+                sinon.stub(br, 'copyMessages').withArgs('1:2', '[Gmail]/Trash', {
+                    byUid: true
+                }).returns(Promise.resolve());
+                sinon.stub(br, 'deleteMessages').withArgs('1:2', {
+                    byUid: true
+                }).returns(Promise.resolve());
 
                 br.capability = [];
                 br.moveMessages('1:2', '[Gmail]/Trash', {
                     byUid: true
-                }, function() {});
-
-                expect(br.deleteMessages.callCount).to.equal(1);
-                expect(br.deleteMessages.args[0][0]).to.equal('1:2');
-                expect(br.deleteMessages.args[0][1]).to.deep.equal({
-                    byUid: true
-                });
-
-                br.copyMessages.restore();
-                br.deleteMessages.restore();
+                }).then(function() {
+                    expect(br.deleteMessages.callCount).to.equal(1);
+                }).then(function() {
+                    br.copyMessages.restore();
+                    br.deleteMessages.restore();
+                }).then(done).catch(done);
             });
         });
 
