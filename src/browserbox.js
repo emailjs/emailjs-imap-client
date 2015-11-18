@@ -632,31 +632,22 @@
      *   http://tools.ietf.org/html/rfc3501#section-6.3.8
      * LSUB details:
      *   http://tools.ietf.org/html/rfc3501#section-6.3.9
-     *
-     * @param {Function} callback Returns mailbox tree object
      */
-    BrowserBox.prototype.listMailboxes = function(callback) {
-        var self = this;
-        var promise;
+    BrowserBox.prototype.listMailboxes = function() {
+        var self = this,
+            tree;
 
-        if (!callback) {
-            promise = new Promise(function(resolve, reject) {
-                callback = callbackPromise(resolve, reject);
-            });
-        }
-
-        self.exec({
+        return self.exec({
             command: 'LIST',
             attributes: ['', '*']
         }, 'LIST').then(function(response) {
-            var tree = {
+            tree = {
                 root: true,
                 children: []
             };
 
             if (!response.payload || !response.payload.LIST || !response.payload.LIST.length) {
-                callback(null, false);
-                return;
+                return false;
             }
 
             response.payload.LIST.forEach(function(item) {
@@ -671,41 +662,39 @@
                 self._checkSpecialUse(branch);
             });
 
-            self.exec({
+        }).then(function() {
+            return self.exec({
                 command: 'LSUB',
                 attributes: ['', '*']
-            }, 'LSUB').then(function(response) {
-                if (!response.payload || !response.payload.LSUB || !response.payload.LSUB.length) {
-                    callback(null, tree);
+            }, 'LSUB');
+
+        }).then(function(response) {
+            if (!response.payload || !response.payload.LSUB || !response.payload.LSUB.length) {
+                return tree;
+            }
+
+            response.payload.LSUB.forEach(function(item) {
+                if (!item || !item.attributes || item.attributes.length < 3) {
                     return;
                 }
-
-                response.payload.LSUB.forEach(function(item) {
-                    if (!item || !item.attributes || item.attributes.length < 3) {
-                        return;
+                var branch = self._ensurePath(tree, (item.attributes[2].value || '').toString(), (item.attributes[1] ? item.attributes[1].value : '/').toString());
+                [].concat(item.attributes[0] || []).map(function(flag) {
+                    flag = (flag.value || '').toString();
+                    if (!branch.flags || branch.flags.indexOf(flag) < 0) {
+                        branch.flags = [].concat(branch.flags || []).concat(flag);
                     }
-                    var branch = self._ensurePath(tree, (item.attributes[2].value || '').toString(), (item.attributes[1] ? item.attributes[1].value : '/').toString());
-                    [].concat(item.attributes[0] || []).map(function(flag) {
-                        flag = (flag.value || '').toString();
-                        if (!branch.flags || branch.flags.indexOf(flag) < 0) {
-                            branch.flags = [].concat(branch.flags || []).concat(flag);
-                        }
-                    });
-                    branch.subscribed = true;
                 });
-
-                callback(null, tree);
-
-            }).catch(function(err) {
-                console.error(self.options.sessionId + ' error while listing subscribed mailboxes: ' + err + '\n' + err.stack);
-                callback(null, tree);
+                branch.subscribed = true;
             });
+            return tree;
 
         }).catch(function(err) {
-            callback(err);
-        });
+            if (tree) {
+                return tree; // ignore error for subscribed mailboxes if there's a valid response already
+            }
 
-        return promise;
+            throw err;
+        });
     };
 
     /**

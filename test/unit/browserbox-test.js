@@ -552,9 +552,15 @@
         });
 
         describe('#listMailboxes', function() {
-            it('should call LIST and LSUB in sequence', function(done) {
+            beforeEach(function() {
                 sinon.stub(br, 'exec');
+            });
 
+            afterEach(function() {
+                br.exec.restore();
+            });
+
+            it('should call LIST and LSUB in sequence', function(done) {
                 br.exec.withArgs({
                     command: 'LIST',
                     attributes: ['', '*']
@@ -573,52 +579,37 @@
                     }
                 }));
 
-                br.listMailboxes(function(err, tree) {
-                    expect(err).to.not.exist;
+                br.listMailboxes().then(function(tree) {
                     expect(tree).to.exist;
-
-                    done();
-                });
+                }).then(done);
             });
 
             it.skip('should not die on NIL separators', function(done) {
-                sinon.stub(br, 'exec', function(command) {
-                    br.exec.restore();
-                    sinon.stub(br, 'exec', function(command) {
-                        br.exec.restore();
+                br.exec.withArgs({
+                    command: 'LIST',
+                    attributes: ['', '*']
+                }).returns(Promise.resolve({
+                    payload: {
+                        LIST: [
+                            imapHandler.parser('* LIST (\\NoInferiors) NIL "INBOX"')
+                        ]
+                    }
+                }));
 
-                        expect(command).to.deep.equal({
-                            command: 'LSUB',
-                            attributes: ['', '*']
-                        });
-                        return Promise.resolve({
-                            payload: {
-                                LSUB: [
-                                    imapHandler.parser('* LSUB (\\NoInferiors) NIL "INBOX"')
-                                ]
-                            }
-                        });
-                    });
+                br.exec.withArgs({
+                    command: 'LSUB',
+                    attributes: ['', '*']
+                }).returns(Promise.resolve({
+                    payload: {
+                        LSUB: [
+                            imapHandler.parser('* LSUB (\\NoInferiors) NIL "INBOX"')
+                        ]
+                    }
+                }));
 
-                    expect(command).to.deep.equal({
-                        command: 'LIST',
-                        attributes: ['', '*']
-                    });
-                    return Promise.resolve({
-                        payload: {
-                            LIST: [
-                                imapHandler.parser('* LIST (\\NoInferiors) NIL "INBOX"')
-                            ]
-                        }
-                    });
-                });
-
-                br.listMailboxes(function(err, tree) {
-                    expect(err).to.not.exist;
+                br.listMailboxes().then(function(tree) {
                     expect(tree).to.exist;
-
-                    done();
-                });
+                }).then(done);
             });
         });
 

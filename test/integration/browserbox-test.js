@@ -206,22 +206,9 @@
 
             describe('#listMailboxes', function() {
                 it('should succeed', function(done) {
-                    imap.listMailboxes(function(err, mailboxes) {
-                        expect(err).to.not.exist;
-                        expect(mailboxes).to.not.be.empty;
-
-                        done();
-                    });
-                });
-
-                it('should succeed with promise', function(done) {
                     imap.listMailboxes().then(function(mailboxes) {
-                        expect(mailboxes).to.not.be.empty;
-                        done();
-                    }).catch(function(err) {
-                        expect(err).to.not.exist;
-                        done();
-                    });
+                        expect(mailboxes).to.exist;
+                    }).then(done);
                 });
             });
 
