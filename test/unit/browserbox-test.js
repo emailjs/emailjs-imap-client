@@ -4,7 +4,7 @@
     if (typeof define === 'function' && define.amd) {
         define(['chai', 'browserbox', 'imap-handler', './fixtures/mime-torture-bodystructure', './fixtures/envelope'], factory.bind(null, sinon));
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('sinon'), require('chai'), require('../../src/browserbox'), require('imap-handler'), require('./fixtures/mime-torture-bodystructure'), require('./fixtures/envelope'));
+        module.exports = factory(require('sinon'), require('chai'), require('../../src/browserbox'), require('wo-imap-handler'), require('./fixtures/mime-torture-bodystructure'), require('./fixtures/envelope'));
     }
 }(function(sinon, chai, BrowserBox, imapHandler, mimeTorture, testEnvelope) {
     var expect = chai.expect;
