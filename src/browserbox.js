@@ -213,11 +213,10 @@
                 // ignore errors for exchanging ID values
                 self.login(self.options.auth).then(function() {
                     // can't setup compression before authnetication
-                    self.compressConnection(function() {
-                        // ignore errors for setting up compression
-                        // emit
-                        self.onauth();
-                    });
+                    return self.compressConnection();
+                }).then(function() {
+                    // emit
+                    self.onauth();
                 });
             });
         }).catch(function(err) {
@@ -452,28 +451,14 @@
      *
      * COMPRESS details:
      *   https://tools.ietf.org/html/rfc4978
-     *
-     * @param {Function} callback Callback function with the namespace information
      */
-    BrowserBox.prototype.compressConnection = function(callback) {
+    BrowserBox.prototype.compressConnection = function() {
         var self = this;
-        var promise;
-
-        if (!callback) {
-            promise = new Promise(function(resolve, reject) {
-                callback = callbackPromise(resolve, reject);
-            });
-        }
-
         if (!self.options.enableCompression || self.capability.indexOf('COMPRESS=DEFLATE') < 0 || self.client.compressed) {
-            setTimeout(function() {
-                callback(null, false);
-            }, 0);
-
-            return promise;
+            return Promise.resolve(false);
         }
 
-        self.exec({
+        return self.exec({
             command: 'COMPRESS',
             attributes: [{
                 type: 'ATOM',
@@ -482,12 +467,8 @@
         }).then(function() {
             console.log(self.options.sessionId + ' compression enabled, all data sent and received is deflated');
             self.client.enableCompression();
-            callback(null, true);
-        }).catch(function(err) {
-            callback(err);
+            return true;
         });
-
-        return promise;
     };
 
     /**

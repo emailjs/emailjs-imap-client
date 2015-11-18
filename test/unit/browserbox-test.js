@@ -368,48 +368,52 @@
         });
 
         describe('#compressConnection', function() {
-            it('should run COMPRESS=DEFLATE if supported', function(done) {
-                sinon.stub(br, 'exec').returns(Promise.resolve({}));
+            beforeEach(function() {
+                sinon.stub(br, 'exec');
                 sinon.stub(br.client, 'enableCompression');
+            });
+
+            afterEach(function() {
+                br.exec.restore();
+                br.client.enableCompression.restore();
+            });
+
+            it('should run COMPRESS=DEFLATE if supported', function(done) {
+                br.exec.withArgs({
+                    command: 'COMPRESS',
+                    attributes: [{
+                        type: 'ATOM',
+                        value: 'DEFLATE'
+                    }]
+                }).returns(Promise.resolve({}));
 
                 br.options.enableCompression = true;
                 br.capability = ['COMPRESS=DEFLATE'];
-                br.compressConnection().then(function() {
+                br.compressConnection().then(function(result) {
+                    expect(result).to.be.true;
+
                     expect(br.exec.callCount).to.equal(1);
                     expect(br.client.enableCompression.callCount).to.equal(1);
-                    expect(br.exec.args[0][0]).to.deep.equal({
-                        command: 'COMPRESS',
-                        attributes: [{
-                            type: 'ATOM',
-                            value: 'DEFLATE'
-                        }]
-                    });
-
-                    br.exec.restore();
-                    br.client.enableCompression.restore();
-                    done();
-                });
+                }).then(done);
             });
 
-            it('should do nothing if not supported', function() {
-                sinon.stub(br, 'exec');
-
+            it('should do nothing if not supported', function(done) {
                 br.capability = [];
-                br.compressConnection(function() {});
-                expect(br.exec.callCount).to.equal(0);
 
-                br.exec.restore();
+                br.compressConnection().then(function(result) {
+                    expect(result).to.be.false;
+                    expect(br.exec.callCount).to.equal(0);
+                }).then(done);
             });
 
-            it('should do nothing if not enabled', function() {
-                sinon.stub(br, 'exec');
-
+            it('should do nothing if not enabled', function(done) {
                 br.options.enableCompression = false;
                 br.capability = ['COMPRESS=DEFLATE'];
-                br.compressConnection(function() {});
-                expect(br.exec.callCount).to.equal(0);
 
-                br.exec.restore();
+                br.compressConnection().then(function(result) {
+                    expect(result).to.be.false;
+                    expect(br.exec.callCount).to.equal(0);
+                }).then(done);
             });
         });
 
