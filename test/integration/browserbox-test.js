@@ -213,359 +213,184 @@
             });
 
             describe('#listMessages', function() {
-                it('should succeed', function(done) {
-                    imap.selectMailbox("inbox", function(err) {
-                        expect(err).to.not.exist;
-                        imap.listMessages("1:*", ["uid", "flags", "envelope", "bodystructure", "body.peek[]"], function(err, messages) {
-                            expect(err).to.not.exist;
-                            expect(messages).to.not.be.empty;
-                            done();
-                        });
+                beforeEach(function(done) {
+                    imap.selectMailbox('inbox').then(function() {
+                        done();
                     });
                 });
 
-                it('should succeed with promise', function(done) {
-                    imap.selectMailbox("inbox").then(function() {
-                        imap.listMessages("1:*", ["uid", "flags", "envelope", "bodystructure", "body.peek[]"], function(err, messages) {
-                            expect(err).to.not.exist;
-                            expect(messages).to.not.be.empty;
-                            done();
-                        });
-                    }).catch(function(err) {
-                        expect(err).to.not.exist;
-                        done();
-                    });
+                it('should succeed', function(done) {
+                    imap.listMessages("1:*", ["uid", "flags", "envelope", "bodystructure", "body.peek[]"]).then(function(messages) {
+                        expect(messages).to.not.be.empty;
+                    }).then(done);
                 });
             });
 
             describe('#upload', function() {
-                it('should succeed', function(done) {
-                    imap.selectMailbox("inbox", function(err) {
-                        expect(err).to.not.exist;
-
-                        imap.listMessages("1:*", ["uid", "flags", "envelope", "bodystructure"], function(err, messages) {
-                            expect(err).to.not.exist;
-                            expect(messages).to.not.be.empty;
-                            var msgCount = messages.length;
-
-                            imap.upload('inbox', 'MIME-Version: 1.0\r\nDate: Wed, 9 Jul 2014 15:07:47 +0200\r\nDelivered-To: test@test.com\r\nMessage-ID: <CAHftYYQo=5fqbtnv-DazXhL2j5AxVP1nWarjkztn-N9SV91Z2w@mail.gmail.com>\r\nSubject: test\r\nFrom: Test Test <test@test.com>\r\nTo: Test Test <test@test.com>\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\ntest', {
-                                flags: ['\\Seen', '\\Answered', '\\$MyFlag']
-                            }, function(err, success) {
-                                expect(err).to.not.exist;
-                                expect(success).to.be.true;
-
-                                imap.listMessages("1:*", ["uid", "flags", "envelope", "bodystructure"], function(err, messages) {
-                                    expect(err).to.not.exist;
-                                    expect(messages.length).to.equal(msgCount + 1);
-                                    done();
-                                });
-                            });
-                        });
+                beforeEach(function(done) {
+                    imap.selectMailbox('inbox').then(function() {
+                        done();
                     });
                 });
 
-                it('should succeed with promise', function(done) {
+                it('should succeed', function(done) {
                     var msgCount;
 
-                    imap.selectMailbox("inbox").
-                    then(function() {
-                        return imap.listMessages("1:*", ["uid", "flags", "envelope", "bodystructure"]);
-                    }).
-                    then(function(messages) {
+                    imap.listMessages("1:*", ["uid", "flags", "envelope", "bodystructure"]).then(function(messages) {
                         expect(messages).to.not.be.empty;
                         msgCount = messages.length;
                         return imap.upload('inbox', 'MIME-Version: 1.0\r\nDate: Wed, 9 Jul 2014 15:07:47 +0200\r\nDelivered-To: test@test.com\r\nMessage-ID: <CAHftYYQo=5fqbtnv-DazXhL2j5AxVP1nWarjkztn-N9SV91Z2w@mail.gmail.com>\r\nSubject: test\r\nFrom: Test Test <test@test.com>\r\nTo: Test Test <test@test.com>\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\ntest', {
                             flags: ['\\Seen', '\\Answered', '\\$MyFlag']
                         });
-                    }).
-                    then(function(success) {
+                    }).then(function(success) {
                         expect(success).to.be.true;
                         return imap.listMessages("1:*", ["uid", "flags", "envelope", "bodystructure"]);
-                    }).
-                    then(function(messages) {
+                    }).then(function(messages) {
                         expect(messages.length).to.equal(msgCount + 1);
-                        done();
-                    }).
-                    catch(function(err) {
-                        expect(err).to.not.exist;
-                        done();
-                    });
+                    }).then(done);
                 });
             });
 
             describe('#search', function() {
-                it('should return a sequence number', function(done) {
-                    imap.selectMailbox('inbox', function(err) {
-                        expect(err).to.not.exist;
-                        imap.search({
-                            header: ['subject', 'hello 3']
-                        }, function(err, result) {
-                            expect(err).to.not.exist;
-                            expect(result).to.deep.equal([3]);
-                            done();
-                        });
+                beforeEach(function(done) {
+                    imap.selectMailbox('inbox').then(function() {
+                        done();
                     });
                 });
 
-                it('should return a sequence number with promise', function(done) {
-                    imap.selectMailbox('inbox').then(function() {
-                        imap.search({
-                            header: ['subject', 'hello 3']
-                        }, function(err, result) {
-                            expect(err).to.not.exist;
-                            expect(result).to.deep.equal([3]);
-                            done();
-                        }).
-                        catch(function(err) {
-                            expect(err).to.not.exist;
-                            done();
-                        });
-                    });
+                it('should return a sequence number', function(done) {
+                    imap.search({
+                        header: ['subject', 'hello 3']
+                    }).then(function(result) {
+                        expect(result).to.deep.equal([3]);
+                    }).then(done);
                 });
 
                 it('should return an uid', function(done) {
-                    imap.selectMailbox('inbox', function(err) {
-                        expect(err).to.not.exist;
-                        imap.search({
-                            header: ['subject', 'hello 3']
-                        }, {
-                            byUid: true
-                        }, function(err, result) {
-                            expect(err).to.not.exist;
-                            expect(result).to.deep.equal([555]);
-                            done();
-                        });
-                    });
-                });
-
-                it('should return an uid with promise', function(done) {
-                    imap.selectMailbox('inbox').
-                    then(function() {
-                        return imap.search({
-                            header: ['subject', 'hello 3']
-                        }, {
-                            byUid: true
-                        });
-                    }).
-                    then(function(result) {
+                    imap.search({
+                        header: ['subject', 'hello 3']
+                    }, {
+                        byUid: true
+                    }).then(function(result) {
                         expect(result).to.deep.equal([555]);
-                        done();
-                    }).
-                    catch(function(err) {
-                        expect(err).to.not.exist;
-                        done();
-                    });
+                    }).then(done);
                 });
 
                 it('should work with complex queries', function(done) {
-                    imap.selectMailbox('inbox', function(err) {
-                        expect(err).to.not.exist;
-                        imap.search({
-                            header: ['subject', 'hello'],
-                            seen: true
-                        }, function(err, result) {
-                            expect(err).to.not.exist;
-                            expect(result).to.deep.equal([2]);
-                            done();
-                        });
-                    });
+                    imap.search({
+                        header: ['subject', 'hello'],
+                        seen: true
+                    }).then(function(result) {
+                        expect(result).to.deep.equal([2]);
+                    }).then(done);
                 });
             });
 
             describe('#setFlags', function() {
-                it('should set flags for a message', function(done) {
-                    imap.selectMailbox('inbox', function(err) {
-                        expect(err).to.not.exist;
-                        imap.setFlags('1', ['\\Seen', '$MyFlag'], function(err, result) {
-                            expect(err).to.not.exist;
-                            expect(result).to.deep.equal([{
-                                '#': 1,
-                                'flags': ['\\Seen', '$MyFlag']
-                            }]);
-
-                            done();
-                        });
+                beforeEach(function(done) {
+                    imap.selectMailbox('inbox').then(function() {
+                        done();
                     });
                 });
 
-                it('should set flags for a message with promise', function(done) {
-                    imap.selectMailbox('inbox').
-                    then(function() {
-                        return imap.setFlags('1', ['\\Seen', '$MyFlag']);
-                    }).
-                    then(function(result) {
+                it('should set flags for a message', function(done) {
+                    imap.setFlags('1', ['\\Seen', '$MyFlag']).then(function(result) {
                         expect(result).to.deep.equal([{
                             '#': 1,
                             'flags': ['\\Seen', '$MyFlag']
                         }]);
-                        done();
-                    }).
-                    catch(function(err) {
-                        expect(err).to.not.exist;
-                        done();
-                    });
+                    }).then(done);
                 });
 
                 it('should add flags to a message', function(done) {
-                    imap.selectMailbox('inbox', function(err) {
-                        expect(err).to.not.exist;
-                        imap.setFlags('2', {
-                            add: ['$MyFlag']
-                        }, function(err, result) {
-                            expect(err).to.not.exist;
-                            expect(result).to.deep.equal([{
-                                '#': 2,
-                                'flags': ['\\Seen', '$MyFlag']
-                            }]);
-
-                            done();
-                        });
-                    });
+                    imap.setFlags('2', {
+                        add: ['$MyFlag']
+                    }).then(function(result) {
+                        expect(result).to.deep.equal([{
+                            '#': 2,
+                            'flags': ['\\Seen', '$MyFlag']
+                        }]);
+                    }).then(done);
                 });
 
                 it('should remove flags from a message', function(done) {
-                    imap.selectMailbox('inbox', function(err) {
-                        expect(err).to.not.exist;
-                        imap.setFlags('557', {
-                            remove: ['\\Deleted']
-                        }, {
-                            byUid: true
-                        }, function(err, result) {
-                            expect(err).to.not.exist;
-                            expect(result).to.deep.equal([{
-                                '#': 5,
-                                'flags': ['$MyFlag'],
-                                'uid': 557
-                            }]);
-
-                            done();
-                        });
-                    });
+                    imap.setFlags('557', {
+                        remove: ['\\Deleted']
+                    }, {
+                        byUid: true
+                    }).then(function(result) {
+                        expect(result).to.deep.equal([{
+                            '#': 5,
+                            'flags': ['$MyFlag'],
+                            'uid': 557
+                        }]);
+                    }).then(done);
                 });
 
                 it('should not return anything on silent mode', function(done) {
-                    imap.selectMailbox('inbox', function(err) {
-                        expect(err).to.not.exist;
-                        imap.setFlags('1', ['$MyFlag2'], {
-                            silent: true
-                        }, function(err, result) {
-                            expect(err).to.not.exist;
-                            expect(result).to.deep.equal([]);
-
-                            done();
-                        });
-                    });
+                    imap.setFlags('1', ['$MyFlag2'], {
+                        silent: true
+                    }).then(function(result) {
+                        expect(result).to.deep.equal([]);
+                    }).then(done);
                 });
             });
 
             describe('#store', function() {
-                it('should add labels for a message', function(done) {
-                    imap.selectMailbox('inbox', function(err) {
-                        expect(err).to.not.exist;
-                        imap.store('1', '+X-GM-LABELS', ['\\Sent', '\\Junk'], function(err, result) {
-                            expect(err).to.not.exist;
-                            expect(result).to.deep.equal([{
-                                '#': 1,
-                                'x-gm-labels': ['\\Inbox', '\\Sent', '\\Junk']
-                            }]);
-
-                            done();
-                        });
+                beforeEach(function(done) {
+                    imap.selectMailbox('inbox').then(function() {
+                        done();
                     });
+                });
+
+                it('should add labels for a message', function(done) {
+                    imap.store('1', '+X-GM-LABELS', ['\\Sent', '\\Junk']).then(function(result) {
+                        expect(result).to.deep.equal([{
+                            '#': 1,
+                            'x-gm-labels': ['\\Inbox', '\\Sent', '\\Junk']
+                        }]);
+                    }).then(done);
                 });
 
                 it('should set labels for a message', function(done) {
-                    imap.selectMailbox('inbox', function(err) {
-                        expect(err).to.not.exist;
-                        imap.store('1', 'X-GM-LABELS', ['\\Sent', '\\Junk'], function(err, result) {
-                            expect(err).to.not.exist;
-                            expect(result).to.deep.equal([{
-                                '#': 1,
-                                'x-gm-labels': ['\\Sent', '\\Junk']
-                            }]);
-
-                            done();
-                        });
-                    });
+                    imap.store('1', 'X-GM-LABELS', ['\\Sent', '\\Junk']).then(function(result) {
+                        expect(result).to.deep.equal([{
+                            '#': 1,
+                            'x-gm-labels': ['\\Sent', '\\Junk']
+                        }]);
+                    }).then(done);
                 });
 
                 it('should remove labels from a message', function(done) {
-                    imap.selectMailbox('inbox', function(err) {
-                        expect(err).to.not.exist;
-                        imap.store('1', '-X-GM-LABELS', ['\\Sent', '\\Inbox'], function(err, result) {
-                            expect(err).to.not.exist;
-                            expect(result).to.deep.equal([{
-                                '#': 1,
-                                'x-gm-labels': []
-                            }]);
-
-                            done();
-                        });
-                    });
+                    imap.store('1', '-X-GM-LABELS', ['\\Sent', '\\Inbox']).then(function(result) {
+                        expect(result).to.deep.equal([{
+                            '#': 1,
+                            'x-gm-labels': []
+                        }]);
+                    }).then(done);
                 });
             });
 
             describe('#deleteMessages', function() {
                 it('should delete a message', function(done) {
-                    imap.selectMailbox('inbox', function(err, initialInfo) {
-                        expect(err).to.not.exist;
-                        imap.deleteMessages(557, {
-                            byUid: true
-                        }, function(err, result) {
-                            expect(err).to.not.exist;
-                            expect(result).to.be.true;
-
-                            imap.selectMailbox('inbox', function(err, resultInfo) {
-                                expect(err).to.not.exist;
-                                expect(initialInfo.exists !== resultInfo.exists).to.be.true;
-                                done();
-                            });
-                        });
-                    });
-                });
-
-                it('should delete a message with promise', function(done) {
                     var initialInfo;
-                    imap.selectMailbox('inbox').
-                    then(function(info) {
+
+                    imap.selectMailbox('inbox').then(function(info) {
                         initialInfo = info;
                         return imap.deleteMessages(557, {
                             byUid: true
                         });
-                    }).
-                    then(function(result) {
+                    }).then(function(result) {
                         expect(result).to.be.true;
                         return imap.selectMailbox('inbox');
-                    }).
-                    then(function(resultInfo) {
+                    }).then(function(resultInfo) {
                         expect(initialInfo.exists !== resultInfo.exists).to.be.true;
-                        done();
-                    }).
-                    catch(function(err) {
-                        expect(err).to.not.exist;
-                        done();
-                    });
+                    }).then(done);
                 });
             });
 
             describe('#copyMessages', function() {
                 it('should copy a message', function(done) {
-                    imap.selectMailbox('inbox', function(err) {
-                        expect(err).to.not.exist;
-                        imap.copyMessages(555, '[Gmail]/Trash', {
-                            byUid: true
-                        }, function(err) {
-                            expect(err).to.not.exist;
-                            imap.selectMailbox('[Gmail]/Trash', function(err, info) {
-                                expect(err).to.not.exist;
-                                expect(info.exists).to.equal(1);
-                                done();
-                            });
-                        });
-                    });
-                });
-
-                it('should copy a message with promise', function(done) {
                     imap.selectMailbox('inbox').then(function() {
                         return imap.copyMessages(555, '[Gmail]/Trash', {
                             byUid: true
@@ -574,42 +399,14 @@
                         return imap.selectMailbox('[Gmail]/Trash');
                     }).then(function(info) {
                         expect(info.exists).to.equal(1);
-                        done();
-                    }).
-                    catch(function(err) {
-                        expect(err).to.not.exist;
-                        done();
-                    });
+                    }).then(done);
                 });
             });
 
             describe('#moveMessages', function() {
                 it('should move a message', function(done) {
-                    imap.selectMailbox('inbox', function(err, initialInfo) {
-                        expect(err).to.not.exist;
-                        imap.moveMessages(555, '[Gmail]/Spam', {
-                            byUid: true
-                        }, function(err, result) {
-                            expect(err).to.not.exist;
-                            expect(result).to.be.true;
-                            imap.selectMailbox('[Gmail]/Spam', function(err, info) {
-                                expect(err).to.not.exist;
-                                expect(info.exists).to.equal(1);
-
-                                imap.selectMailbox('inbox', function(err, resultInfo) {
-                                    expect(err).to.not.exist;
-                                    expect(initialInfo.exists !== resultInfo.exists).to.be.true;
-                                    done();
-                                });
-                            });
-                        });
-                    });
-                });
-
-                it('should move a message with promise', function(done) {
                     var initialInfo;
-                    imap.selectMailbox('inbox').
-                    then(function(info) {
+                    imap.selectMailbox('inbox').then(function(info) {
                         initialInfo = info;
                         return imap.moveMessages(555, '[Gmail]/Spam', {
                             byUid: true
@@ -622,12 +419,7 @@
                         return imap.selectMailbox('inbox');
                     }).then(function(resultInfo) {
                         expect(initialInfo.exists !== resultInfo.exists).to.be.true;
-                        done();
-                    }).
-                    catch(function(err) {
-                        expect(err).to.not.exist;
-                        done();
-                    });
+                    }).then(done);
                 });
             });
 

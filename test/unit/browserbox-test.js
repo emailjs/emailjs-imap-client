@@ -667,32 +667,31 @@
         });
 
         describe('#listMessages', function() {
-            it('should call FETCH', function(done) {
-                sinon.stub(br, 'exec').returns(Promise.resolve('abc'));
-                sinon.stub(br, '_buildFETCHCommand', function() {
-                    return {};
-                });
+            beforeEach(function() {
+                sinon.stub(br, 'exec');
+                sinon.stub(br, '_buildFETCHCommand');
                 sinon.stub(br, '_parseFETCH');
+            });
+
+            afterEach(function() {
+                br.exec.restore();
+                br._buildFETCHCommand.restore();
+                br._parseFETCH.restore();
+            });
+
+            it('should call FETCH', function(done) {
+                br.exec.returns(Promise.resolve('abc'));
+                br._buildFETCHCommand.withArgs(['1:2', ['uid', 'flags'], {
+                    byUid: true
+                }]).returns({});
 
                 br.listMessages('1:2', ['uid', 'flags'], {
                     byUid: true
-                }, function() {
+                }).then(function() {
                     expect(br._buildFETCHCommand.callCount).to.equal(1);
-                    expect(br._buildFETCHCommand.args[0][0]).to.equal('1:2');
-                    expect(br._buildFETCHCommand.args[0][1]).to.deep.equal(['uid', 'flags']);
-                    expect(br._buildFETCHCommand.args[0][2]).to.deep.equal({
-                        byUid: true
-                    });
-                    expect(br.exec.callCount).to.equal(1);
-                    expect(br._parseFETCH.withArgs('abc').callCount).to.equal(1);
-
-                    br.exec.restore();
-                    br._buildFETCHCommand.restore();
-                    br._parseFETCH.restore();
-
-                    done();
-                });
-
+                    expect(br._parseFETCH.calledWith('abc')).to.be.true;
+                    expect(br._parseFETCH.callCount).to.equal(1);
+                }).then(done);
             });
         });
 

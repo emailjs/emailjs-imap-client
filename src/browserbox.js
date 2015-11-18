@@ -729,43 +729,20 @@
      * @param {Object} [options] Query modifiers
      * @param {Function} callback Callback function with fetched message info
      */
-    BrowserBox.prototype.listMessages = function(sequence, items, options, callback) {
+    BrowserBox.prototype.listMessages = function(sequence, items, options) {
         var self = this;
-        var promise;
-
-        if (!callback && typeof options === 'function') {
-            callback = options;
-            options = undefined;
-        }
-
-        if (!callback && typeof items === 'function') {
-            callback = items;
-            items = undefined;
-        }
-
-        if (!callback) {
-            promise = new Promise(function(resolve, reject) {
-                callback = callbackPromise(resolve, reject);
-            });
-        }
-
         items = items || {
             fast: true
         };
-
         options = options || {};
 
         var command = self._buildFETCHCommand(sequence, items, options);
-        self.exec(command, 'FETCH', {
+        return self.exec(command, 'FETCH', {
             precheck: options.precheck,
             ctx: options.ctx
         }).then(function(response) {
-            callback(null, self._parseFETCH(response));
-        }).catch(function(err) {
-            callback(err);
+            return self._parseFETCH(response);
         });
-
-        return promise;
     };
 
     /**
