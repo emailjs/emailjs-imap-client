@@ -1014,23 +1014,10 @@
      *
      * @param {String} path Full path to mailbox
      * @param {Object} [options] Options object
-     * @param {Function} callback Return information about selected mailbox
+     * @returns {Promise} Promise with information about the selected mailbox
      */
-    BrowserBox.prototype.selectMailbox = function(path, options, callback) {
+    BrowserBox.prototype.selectMailbox = function(path, options) {
         var self = this;
-        var promise;
-
-        if (!callback && typeof options === 'function') {
-            callback = options;
-            options = undefined;
-        }
-
-        if (!callback) {
-            promise = new Promise(function(resolve, reject) {
-                callback = callbackPromise(resolve, reject);
-            });
-        }
-
         options = options || {};
 
         var query = {
@@ -1048,7 +1035,7 @@
             }]);
         }
 
-        self.exec(query, ['EXISTS', 'FLAGS', 'OK'], {
+        return self.exec(query, ['EXISTS', 'FLAGS', 'OK'], {
             precheck: options.precheck,
             ctx: options.ctx
         }).then(function(response) {
@@ -1066,12 +1053,8 @@
                 self.onselectmailbox(path, mailboxInfo);
             }, 0);
 
-            callback(null, mailboxInfo);
-        }).catch(function(err) {
-            callback(err);
+            return mailboxInfo;
         });
-
-        return promise;
     };
 
     BrowserBox.prototype.hasCapability = function(capa) {

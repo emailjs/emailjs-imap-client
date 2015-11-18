@@ -689,8 +689,7 @@
                     byUid: true
                 }).then(function() {
                     expect(br._buildFETCHCommand.callCount).to.equal(1);
-                    expect(br._parseFETCH.calledWith('abc')).to.be.true;
-                    expect(br._parseFETCH.callCount).to.equal(1);
+                    expect(br._parseFETCH.withArgs('abc').callCount).to.equal(1);
                 }).then(done).catch(done);
             });
         });
@@ -724,8 +723,7 @@
                 }).then(function() {
                     expect(br._buildSEARCHCommand.callCount).to.equal(1);
                     expect(br.exec.callCount).to.equal(1);
-                    expect(br._parseSEARCH.calledWith('abc')).to.be.true;
-                    expect(br._parseSEARCH.callCount).to.equal(1);
+                    expect(br._parseSEARCH.withArgs('abc').callCount).to.equal(1);
                 }).then(done).catch(done);
             });
         });
@@ -783,8 +781,7 @@
                     byUid: true
                 }).then(function() {
                     expect(br.exec.callCount).to.equal(1);
-                    expect(br._parseFETCH.calledWith('abc')).to.be.true;
-                    expect(br._parseFETCH.callCount).to.equal(1);
+                    expect(br._parseFETCH.withArgs('abc').callCount).to.equal(1);
                 }).then(done).catch(done);
             });
         });
@@ -938,92 +935,81 @@
         });
 
         describe('#selectMailbox', function() {
-            it('should run SELECT', function(done) {
-                sinon.stub(br, 'exec').returns(Promise.resolve('abc'));
+            beforeEach(function() {
+                sinon.stub(br, 'exec');
                 sinon.stub(br, '_parseSELECT');
+            });
 
-                br.selectMailbox('[Gmail]/Trash', function() {
+            afterEach(function() {
+                br.exec.restore();
+                br._parseSELECT.restore();
+            });
+
+            it('should run SELECT', function(done) {
+                br.exec.withArgs({
+                    command: 'SELECT',
+                    attributes: [{
+                        type: 'STRING',
+                        value: '[Gmail]/Trash'
+                    }]
+                }).returns(Promise.resolve('abc'));
+
+                br.selectMailbox('[Gmail]/Trash').then(function() {
                     expect(br.exec.callCount).to.equal(1);
-                    expect(br.exec.args[0][0]).to.deep.equal({
-                        command: 'SELECT',
-                        attributes: [{
-                            type: 'STRING',
-                            value: '[Gmail]/Trash'
-                        }]
-                    });
                     expect(br._parseSELECT.withArgs('abc').callCount).to.equal(1);
                     expect(br.state).to.equal(br.STATE_SELECTED);
-
-                    br.exec.restore();
-                    br._parseSELECT.restore();
-
-                    done();
-                });
+                }).then(done).catch(done);
             });
 
             it('should run SELECT with CONDSTORE', function(done) {
-                sinon.stub(br, 'exec').returns(Promise.resolve('abc'));
-                sinon.stub(br, '_parseSELECT');
+                br.exec.withArgs({
+                    command: 'SELECT',
+                    attributes: [{
+                            type: 'STRING',
+                            value: '[Gmail]/Trash'
+                        },
+                        [{
+                            type: 'ATOM',
+                            value: 'CONDSTORE'
+                        }]
+                    ]
+                }).returns(Promise.resolve('abc'));
 
                 br.capability = ['CONDSTORE'];
                 br.selectMailbox('[Gmail]/Trash', {
                     condstore: true
-                }, function() {
+                }).then(function() {
                     expect(br.exec.callCount).to.equal(1);
-                    expect(br.exec.args[0][0]).to.deep.equal({
-                        command: 'SELECT',
-                        attributes: [{
-                                type: 'STRING',
-                                value: '[Gmail]/Trash'
-                            },
-                            [{
-                                type: 'ATOM',
-                                value: 'CONDSTORE'
-                            }]
-                        ]
-                    });
                     expect(br._parseSELECT.withArgs('abc').callCount).to.equal(1);
                     expect(br.state).to.equal(br.STATE_SELECTED);
-
-                    br.exec.restore();
-                    br._parseSELECT.restore();
-
-                    done();
-                });
+                }).then(done).catch(done);
             });
 
             it('should emit onselectmailbox', function(done) {
-                sinon.stub(br, 'exec').returns(Promise.resolve('abc'));
-                sinon.stub(br, '_parseSELECT').returns('def');
-                sinon.stub(br, 'onselectmailbox', function() {
+                br.exec.returns(Promise.resolve('abc'));
+                br._parseSELECT.withArgs('abc').returns('def');
+
+                br.onselectmailbox = (path, mailbox) => {
+                    expect(path).to.equal('[Gmail]/Trash');
+                    expect(mailbox).to.equal('def');
                     done();
-                });
+                };
 
-                br.selectMailbox('[Gmail]/Trash', function() {
-                    expect(br._parseSELECT.withArgs('abc').callCount).to.equal(1);
-                    expect(br.onselectmailbox.withArgs('[Gmail]/Trash', 'def').callCount).to.equal(1);
-
-                    br.exec.restore();
-                    br._parseSELECT.restore();
-                    br.onselectmailbox.restore();
-                });
+                br.selectMailbox('[Gmail]/Trash').then(function() {
+                    expect(br._parseSELECT.callCount).to.equal(1);
+                }).catch(done);
             });
 
             it('should emit onclosemailbox', function(done) {
-                sinon.stub(br, 'exec').returns(Promise.resolve('abc'));
-                sinon.stub(br, '_parseSELECT').returns('def');
-                sinon.stub(br, 'onclosemailbox');
+                br.exec.returns(Promise.resolve('abc'));
+                br._parseSELECT.withArgs('abc').returns('def');
+
+                br.onclosemailbox = (path) => expect(path).to.equal('yyy');
 
                 br.selectedMailbox = 'yyy';
-                br.selectMailbox('[Gmail]/Trash', function() {
-                    expect(br.onclosemailbox.withArgs('yyy').callCount).to.equal(1);
-
-                    br.exec.restore();
-                    br._parseSELECT.restore();
-                    br.onclosemailbox.restore();
-
-                    done();
-                });
+                br.selectMailbox('[Gmail]/Trash').then(function() {
+                    expect(br._parseSELECT.callCount).to.equal(1);
+                }).then(done).catch(done);
             });
         });
 
