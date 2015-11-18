@@ -731,34 +731,32 @@
         });
 
         describe('#upload', function() {
+            beforeEach(function() {
+                sinon.stub(br, 'exec');
+            });
+
+            afterEach(function() {
+                br.exec.restore();
+            });
+
             it('should call APPEND with custom flag', function(done) {
-                sinon.stub(br, 'exec').returns(Promise.resolve());
+                br.exec.returns(Promise.resolve());
 
                 br.upload('mailbox', 'this is a message', {
                     flags: ['\\$MyFlag']
-                }, function(err, success) {
-                    expect(err).to.not.exist;
+                }).then(function(success) {
                     expect(success).to.be.true;
-
                     expect(br.exec.callCount).to.equal(1);
-
-                    br.exec.restore();
-                    done();
-                });
+                }).then(done);
             });
 
             it('should call APPEND w/o flags', function(done) {
-                sinon.stub(br, 'exec').returns(Promise.resolve());
+                br.exec.returns(Promise.resolve());
 
-                br.upload('mailbox', 'this is a message', function(err, success) {
-                    expect(err).to.not.exist;
+                br.upload('mailbox', 'this is a message').then(function(success) {
                     expect(success).to.be.true;
-
                     expect(br.exec.callCount).to.equal(1);
-
-                    done();
-                    br.exec.restore();
-                });
+                }).then(done);
             });
         });
 

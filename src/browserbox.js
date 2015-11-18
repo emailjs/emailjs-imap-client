@@ -834,26 +834,12 @@
      * @param {String} destination The mailbox where to append the message
      * @param {String} message The message to append
      * @param {Array} options.flags Any flags you want to set on the uploaded message. Defaults to [\Seen]. (optional)
-     * @param {Function} callback Callback function with the array of matching seq. or uid numbers
+     * @returns {Promise} Promise with the array of matching seq. or uid numbers
      */
-    BrowserBox.prototype.upload = function(destination, message, options, callback) {
+    BrowserBox.prototype.upload = function(destination, message, options) {
         var self = this;
-        var promise;
-
-        if (!callback && typeof options === 'function') {
-            callback = options;
-            options = undefined;
-        }
-
-        if (!callback) {
-            promise = new Promise(function(resolve, reject) {
-                callback = callbackPromise(resolve, reject);
-            });
-        }
-
         options = options || {};
         options.flags = options.flags || ['\\Seen'];
-
         var flags = options.flags.map(function(flag) {
             return {
                 type: 'atom',
@@ -862,28 +848,24 @@
         });
 
         var command = {
-            command: 'APPEND'
+            command: 'APPEND',
+            attributes: [{
+                    type: 'atom',
+                    value: destination
+                },
+                flags, {
+                    type: 'literal',
+                    value: message
+                }
+            ]
         };
-        command.attributes = [{
-                type: 'atom',
-                value: destination
-            },
-            flags, {
-                type: 'literal',
-                value: message
-            }
-        ];
 
-        self.exec(command, {
+        return self.exec(command, {
             precheck: options.precheck,
             ctx: options.ctx
         }).then(function() {
-            callback(null, true);
-        }).catch(function(err) {
-            callback(err);
+            return true;
         });
-
-        return promise;
     };
 
     /**
