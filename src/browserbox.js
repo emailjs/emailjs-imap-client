@@ -476,20 +476,16 @@
      * XOAUTH2 details:
      *   https://developers.google.com/gmail/xoauth2_protocol#imap_protocol_exchange
      *
-     * @param {String} username
-     * @param {String} password
-     * @param {Function} callback Returns error if login failed
+     * @param {String} auth.user
+     * @param {String} auth.pass
+     * @param {String} auth.xoauth2
      */
     BrowserBox.prototype.login = function(auth) {
         var self = this;
         var command, options = {};
-        var callback;
-        var promise = new Promise(function(resolve, reject) {
-            callback = callbackPromise(resolve, reject);
-        });
 
         if (!auth) {
-            return callback(new Error('Authentication information not provided'));
+            return Promise.reject(new Error('Authentication information not provided'));
         }
 
         if (self.capability.indexOf('AUTH=XOAUTH2') >= 0 && auth && auth.xoauth2) {
@@ -530,42 +526,32 @@
             };
         }
 
-        self.exec(command, 'capability', options).then(function(response) {
-            var capabilityUpdated = false;
-
+        return self.exec(command, 'capability', options).then(function(response) {
             self._changeState(self.STATE_AUTHENTICATED);
             self.authenticated = true;
 
-            // update post-auth capabilites
-            // capability list shouldn't contain auth related stuff anymore
-            // but some new extensions might have popped up that do not
-            // make much sense in the non-auth state
+            /*
+             * update post-auth capabilites
+             * capability list shouldn't contain auth related stuff anymore
+             * but some new extensions might have popped up that do not
+             * make much sense in the non-auth state
+             */
             if (response.capability && response.capability.length) {
                 // capabilites were listed with the OK [CAPABILITY ...] response
                 self.capability = [].concat(response.capability || []);
-                capabilityUpdated = true;
-                console.log(self.options.sessionId + ' post-auth capabilites updated: ' + self.capability);
-                callback(null, true);
             } else if (response.payload && response.payload.CAPABILITY && response.payload.CAPABILITY.length) {
                 // capabilites were listed with * CAPABILITY ... response
                 self.capability = [].concat(response.payload.CAPABILITY.pop().attributes || []).map(function(capa) {
                     return (capa.value || '').toString().toUpperCase().trim();
                 });
-                capabilityUpdated = true;
-                console.log(self.options.sessionId + ' post-auth capabilites updated: ' + self.capability);
-                callback(null, true);
             } else {
                 // capabilities were not automatically listed, reload
-                self.updateCapability(true).then(function() {
-                    console.log(self.options.sessionId + ' post-auth capabilites updated: ' + self.capability);
-                    callback(null, true);
-                }).catch(callback);
+                return self.updateCapability(true);
             }
-        }).catch(function(err) {
-            callback(err);
+        }).then(function() {
+            console.log(self.options.sessionId + ' post-auth capabilites updated: ' + self.capability);
+            return true;
         });
-
-        return promise;
     };
 
     /**
