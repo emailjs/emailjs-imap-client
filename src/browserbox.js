@@ -692,37 +692,28 @@
      * @param {String} path
      *     The path of the mailbox you would like to create.  This method will
      *     handle utf7 encoding for you.
-     * @param {Function} callback
-     *     Callback that takes an error argument and a boolean indicating
+     * @returns {Promise<alreadyExists>}
+     *     Promise return a boolean indicating
      *     whether the folder already existed.  If the mailbox creation
      *     succeeds, the error argument will be null.  If creation fails, error
      *     will have an error value.  In the event the server says NO
-     *     [ALREADYEXISTS], we treat that as success and return true for the
-     *     second argument.
+     *     [ALREADYEXISTS], we treat that as success and return true.
      */
-    BrowserBox.prototype.createMailbox = function(path, callback) {
-        var promise;
+    BrowserBox.prototype.createMailbox = function(path) {
+        var self = this;
 
-        if (!callback) {
-            promise = new Promise(function(resolve, reject) {
-                callback = callbackPromise(resolve, reject);
-            });
-        }
-
-        this.exec({
+        return self.exec({
             command: 'CREATE',
             attributes: [utf7.imap.encode(path)]
         }).then(function() {
-            callback(null, false);
+            return false;
         }).catch(function(err) {
             if (err && err.code === 'ALREADYEXISTS') {
-                callback(null, true);
-            } else {
-                callback(err, false);
+                return true;
             }
-        });
 
-        return promise;
+            throw err;
+        });
     };
 
     /**

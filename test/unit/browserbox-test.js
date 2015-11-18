@@ -614,67 +614,55 @@
         });
 
         describe('#createMailbox', function() {
-            // The spec allows unquoted ATOM-style syntax too, but for
-            // simplicity we always generate a string even if it could be
-            // expressed as an atom.
+            beforeEach(function() {
+                sinon.stub(br, 'exec');
+            });
+
+            afterEach(function() {
+                br.exec.restore();
+            });
+
             it('should call CREATE with a string payload', function(done) {
-                sinon.stub(br, 'exec').returns(Promise.resolve());
-                var mailboxName = 'foo';
-                br.createMailbox(mailboxName, function(err) {
-                    expect(err).to.not.exist;
+                // The spec allows unquoted ATOM-style syntax too, but for
+                // simplicity we always generate a string even if it could be
+                // expressed as an atom.
+                br.exec.withArgs({
+                    command: 'CREATE',
+                    attributes: ['mailboxname']
+                }).returns(Promise.resolve());
 
-                    expect(br.exec.args[0][0]).to.deep.equal({
-                        command: 'CREATE',
-                        attributes: [mailboxName]
-                    });
-
+                br.createMailbox('mailboxname').then(function(alreadyExists) {
+                    expect(alreadyExists).to.be.false;
                     expect(br.exec.callCount).to.equal(1);
-
-                    done();
-                    br.exec.restore();
-                });
+                }).then(done);
             });
 
             it('should call mutf7 encode the argument', function(done) {
-                sinon.stub(br, 'exec').returns(Promise.resolve());
                 // From RFC 3501
-                var localName = '~peter/mail/\u53f0\u5317/\u65e5\u672c\u8a9e';
-                var serverName = '~peter/mail/&U,BTFw-/&ZeVnLIqe-';
-                br.createMailbox(localName, function(err) {
-                    expect(err).to.not.exist;
+                br.exec.withArgs({
+                    command: 'CREATE',
+                    attributes: ['~peter/mail/&U,BTFw-/&ZeVnLIqe-']
+                }).returns(Promise.resolve());
 
-                    expect(br.exec.args[0][0]).to.deep.equal({
-                        command: 'CREATE',
-                        attributes: [serverName]
-                    });
-
+                br.createMailbox('~peter/mail/\u53f0\u5317/\u65e5\u672c\u8a9e').then(function(alreadyExists) {
+                    expect(alreadyExists).to.be.false;
                     expect(br.exec.callCount).to.equal(1);
-
-                    br.exec.restore();
-                    done();
-                });
+                }).then(done);
             });
 
             it('should treat an ALREADYEXISTS response as success', function(done) {
                 var fakeErr = {
                     code: 'ALREADYEXISTS'
                 };
-                sinon.stub(br, 'exec').returns(Promise.reject(fakeErr));
-                var mailboxName = 'foo';
-                br.createMailbox(mailboxName, function(err, alreadyExists) {
-                    expect(err).to.not.exist;
+                br.exec.withArgs({
+                    command: 'CREATE',
+                    attributes: ['mailboxname']
+                }).returns(Promise.reject(fakeErr));
+
+                br.createMailbox('mailboxname').then(function(alreadyExists) {
                     expect(alreadyExists).to.be.true;
-
-                    expect(br.exec.args[0][0]).to.deep.equal({
-                        command: 'CREATE',
-                        attributes: [mailboxName]
-                    });
-
                     expect(br.exec.callCount).to.equal(1);
-
-                    br.exec.restore();
-                    done();
-                });
+                }).then(done);
             });
         });
 
