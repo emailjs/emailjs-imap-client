@@ -763,72 +763,67 @@
         });
 
         describe('#setFlags', function() {
-            it('should call STORE', function(done) {
-                sinon.stub(br, 'exec').returns(Promise.resolve('abc'));
-                sinon.stub(br, '_buildSTORECommand').returns({});
+            beforeEach(function() {
+                sinon.stub(br, 'exec');
+                sinon.stub(br, '_buildSTORECommand');
                 sinon.stub(br, '_parseFETCH');
+            });
+
+            afterEach(function() {
+                br.exec.restore();
+                br._buildSTORECommand.restore();
+                br._parseFETCH.restore();
+            });
+
+            it('should call STORE', function(done) {
+                br.exec.returns(Promise.resolve('abc'));
+                br._buildSTORECommand.withArgs('1:2','FLAGS',['\\Seen', '$MyFlag'], {
+                    byUid: true
+                }).returns({});
 
                 br.setFlags('1:2', ['\\Seen', '$MyFlag'], {
                     byUid: true
-                }, function() {
-                    expect(br._buildSTORECommand.callCount).to.equal(1);
-                    expect(br._buildSTORECommand.args[0][0]).to.equal('1:2');
-                    expect(br._buildSTORECommand.args[0][1]).to.equal('FLAGS');
-                    expect(br._buildSTORECommand.args[0][2]).to.deep.equal(['\\Seen', '$MyFlag']);
-                    expect(br._buildSTORECommand.args[0][3]).to.deep.equal({
-                        byUid: true
-                    });
+                }).then(function() {
                     expect(br.exec.callCount).to.equal(1);
-                    expect(br._parseFETCH.withArgs('abc').callCount).to.equal(1);
-
-                    br.exec.restore();
-                    br._buildSTORECommand.restore();
-                    br._parseFETCH.restore();
-
-                    done();
-                });
+                    expect(br._parseFETCH.calledWith('abc')).to.be.true;
+                    expect(br._parseFETCH.callCount).to.equal(1);
+                }).then(done);
             });
         });
 
         describe('#store', function() {
-            it('should call STORE', function(done) {
-                sinon.stub(br, 'exec').returns(Promise.resolve('abc'));
-                sinon.stub(br, '_buildSTORECommand', function() {
-                    return {};
-                });
+            beforeEach(function() {
+                sinon.stub(br, 'exec');
+                sinon.stub(br, '_buildSTORECommand');
                 sinon.stub(br, '_parseFETCH');
+            });
+
+            afterEach(function() {
+                br.exec.restore();
+                br._buildSTORECommand.restore();
+                br._parseFETCH.restore();
+            });
+
+            it('should call STORE', function(done) {
+                br.exec.returns(Promise.resolve('abc'));
+                br._buildSTORECommand.withArgs('1:2', '+X-GM-LABELS', ['\\Sent', '\\Junk'], {
+                    byUid: true
+                }).returns({});
 
                 br.store('1:2', '+X-GM-LABELS', ['\\Sent', '\\Junk'], {
                     byUid: true
-                }, function() {
+                }).then(function() {
                     expect(br._buildSTORECommand.callCount).to.equal(1);
-                    expect(br._buildSTORECommand.args[0][0]).to.equal('1:2');
-                    expect(br._buildSTORECommand.args[0][1]).to.equal('+X-GM-LABELS');
-                    expect(br._buildSTORECommand.args[0][2]).to.deep.equal(['\\Sent', '\\Junk']);
-                    expect(br._buildSTORECommand.args[0][3]).to.deep.equal({
-                        byUid: true
-                    });
                     expect(br.exec.callCount).to.equal(1);
                     expect(br._parseFETCH.withArgs('abc').callCount).to.equal(1);
-
-                    br.exec.restore();
-                    br._buildSTORECommand.restore();
-                    br._parseFETCH.restore();
-
-                    done();
-                });
+                }).then(done);
             });
         });
 
         describe('#deleteMessages', function() {
             beforeEach(function() {
-                sinon.stub(br, 'setFlags', function(seq, flags, options, callback) {
-                    expect(flags).to.deep.equal({
-                        add: '\\Deleted'
-                    });
-                    callback();
-                });
-                sinon.stub(br, 'exec').returns(Promise.resolve('abc'));
+                sinon.stub(br, 'setFlags');
+                sinon.stub(br, 'exec');
             });
 
             afterEach(function() {
@@ -836,30 +831,40 @@
                 br.exec.restore();
             });
 
-            it('should call UID EXPUNGE', function() {
-                br.capability = ['UIDPLUS'];
-                br.deleteMessages('1:2', {
-                    byUid: true
-                }, function() {});
-
-                expect(br.exec.callCount).to.equal(1);
-                expect(br.exec.args[0][0]).to.deep.equal({
+            it('should call UID EXPUNGE', function(done) {
+                br.exec.withArgs({
                     command: 'UID EXPUNGE',
                     attributes: [{
                         type: 'sequence',
                         value: '1:2'
                     }]
+                }).returns(Promise.resolve('abc'));
+                br.setFlags.withArgs('1:2', {
+                    add: '\\Deleted'
+                }).returns(Promise.resolve());
+
+                br.capability = ['UIDPLUS'];
+                br.deleteMessages('1:2', {
+                    byUid: true
+                }, function() {
+                    expect(br.exec.callCount).to.equal(1);
+                    done();
                 });
             });
 
-            it('should call EXPUNGE', function() {
+            it('should call EXPUNGE', function(done) {
+                br.exec.withArgs('EXPUNGE').returns(Promise.resolve('abc'));
+                br.setFlags.withArgs('1:2', {
+                    add: '\\Deleted'
+                }).returns(Promise.resolve());
+
                 br.capability = [];
                 br.deleteMessages('1:2', {
                     byUid: true
-                }, function() {});
-
-                expect(br.exec.callCount).to.equal(1);
-                expect(br.exec.args[0][0]).to.equal('EXPUNGE');
+                }, function() {
+                    expect(br.exec.callCount).to.equal(1);
+                    done();
+                });
             });
         });
 

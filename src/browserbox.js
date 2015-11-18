@@ -777,9 +777,9 @@
      * @param {String} sequence Message selector which the flag change is applied to
      * @param {Array} flags
      * @param {Object} [options] Query modifiers
-     * @param {Function} callback Callback function with the array of matching seq. or uid numbers
+     * @returns {Promise} Promise with the array of matching seq. or uid numbers
      */
-    BrowserBox.prototype.setFlags = function(sequence, flags, options, callback) {
+    BrowserBox.prototype.setFlags = function(sequence, flags, options) {
         var key = '';
         var list = [];
 
@@ -797,7 +797,7 @@
             list = [].concat(flags.remove || []);
         }
 
-        return this.store(sequence, key + 'FLAGS', list, options, callback);
+        return this.store(sequence, key + 'FLAGS', list, options);
     };
 
     /**
@@ -810,36 +810,19 @@
      * @param {String} action STORE method to call, eg "+FLAGS"
      * @param {Array} flags
      * @param {Object} [options] Query modifiers
-     * @param {Function} callback Callback function with the array of matching seq. or uid numbers
+     * @returns {Promise} Promise with the array of matching seq. or uid numbers
      */
-    BrowserBox.prototype.store = function(sequence, action, flags, options, callback) {
+    BrowserBox.prototype.store = function(sequence, action, flags, options) {
         var self = this;
-        var promise;
-
-        if (!callback && typeof options === 'function') {
-            callback = options;
-            options = undefined;
-        }
-
-        if (!callback) {
-            promise = new Promise(function(resolve, reject) {
-                callback = callbackPromise(resolve, reject);
-            });
-        }
-
         options = options || {};
 
         var command = self._buildSTORECommand(sequence, action, flags, options);
-        self.exec(command, 'FETCH', {
+        return self.exec(command, 'FETCH', {
             precheck: options.precheck,
             ctx: options.ctx
         }).then(function(response) {
-            callback(null, self._parseFETCH(response));
-        }).catch(function(err) {
-            callback(err);
+            return self._parseFETCH(response);
         });
-
-        return promise;
     };
 
     /**
@@ -943,23 +926,18 @@
         // add \Deleted flag to the messages and run EXPUNGE or UID EXPUNGE
         self.setFlags(sequence, {
             add: '\\Deleted'
-        }, options, function(err) {
-            if (err) {
-                return callback(err);
-            }
-
-            self.exec(
-                options.byUid && self.capability.indexOf('UIDPLUS') >= 0 ? {
-                    command: 'UID EXPUNGE',
-                    attributes: [{
-                        type: 'sequence',
-                        value: sequence
-                    }]
-                } : 'EXPUNGE').then(function() {
-                    callback(null, true);
-                }).catch(function(err) {
-                    callback(err);
-                });
+        }, options).then(function() {
+            self.exec(options.byUid && self.capability.indexOf('UIDPLUS') >= 0 ? {
+                command: 'UID EXPUNGE',
+                attributes: [{
+                    type: 'sequence',
+                    value: sequence
+                }]
+            } : 'EXPUNGE').then(function() {
+                callback(null, true);
+            }).catch(function(err) {
+                callback(err);
+            });
         });
 
         return promise;
