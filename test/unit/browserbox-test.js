@@ -862,20 +862,16 @@
         });
 
         describe('#copyMessages', function() {
+            beforeEach(function() {
+                sinon.stub(br, 'exec');
+            });
+
+            afterEach(function() {
+                br.exec.restore();
+            });
+
             it('should call COPY', function(done) {
-                sinon.stub(br, 'exec').returns(Promise.resolve({
-                    humanReadable: 'abc'
-                }));
-
-                br.copyMessages('1:2', '[Gmail]/Trash', {
-                    byUid: true
-                }, function(err, response) {
-                    expect(err).to.not.exist;
-                    expect(response).to.equal('abc');
-                });
-
-                expect(br.exec.callCount).to.equal(1);
-                expect(br.exec.args[0][0]).to.deep.equal({
+                br.exec.withArgs({
                     command: 'UID COPY',
                     attributes: [{
                         type: 'sequence',
@@ -884,16 +880,34 @@
                         type: 'atom',
                         value: '[Gmail]/Trash'
                     }]
-                });
+                }).returns(Promise.resolve({
+                    humanReadable: 'abc'
+                }));
 
-                br.exec.restore();
-                done();
+                br.copyMessages('1:2', '[Gmail]/Trash', {
+                    byUid: true
+                }).then(function(response) {
+                    expect(response).to.equal('abc');
+                    expect(br.exec.callCount).to.equal(1);
+                }).then(done).catch(done);
             });
         });
 
         describe('#moveMessages', function() {
+            beforeEach(function() {
+                sinon.stub(br, 'exec');
+                sinon.stub(br, 'copyMessages');
+                sinon.stub(br, 'deleteMessages');
+            });
+
+            afterEach(function() {
+                br.exec.restore();
+                br.copyMessages.restore();
+                br.deleteMessages.restore();
+            });
+
             it('should call MOVE if supported', function(done) {
-                sinon.stub(br, 'exec').withArgs({
+                br.exec.withArgs({
                     command: 'UID MOVE',
                     attributes: [{
                         type: 'sequence',
@@ -909,16 +923,14 @@
                     byUid: true
                 }).then(function() {
                     expect(br.exec.callCount).to.equal(1);
-                }).then(function() {
-                    br.exec.restore();
                 }).then(done).catch(done);
             });
 
             it('should fallback to copy+expunge', function(done) {
-                sinon.stub(br, 'copyMessages').withArgs('1:2', '[Gmail]/Trash', {
+                br.copyMessages.withArgs('1:2', '[Gmail]/Trash', {
                     byUid: true
                 }).returns(Promise.resolve());
-                sinon.stub(br, 'deleteMessages').withArgs('1:2', {
+                br.deleteMessages.withArgs('1:2', {
                     byUid: true
                 }).returns(Promise.resolve());
 
@@ -927,9 +939,6 @@
                     byUid: true
                 }).then(function() {
                     expect(br.deleteMessages.callCount).to.equal(1);
-                }).then(function() {
-                    br.copyMessages.restore();
-                    br.deleteMessages.restore();
                 }).then(done).catch(done);
             });
         });

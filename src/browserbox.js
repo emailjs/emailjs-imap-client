@@ -907,26 +907,13 @@
      * @param {String} destination Destination mailbox path
      * @param {Object} [options] Query modifiers
      * @param {Boolean} [options.byUid] If true, uses UID COPY instead of COPY
-     * @param {Function} callback Callback function
+     * @returns {Promise} Promise
      */
-    BrowserBox.prototype.copyMessages = function(sequence, destination, options, callback) {
+    BrowserBox.prototype.copyMessages = function(sequence, destination, options) {
         var self = this;
-        var promise;
-
-        if (!callback && typeof options === 'function') {
-            callback = options;
-            options = undefined;
-        }
-
-        if (!callback) {
-            promise = new Promise(function(resolve, reject) {
-                callback = callbackPromise(resolve, reject);
-            });
-        }
-
         options = options || {};
 
-        self.exec({
+        return self.exec({
             command: options.byUid ? 'UID COPY' : 'COPY',
             attributes: [{
                 type: 'sequence',
@@ -939,12 +926,8 @@
             precheck: options.precheck,
             ctx: options.ctx
         }).then(function(response) {
-            callback(null, response.humanReadable || 'COPY completed');
-        }).catch(function(err) {
-            callback(err);
+            return response.humanReadable || 'COPY completed';
         });
-
-        return promise;
     };
 
     /**
@@ -1937,25 +1920,6 @@
             }
         }
         return name;
-    }
-
-    /**
-     * Wrapper for creating promise aware callback functions
-     *
-     * @param {Function} resolve Promise.resolve
-     * @param {Function} reject promise.reject
-     * @returns {Function} Promise wrapped callback
-     */
-    function callbackPromise(resolve, reject) {
-        return function() {
-            var args = Array.prototype.slice.call(arguments);
-            var err = args.shift();
-            if (err) {
-                reject(err);
-            } else {
-                resolve.apply(null, args);
-            }
-        };
     }
 
     return BrowserBox;
