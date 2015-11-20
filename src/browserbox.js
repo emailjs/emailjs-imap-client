@@ -271,12 +271,12 @@
      * @param {Object} request Structured request object
      * @param {Array} acceptUntagged a list of untagged responses that will be included in 'payload' property
      */
-    BrowserBox.prototype.exec = function(request, acceptUntagged) {
+    BrowserBox.prototype.exec = function(request, acceptUntagged, options) {
         var self = this;
 
         return self.breakIdle().then(function() {
             return new Promise(function(resolve, reject) {
-                self.client.exec(request, acceptUntagged, function(response) {
+                self.client.exec(request, acceptUntagged, options, function(response) {
                     if (response && response.capability) {
                         self.capability = response.capability;
                     }

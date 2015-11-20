@@ -631,6 +631,7 @@
                         client._addToClientQueue({}, undefined, {
                             ctx: ctx
                         });
+                        return Promise.resolve();
                     }
                 }];
                 client._sendRequest();

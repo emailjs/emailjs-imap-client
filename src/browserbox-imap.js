@@ -710,18 +710,14 @@
             // we need to restart the queue handling if no operation was made in the precheck
             this._restartQueue = true;
 
-            // invoke the precheck command with a callback to signal that you're
-            // done with precheck and ready to resume normal operation
-            precheck(context, function(err) {
+            // invoke the precheck command and resume normal operation after the promise resolves
+            precheck(context).then(function() {
                 // we're done with the precheck
-                if (!err) {
-                    if (this._restartQueue) {
-                        // we need to restart the queue handling
-                        this._sendRequest();
-                    }
-                    return;
+                if (this._restartQueue) {
+                    // we need to restart the queue handling
+                    this._sendRequest();
                 }
-
+            }.bind(this)).catch(function(err) {
                 // precheck callback failed, so we remove the initial command
                 // from the queue, invoke its callback and resume normal operation
                 var cmd, index = this._clientQueue.indexOf(context);

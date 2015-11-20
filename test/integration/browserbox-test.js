@@ -423,13 +423,7 @@
                 });
             });
 
-            describe.skip('precheck', function() {
-                var callCtr;
-
-                beforeEach(function() {
-                    callCtr = 0;
-                });
-
+            describe('precheck', function() {
                 it('should use nested precheck calls to cycle through mailboxes, delete mail, move stuff around etc', function(done) {
                     /*
                      * start out in [Gmail]/Drafts
@@ -449,86 +443,77 @@
                      *   folder? -> inbox
                      *   search for subject 'hello 3', make sure it's there
                      */
-                    imap.selectMailbox('[Gmail]/Drafts', function(err) {
-                        expect(err).to.not.exist;
-
-                        imap.setFlags('1', ['\\Seen', '$MyFlag'], {
-                            precheck: function(ctx, next) {
-                                imap.selectMailbox('[Gmail]/Spam', {
+                    imap.selectMailbox('[Gmail]/Drafts').then(function() {
+                        var p1 = imap.setFlags('1', ['\\Seen', '$MyFlag'], {
+                            precheck: function(ctx) {
+                                return imap.selectMailbox('[Gmail]/Spam', {
                                     ctx: ctx
-                                }, function(err) {
-                                    expect(err).to.not.exist;
-                                    imap.selectMailbox('inbox', {
+                                }).then(function() {
+                                    expect(imap.selectedMailbox).to.equal('[Gmail]/Spam');
+                                    return imap.selectMailbox('inbox', {
                                         ctx: ctx
-                                    }, next);
+                                    });
+                                }).then(function() {
+                                    expect(imap.selectedMailbox).to.equal('inbox');
                                 });
                             }
-                        }, function(err, result) {
-                            expect(err).to.not.exist;
+                        }).then(function(result) {
+                            // expect(imap.selectedMailbox).to.equal('inbox');
                             expect(result).to.deep.equal([{
                                 '#': 1,
                                 'flags': ['\\Seen', '$MyFlag']
                             }]);
-                            proceed();
                         });
 
-                        imap.moveMessages(600, '[Gmail]/Drafts', {
+                        var p2 = imap.moveMessages(600, '[Gmail]/Drafts', {
                             byUid: true,
-                            precheck: function(ctx, next) {
-                                imap.selectMailbox('inbox', {
+                            precheck: function(ctx) {
+                                return imap.selectMailbox('inbox', {
                                     ctx: ctx
-                                }, next);
+                                });
                             }
-                        }, function(err, result) {
-                            expect(err).to.not.exist;
+                        }).then(function(result) {
                             expect(result).to.be.true;
 
                             imap.deleteMessages(1, {
                                 byUid: true,
-                                precheck: function(ctx1, next1) {
-                                    imap.listMessages("1:*", ["uid", "flags", "envelope", "bodystructure", "body.peek[]"], {
+                                precheck: function(ctx1) {
+                                    return imap.listMessages("1:*", ["uid", "flags", "envelope", "bodystructure", "body.peek[]"], {
                                         ctx: ctx1,
-                                        precheck: function(ctx2, next2) {
-                                            imap.selectMailbox('[Gmail]/Drafts', {
+                                        precheck: function(ctx2) {
+                                            return imap.selectMailbox('[Gmail]/Drafts', {
                                                 ctx: ctx2,
-                                                precheck: function(ctx, next3) {
-                                                    next3();
+                                                precheck: function() {
+                                                    return Promise.resolve();
                                                 }
-                                            }, next2);
+                                            });
                                         }
-                                    }, function(err, messages) {
-                                        expect(err).to.not.exist;
+                                    }).then(function(messages) {
                                         expect(messages[0].uid).to.equal(1);
-                                        next1();
                                     });
                                 }
-                            }, function(err, result) {
-                                expect(err).to.not.exist;
+                            }).then(function(result) {
                                 expect(result).to.be.true;
-                                proceed();
                             });
                         });
 
-                        imap.search({
+                        var p3 = imap.search({
                             header: ['subject', 'hello 3']
                         }, {
-                            precheck: function(ctx, next) {
-                                imap.selectMailbox('inbox', {
+                            precheck: function(ctx) {
+                                return imap.selectMailbox('inbox', {
                                     ctx: ctx
-                                }, next);
+                                });
                             },
                             byUid: true
-                        }, function(err, result) {
-                            expect(err).to.not.exist;
+                        }).then(function(result) {
                             expect(result).to.deep.equal([555]);
-                            proceed();
                         });
 
+                        Promise.all([p1, p2, p3]).then(function() {
+                            done();
+                        }).catch(done);
                     });
-
-                    function proceed() {
-                        ++callCtr === 3 && done();
-                    }
                 });
 
                 it('should error in precheck', function(done) {
@@ -542,43 +527,18 @@
                      *   folder? -> inbox
                      *   search for subject 'hello 3', make sure it's there
                      */
-                    imap.selectMailbox('[Gmail]/Drafts', function(err) {
-                        expect(err).to.not.exist;
-
-                        imap.setFlags('1', ['\\Seen', '$MyFlag'], {
-                            precheck: function(ctx, next) {
-                                next(new Error());
+                    imap.selectMailbox('[Gmail]/Drafts').then(function() {
+                        return imap.setFlags('1', ['\\Seen', '$MyFlag'], {
+                            precheck: function() {
+                                return Promise.reject(new Error());
                             }
-                        }, function(err, result) {
-                            expect(err).to.exist;
-                            expect(result).to.not.exist;
-                            proceed();
                         });
-
-                        imap.search({
-                            header: ['subject', 'hello 3']
-                        }, {
-                            precheck: function(ctx, next) {
-                                imap.selectMailbox('inbox', {
-                                    ctx: ctx
-                                }, next);
-                            },
-                            byUid: true
-                        }, function(err, result) {
-                            expect(err).to.not.exist;
-                            expect(result).to.deep.equal([555]);
-                            proceed();
-                        });
-
+                    }).catch(function(err) {
+                        expect(err).to.exist;
+                        done();
                     });
-
-                    function proceed() {
-                        ++callCtr === 2 && done();
-                    }
                 });
-
             });
-
         });
 
         describe('Timeout', function() {
@@ -614,7 +574,7 @@
                     done();
                 };
 
-                imap.selectMailbox('inbox', function() {});
+                imap.selectMailbox('inbox');
             });
         });
     });
