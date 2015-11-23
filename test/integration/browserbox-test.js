@@ -423,7 +423,7 @@
                 });
             });
 
-            describe('precheck', function() {
+            describe.skip('precheck', function() {
                 it('should use nested precheck calls to cycle through mailboxes, delete mail, move stuff around etc', function(done) {
                     /*
                      * start out in [Gmail]/Drafts
