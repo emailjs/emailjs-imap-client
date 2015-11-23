@@ -10,21 +10,21 @@
     var expect = chai.expect;
     chai.Assertion.includeStack = true;
 
-    describe('browserbox unit tests', function() {
+    describe('browserbox unit tests', () => {
         var br;
 
-        beforeEach(function() {
+        beforeEach(() => {
             br = new BrowserBox();
             br.client.socket = {
-                send: function() {},
-                upgradeToSecure: function() {}
+                send: () => {},
+                upgradeToSecure: () => {}
             };
         });
 
         /* jshint indent:false */
 
-        describe('#_onClose', function() {
-            it('should emit onclose', function() {
+        describe('#_onClose', () => {
+            it('should emit onclose', () => {
                 sinon.stub(br, 'onclose');
 
                 br._onClose();
@@ -35,9 +35,9 @@
             });
         });
 
-        describe('#_onTimeout', function() {
-            it('should emit onerror and call destroy', function() {
-                br.onerror = function() {}; // not defined by default
+        describe('#_onTimeout', () => {
+            it('should emit onerror and call destroy', () => {
+                br.onerror = () => {}; // not defined by default
                 sinon.stub(br, 'onerror');
                 sinon.stub(br.client, '_destroy');
 
@@ -51,8 +51,8 @@
             });
         });
 
-        describe('#_onReady', function() {
-            it('should call updateCapability', function() {
+        describe('#_onReady', () => {
+            it('should call updateCapability', () => {
                 sinon.stub(br, 'updateCapability').returns(Promise.resolve(true));
 
                 br._onReady();
@@ -64,8 +64,8 @@
             });
         });
 
-        describe('#_onIdle', function() {
-            it('should call enterIdle', function() {
+        describe('#_onIdle', () => {
+            it('should call enterIdle', () => {
                 sinon.stub(br, 'enterIdle');
 
                 br.authenticated = true;
@@ -77,7 +77,7 @@
                 br.enterIdle.restore();
             });
 
-            it('should not call enterIdle', function() {
+            it('should not call enterIdle', () => {
                 sinon.stub(br, 'enterIdle');
 
                 br._enteredIdle = true;
@@ -89,8 +89,8 @@
             });
         });
 
-        describe('#connect', function() {
-            it('should initiate tcp connection', function() {
+        describe('#connect', () => {
+            it('should initiate tcp connection', () => {
                 sinon.stub(br.client, 'connect');
 
                 br.connect();
@@ -101,9 +101,9 @@
                 br.client.connect.restore();
             });
 
-            it('should timeout if connection is not created', function(done) {
+            it('should timeout if connection is not created', (done) => {
                 sinon.stub(br.client, 'connect');
-                sinon.stub(br, '_onTimeout', function() {
+                sinon.stub(br, '_onTimeout', () => {
 
                     expect(br.client.connect.callCount).to.equal(1);
 
@@ -118,14 +118,14 @@
             });
         });
 
-        describe('#close', function() {
-            it('should send LOGOUT', function(done) {
+        describe('#close', () => {
+            it('should send LOGOUT', (done) => {
                 sinon.stub(br.client, 'close');
                 sinon.stub(br, 'exec').withArgs('LOGOUT').returns(Promise.resolve());
 
-                br.close().then(function() {
+                br.close().then(() => {
                     // the close call comes after the current event loop iteration hass been handled.
-                    setTimeout(function() {
+                    setTimeout(() => {
                         expect(br.state).to.equal(br.STATE_LOGOUT);
                         expect(br.client.close.calledOnce).to.be.true;
                         br.exec.restore();
@@ -136,35 +136,35 @@
             });
         });
 
-        describe('#exec', function() {
-            beforeEach(function() {
-                sinon.stub(br, 'breakIdle', function() {
+        describe('#exec', () => {
+            beforeEach(() => {
+                sinon.stub(br, 'breakIdle', () => {
                     return Promise.resolve();
                 });
             });
 
-            afterEach(function() {
+            afterEach(() => {
                 br.client.exec.restore();
                 br.breakIdle.restore();
             });
 
-            it('should send string command', function(done) {
+            it('should send string command', (done) => {
                 sinon.stub(br.client, 'exec', function() {
                     arguments[arguments.length - 1]({});
                 });
-                br.exec('TEST').then(function(res) {
+                br.exec('TEST').then((res) => {
                     expect(res).to.deep.equal({});
                     expect(br.client.exec.args[0][0]).to.equal('TEST');
                 }).then(done).catch(done);
             });
 
-            it('should update capability from response', function(done) {
+            it('should update capability from response', (done) => {
                 sinon.stub(br.client, 'exec', function() {
                     arguments[arguments.length - 1]({
                         capability: ['A', 'B']
                     });
                 });
-                br.exec('TEST').then(function(res) {
+                br.exec('TEST').then((res) => {
                     expect(res).to.deep.equal({
                         capability: ['A', 'B']
                     });
@@ -172,22 +172,22 @@
                 }).then(done).catch(done);
             });
 
-            it('should return error on NO/BAD', function(done) {
+            it('should return error on NO/BAD', (done) => {
                 sinon.stub(br.client, 'exec', function() {
                     arguments[arguments.length - 1]({
                         command: 'NO'
                     });
                 });
-                br.exec('TEST').catch(function(err) {
+                br.exec('TEST').catch((err) => {
                     expect(err).to.exist;
                     done();
                 });
             });
         });
 
-        describe('#enterIdle', function() {
-            it('should periodically send NOOP if IDLE not supported', function(done) {
-                sinon.stub(br, 'exec', function(command) {
+        describe('#enterIdle', () => {
+            it('should periodically send NOOP if IDLE not supported', (done) => {
+                sinon.stub(br, 'exec', (command) => {
                     expect(command).to.equal('NOOP');
 
                     br.exec.restore();
@@ -199,9 +199,9 @@
                 br.enterIdle();
             });
 
-            it('should break IDLE after timeout', function(done) {
+            it('should break IDLE after timeout', (done) => {
                 sinon.stub(br.client, 'exec');
-                sinon.stub(br.client.socket, 'send', function(payload) {
+                sinon.stub(br.client.socket, 'send', (payload) => {
 
                     expect(br.client.exec.args[0][0].command).to.equal('IDLE');
                     expect([].slice.call(new Uint8Array(payload))).to.deep.equal([0x44, 0x4f, 0x4e, 0x45, 0x0d, 0x0a]);
@@ -217,45 +217,45 @@
             });
         });
 
-        describe('#breakIdle', function() {
-            it('should send DONE to socket', function(done) {
+        describe('#breakIdle', () => {
+            it('should send DONE to socket', (done) => {
                 sinon.stub(br.client.socket, 'send');
 
                 br._enteredIdle = 'IDLE';
-                br.breakIdle().then(function() {
+                br.breakIdle().then(() => {
                     expect([].slice.call(new Uint8Array(br.client.socket.send.args[0][0]))).to.deep.equal([0x44, 0x4f, 0x4e, 0x45, 0x0d, 0x0a]);
                     br.client.socket.send.restore();
                 }).then(done).catch(done);
             });
         });
 
-        describe('#upgradeConnection', function() {
-            describe('Skip upgrade', function() {
-                it('should do nothing if already secured', function(done) {
+        describe('#upgradeConnection', () => {
+            describe('Skip upgrade', () => {
+                it('should do nothing if already secured', (done) => {
                     br.client.secureMode = true;
                     br.capability = ['starttls'];
-                    br.upgradeConnection().then(function(upgraded) {
+                    br.upgradeConnection().then((upgraded) => {
                         expect(upgraded).to.be.false;
                     }).then(done).catch(done);
                 });
 
-                it('should do nothing if STARTTLS not available', function(done) {
+                it('should do nothing if STARTTLS not available', (done) => {
                     br.client.secureMode = false;
                     br.capability = [];
-                    br.upgradeConnection().then(function(upgraded) {
+                    br.upgradeConnection().then((upgraded) => {
                         expect(upgraded).to.be.false;
                     }).then(done).catch(done);
                 });
             });
 
-            it('should run STARTTLS', function(done) {
+            it('should run STARTTLS', (done) => {
                 sinon.stub(br.client, 'upgrade').yields(null, false);
                 sinon.stub(br, 'exec').withArgs('STARTTLS').returns(Promise.resolve());
                 sinon.stub(br, 'updateCapability').returns(Promise.resolve());
 
                 br.capability = ['STARTTLS'];
 
-                br.upgradeConnection().then(function(upgraded) {
+                br.upgradeConnection().then((upgraded) => {
                     expect(upgraded).to.be.false;
 
                     expect(br.client.upgrade.callCount).to.equal(1);
@@ -269,62 +269,62 @@
 
         });
 
-        describe('#updateCapability', function() {
-            beforeEach(function() {
+        describe('#updateCapability', () => {
+            beforeEach(() => {
                 sinon.stub(br, 'exec');
             });
 
-            afterEach(function() {
+            afterEach(() => {
                 br.exec.restore();
             });
 
-            it('should do nothing if capability is set', function(done) {
+            it('should do nothing if capability is set', (done) => {
                 br.capability = ['abc'];
-                br.updateCapability().then(function(updated) {
+                br.updateCapability().then((updated) => {
                     expect(updated).to.be.false;
                 }).then(done).catch(done);
             });
 
-            it('should run CAPABILITY if capability not set', function(done) {
+            it('should run CAPABILITY if capability not set', (done) => {
                 br.exec.returns(Promise.resolve());
 
                 br.capability = [];
 
-                br.updateCapability().then(function() {
+                br.updateCapability().then(() => {
                     expect(br.exec.args[0][0]).to.equal('CAPABILITY');
                 }).then(done).catch(done);
             });
 
-            it('should force run CAPABILITY', function(done) {
+            it('should force run CAPABILITY', (done) => {
                 br.exec.returns(Promise.resolve());
                 br.capability = ['abc'];
 
-                br.updateCapability(true).then(function() {
+                br.updateCapability(true).then(() => {
                     expect(br.exec.args[0][0]).to.equal('CAPABILITY');
                 }).then(done).catch(done);
             });
 
-            it('should do nothing if connection is not yet upgraded', function(done) {
+            it('should do nothing if connection is not yet upgraded', (done) => {
                 br.capability = [];
                 br.client.secureMode = false;
                 br.options.requireTLS = true;
 
-                br.updateCapability().then(function(updated) {
+                br.updateCapability().then((updated) => {
                     expect(updated).to.be.false;
                 }).then(done).catch(done);
             });
         });
 
-        describe('#listNamespaces', function() {
-            beforeEach(function() {
+        describe('#listNamespaces', () => {
+            beforeEach(() => {
                 sinon.stub(br, 'exec');
             });
 
-            afterEach(function() {
+            afterEach(() => {
                 br.exec.restore();
             });
 
-            it('should run NAMESPACE if supported', function(done) {
+            it('should run NAMESPACE if supported', (done) => {
                 br.exec.returns(Promise.resolve({
                     payload: {
                         NAMESPACE: [{
@@ -344,7 +344,7 @@
                 }));
                 br.capability = ['NAMESPACE'];
 
-                br.listNamespaces().then(function(namespaces) {
+                br.listNamespaces().then((namespaces) => {
                     expect(namespaces).to.deep.equal({
                         personal: [{
                             prefix: 'INBOX.',
@@ -358,27 +358,27 @@
                 }).then(done).catch(done);
             });
 
-            it('should do nothing if not supported', function(done) {
+            it('should do nothing if not supported', (done) => {
                 br.capability = [];
-                br.listNamespaces().then(function(namespaces) {
+                br.listNamespaces().then((namespaces) => {
                     expect(namespaces).to.be.false;
                     expect(br.exec.callCount).to.equal(0);
                 }).then(done).catch(done);
             });
         });
 
-        describe('#compressConnection', function() {
-            beforeEach(function() {
+        describe('#compressConnection', () => {
+            beforeEach(() => {
                 sinon.stub(br, 'exec');
                 sinon.stub(br.client, 'enableCompression');
             });
 
-            afterEach(function() {
+            afterEach(() => {
                 br.exec.restore();
                 br.client.enableCompression.restore();
             });
 
-            it('should run COMPRESS=DEFLATE if supported', function(done) {
+            it('should run COMPRESS=DEFLATE if supported', (done) => {
                 br.exec.withArgs({
                     command: 'COMPRESS',
                     attributes: [{
@@ -389,7 +389,7 @@
 
                 br.options.enableCompression = true;
                 br.capability = ['COMPRESS=DEFLATE'];
-                br.compressConnection().then(function(result) {
+                br.compressConnection().then((result) => {
                     expect(result).to.be.true;
 
                     expect(br.exec.callCount).to.equal(1);
@@ -397,35 +397,35 @@
                 }).then(done).catch(done);
             });
 
-            it('should do nothing if not supported', function(done) {
+            it('should do nothing if not supported', (done) => {
                 br.capability = [];
 
-                br.compressConnection().then(function(result) {
+                br.compressConnection().then((result) => {
                     expect(result).to.be.false;
                     expect(br.exec.callCount).to.equal(0);
                 }).then(done).catch(done);
             });
 
-            it('should do nothing if not enabled', function(done) {
+            it('should do nothing if not enabled', (done) => {
                 br.options.enableCompression = false;
                 br.capability = ['COMPRESS=DEFLATE'];
 
-                br.compressConnection().then(function(result) {
+                br.compressConnection().then((result) => {
                     expect(result).to.be.false;
                     expect(br.exec.callCount).to.equal(0);
                 }).then(done).catch(done);
             });
         });
 
-        describe('#login', function() {
-            it('should call LOGIN', function(done) {
+        describe('#login', () => {
+            it('should call LOGIN', (done) => {
                 sinon.stub(br, 'exec').returns(Promise.resolve({}));
                 sinon.stub(br, 'updateCapability').returns(Promise.resolve(true));
 
                 br.login({
                     user: 'u1',
                     pass: 'p1'
-                }).then(function() {
+                }).then(() => {
                     expect(br.exec.callCount).to.equal(1);
                     expect(br.exec.args[0][0]).to.deep.equal({
                         command: 'login',
@@ -445,7 +445,7 @@
 
             });
 
-            it('should call XOAUTH2', function() {
+            it('should call XOAUTH2', () => {
                 sinon.stub(br, 'exec').returns(Promise.resolve({}));
                 sinon.stub(br, 'updateCapability').returns(Promise.resolve(true));
 
@@ -453,7 +453,7 @@
                 br.login({
                     user: 'u1',
                     xoauth2: 'abc'
-                }).then(function() {
+                }).then(() => {
                     expect(br.exec.callCount).to.equal(1);
                     expect(br.exec.args[0][0]).to.deep.equal({
                         command: 'AUTHENTICATE',
@@ -472,27 +472,27 @@
             });
         });
 
-        describe('#updateId', function() {
-            beforeEach(function() {
+        describe('#updateId', () => {
+            beforeEach(() => {
                 sinon.stub(br, 'exec');
             });
 
-            afterEach(function() {
+            afterEach(() => {
                 br.exec.restore();
             });
 
-            it('should not nothing if not supported', function(done) {
+            it('should not nothing if not supported', (done) => {
                 br.capability = [];
 
                 br.updateId({
                     a: 'b',
                     c: 'd'
-                }).then(function(id) {
+                }).then((id) => {
                     expect(id).to.be.false;
                 }).then(done).catch(done);
             });
 
-            it('should send NIL', function(done) {
+            it('should send NIL', (done) => {
                 br.exec.withArgs({
                     command: 'ID',
                     attributes: [
@@ -509,12 +509,12 @@
                 }));
                 br.capability = ['ID'];
 
-                br.updateId(null).then(function(id) {
+                br.updateId(null).then((id) => {
                     expect(id).to.deep.equal({});
                 }).then(done).catch(done);
             });
 
-            it('should exhange ID values', function(done) {
+            it('should exhange ID values', (done) => {
                 br.exec.withArgs({
                     command: 'ID',
                     attributes: [
@@ -542,7 +542,7 @@
                 br.updateId({
                     ckey1: 'cval1',
                     ckey2: 'cval2'
-                }).then(function(id) {
+                }).then((id) => {
                     expect(id).to.deep.equal({
                         skey1: 'sval1',
                         skey2: 'sval2'
@@ -551,16 +551,16 @@
             });
         });
 
-        describe('#listMailboxes', function() {
-            beforeEach(function() {
+        describe('#listMailboxes', () => {
+            beforeEach(() => {
                 sinon.stub(br, 'exec');
             });
 
-            afterEach(function() {
+            afterEach(() => {
                 br.exec.restore();
             });
 
-            it('should call LIST and LSUB in sequence', function(done) {
+            it('should call LIST and LSUB in sequence', (done) => {
                 br.exec.withArgs({
                     command: 'LIST',
                     attributes: ['', '*']
@@ -579,12 +579,12 @@
                     }
                 }));
 
-                br.listMailboxes().then(function(tree) {
+                br.listMailboxes().then((tree) => {
                     expect(tree).to.exist;
                 }).then(done).catch(done);
             });
 
-            it.skip('should not die on NIL separators', function(done) {
+            it('should not die on NIL separators', (done) => {
                 br.exec.withArgs({
                     command: 'LIST',
                     attributes: ['', '*']
@@ -607,22 +607,22 @@
                     }
                 }));
 
-                br.listMailboxes().then(function(tree) {
+                br.listMailboxes().then((tree) => {
                     expect(tree).to.exist;
                 }).then(done).catch(done);
             });
         });
 
-        describe('#createMailbox', function() {
-            beforeEach(function() {
+        describe('#createMailbox', () => {
+            beforeEach(() => {
                 sinon.stub(br, 'exec');
             });
 
-            afterEach(function() {
+            afterEach(() => {
                 br.exec.restore();
             });
 
-            it('should call CREATE with a string payload', function(done) {
+            it('should call CREATE with a string payload', (done) => {
                 // The spec allows unquoted ATOM-style syntax too, but for
                 // simplicity we always generate a string even if it could be
                 // expressed as an atom.
@@ -631,26 +631,26 @@
                     attributes: ['mailboxname']
                 }).returns(Promise.resolve());
 
-                br.createMailbox('mailboxname').then(function(alreadyExists) {
+                br.createMailbox('mailboxname').then((alreadyExists) => {
                     expect(alreadyExists).to.be.false;
                     expect(br.exec.callCount).to.equal(1);
                 }).then(done).catch(done);
             });
 
-            it('should call mutf7 encode the argument', function(done) {
+            it('should call mutf7 encode the argument', (done) => {
                 // From RFC 3501
                 br.exec.withArgs({
                     command: 'CREATE',
                     attributes: ['~peter/mail/&U,BTFw-/&ZeVnLIqe-']
                 }).returns(Promise.resolve());
 
-                br.createMailbox('~peter/mail/\u53f0\u5317/\u65e5\u672c\u8a9e').then(function(alreadyExists) {
+                br.createMailbox('~peter/mail/\u53f0\u5317/\u65e5\u672c\u8a9e').then((alreadyExists) => {
                     expect(alreadyExists).to.be.false;
                     expect(br.exec.callCount).to.equal(1);
                 }).then(done).catch(done);
             });
 
-            it('should treat an ALREADYEXISTS response as success', function(done) {
+            it('should treat an ALREADYEXISTS response as success', (done) => {
                 var fakeErr = {
                     code: 'ALREADYEXISTS'
                 };
@@ -659,27 +659,27 @@
                     attributes: ['mailboxname']
                 }).returns(Promise.reject(fakeErr));
 
-                br.createMailbox('mailboxname').then(function(alreadyExists) {
+                br.createMailbox('mailboxname').then((alreadyExists) => {
                     expect(alreadyExists).to.be.true;
                     expect(br.exec.callCount).to.equal(1);
                 }).then(done).catch(done);
             });
         });
 
-        describe('#listMessages', function() {
-            beforeEach(function() {
+        describe('#listMessages', () => {
+            beforeEach(() => {
                 sinon.stub(br, 'exec');
                 sinon.stub(br, '_buildFETCHCommand');
                 sinon.stub(br, '_parseFETCH');
             });
 
-            afterEach(function() {
+            afterEach(() => {
                 br.exec.restore();
                 br._buildFETCHCommand.restore();
                 br._parseFETCH.restore();
             });
 
-            it('should call FETCH', function(done) {
+            it('should call FETCH', (done) => {
                 br.exec.returns(Promise.resolve('abc'));
                 br._buildFETCHCommand.withArgs(['1:2', ['uid', 'flags'], {
                     byUid: true
@@ -687,28 +687,28 @@
 
                 br.listMessages('1:2', ['uid', 'flags'], {
                     byUid: true
-                }).then(function() {
+                }).then(() => {
                     expect(br._buildFETCHCommand.callCount).to.equal(1);
                     expect(br._parseFETCH.withArgs('abc').callCount).to.equal(1);
                 }).then(done).catch(done);
             });
         });
 
-        describe('#search', function() {
-            beforeEach(function() {
+        describe('#search', () => {
+            beforeEach(() => {
                 sinon.stub(br, 'exec');
                 sinon.stub(br, '_buildSEARCHCommand');
                 sinon.stub(br, '_parseSEARCH');
             });
 
-            afterEach(function() {
+            afterEach(() => {
                 br.exec.restore();
                 br._buildSEARCHCommand.restore();
                 br._parseSEARCH.restore();
             });
 
 
-            it('should call SEARCH', function(done) {
+            it('should call SEARCH', (done) => {
                 br.exec.returns(Promise.resolve('abc'));
                 br._buildSEARCHCommand.withArgs({
                     uid: 1
@@ -720,7 +720,7 @@
                     uid: 1
                 }, {
                     byUid: true
-                }).then(function() {
+                }).then(() => {
                     expect(br._buildSEARCHCommand.callCount).to.equal(1);
                     expect(br.exec.callCount).to.equal(1);
                     expect(br._parseSEARCH.withArgs('abc').callCount).to.equal(1);
@@ -728,50 +728,50 @@
             });
         });
 
-        describe('#upload', function() {
-            beforeEach(function() {
+        describe('#upload', () => {
+            beforeEach(() => {
                 sinon.stub(br, 'exec');
             });
 
-            afterEach(function() {
+            afterEach(() => {
                 br.exec.restore();
             });
 
-            it('should call APPEND with custom flag', function(done) {
+            it('should call APPEND with custom flag', (done) => {
                 br.exec.returns(Promise.resolve());
 
                 br.upload('mailbox', 'this is a message', {
                     flags: ['\\$MyFlag']
-                }).then(function(success) {
+                }).then((success) => {
                     expect(success).to.be.true;
                     expect(br.exec.callCount).to.equal(1);
                 }).then(done).catch(done);
             });
 
-            it('should call APPEND w/o flags', function(done) {
+            it('should call APPEND w/o flags', (done) => {
                 br.exec.returns(Promise.resolve());
 
-                br.upload('mailbox', 'this is a message').then(function(success) {
+                br.upload('mailbox', 'this is a message').then((success) => {
                     expect(success).to.be.true;
                     expect(br.exec.callCount).to.equal(1);
                 }).then(done).catch(done);
             });
         });
 
-        describe('#setFlags', function() {
-            beforeEach(function() {
+        describe('#setFlags', () => {
+            beforeEach(() => {
                 sinon.stub(br, 'exec');
                 sinon.stub(br, '_buildSTORECommand');
                 sinon.stub(br, '_parseFETCH');
             });
 
-            afterEach(function() {
+            afterEach(() => {
                 br.exec.restore();
                 br._buildSTORECommand.restore();
                 br._parseFETCH.restore();
             });
 
-            it('should call STORE', function(done) {
+            it('should call STORE', (done) => {
                 br.exec.returns(Promise.resolve('abc'));
                 br._buildSTORECommand.withArgs('1:2','FLAGS',['\\Seen', '$MyFlag'], {
                     byUid: true
@@ -779,27 +779,27 @@
 
                 br.setFlags('1:2', ['\\Seen', '$MyFlag'], {
                     byUid: true
-                }).then(function() {
+                }).then(() => {
                     expect(br.exec.callCount).to.equal(1);
                     expect(br._parseFETCH.withArgs('abc').callCount).to.equal(1);
                 }).then(done).catch(done);
             });
         });
 
-        describe('#store', function() {
-            beforeEach(function() {
+        describe('#store', () => {
+            beforeEach(() => {
                 sinon.stub(br, 'exec');
                 sinon.stub(br, '_buildSTORECommand');
                 sinon.stub(br, '_parseFETCH');
             });
 
-            afterEach(function() {
+            afterEach(() => {
                 br.exec.restore();
                 br._buildSTORECommand.restore();
                 br._parseFETCH.restore();
             });
 
-            it('should call STORE', function(done) {
+            it('should call STORE', (done) => {
                 br.exec.returns(Promise.resolve('abc'));
                 br._buildSTORECommand.withArgs('1:2', '+X-GM-LABELS', ['\\Sent', '\\Junk'], {
                     byUid: true
@@ -807,7 +807,7 @@
 
                 br.store('1:2', '+X-GM-LABELS', ['\\Sent', '\\Junk'], {
                     byUid: true
-                }).then(function() {
+                }).then(() => {
                     expect(br._buildSTORECommand.callCount).to.equal(1);
                     expect(br.exec.callCount).to.equal(1);
                     expect(br._parseFETCH.withArgs('abc').callCount).to.equal(1);
@@ -815,18 +815,18 @@
             });
         });
 
-        describe('#deleteMessages', function() {
-            beforeEach(function() {
+        describe('#deleteMessages', () => {
+            beforeEach(() => {
                 sinon.stub(br, 'setFlags');
                 sinon.stub(br, 'exec');
             });
 
-            afterEach(function() {
+            afterEach(() => {
                 br.setFlags.restore();
                 br.exec.restore();
             });
 
-            it('should call UID EXPUNGE', function(done) {
+            it('should call UID EXPUNGE', (done) => {
                 br.exec.withArgs({
                     command: 'UID EXPUNGE',
                     attributes: [{
@@ -841,12 +841,12 @@
                 br.capability = ['UIDPLUS'];
                 br.deleteMessages('1:2', {
                     byUid: true
-                }).then(function() {
+                }).then(() => {
                     expect(br.exec.callCount).to.equal(1);
                 }).then(done).catch(done);
             });
 
-            it('should call EXPUNGE', function(done) {
+            it('should call EXPUNGE', (done) => {
                 br.exec.withArgs('EXPUNGE').returns(Promise.resolve('abc'));
                 br.setFlags.withArgs('1:2', {
                     add: '\\Deleted'
@@ -855,22 +855,22 @@
                 br.capability = [];
                 br.deleteMessages('1:2', {
                     byUid: true
-                }).then(function() {
+                }).then(() => {
                     expect(br.exec.callCount).to.equal(1);
                 }).then(done).catch(done);
             });
         });
 
-        describe('#copyMessages', function() {
-            beforeEach(function() {
+        describe('#copyMessages', () => {
+            beforeEach(() => {
                 sinon.stub(br, 'exec');
             });
 
-            afterEach(function() {
+            afterEach(() => {
                 br.exec.restore();
             });
 
-            it('should call COPY', function(done) {
+            it('should call COPY', (done) => {
                 br.exec.withArgs({
                     command: 'UID COPY',
                     attributes: [{
@@ -886,27 +886,27 @@
 
                 br.copyMessages('1:2', '[Gmail]/Trash', {
                     byUid: true
-                }).then(function(response) {
+                }).then((response) => {
                     expect(response).to.equal('abc');
                     expect(br.exec.callCount).to.equal(1);
                 }).then(done).catch(done);
             });
         });
 
-        describe('#moveMessages', function() {
-            beforeEach(function() {
+        describe('#moveMessages', () => {
+            beforeEach(() => {
                 sinon.stub(br, 'exec');
                 sinon.stub(br, 'copyMessages');
                 sinon.stub(br, 'deleteMessages');
             });
 
-            afterEach(function() {
+            afterEach(() => {
                 br.exec.restore();
                 br.copyMessages.restore();
                 br.deleteMessages.restore();
             });
 
-            it('should call MOVE if supported', function(done) {
+            it('should call MOVE if supported', (done) => {
                 br.exec.withArgs({
                     command: 'UID MOVE',
                     attributes: [{
@@ -921,12 +921,12 @@
                 br.capability = ['MOVE'];
                 br.moveMessages('1:2', '[Gmail]/Trash', {
                     byUid: true
-                }).then(function() {
+                }).then(() => {
                     expect(br.exec.callCount).to.equal(1);
                 }).then(done).catch(done);
             });
 
-            it('should fallback to copy+expunge', function(done) {
+            it('should fallback to copy+expunge', (done) => {
                 br.copyMessages.withArgs('1:2', '[Gmail]/Trash', {
                     byUid: true
                 }).returns(Promise.resolve());
@@ -937,24 +937,24 @@
                 br.capability = [];
                 br.moveMessages('1:2', '[Gmail]/Trash', {
                     byUid: true
-                }).then(function() {
+                }).then(() => {
                     expect(br.deleteMessages.callCount).to.equal(1);
                 }).then(done).catch(done);
             });
         });
 
-        describe('#selectMailbox', function() {
-            beforeEach(function() {
+        describe('#selectMailbox', () => {
+            beforeEach(() => {
                 sinon.stub(br, 'exec');
                 sinon.stub(br, '_parseSELECT');
             });
 
-            afterEach(function() {
+            afterEach(() => {
                 br.exec.restore();
                 br._parseSELECT.restore();
             });
 
-            it('should run SELECT', function(done) {
+            it('should run SELECT', (done) => {
                 br.exec.withArgs({
                     command: 'SELECT',
                     attributes: [{
@@ -963,14 +963,14 @@
                     }]
                 }).returns(Promise.resolve('abc'));
 
-                br.selectMailbox('[Gmail]/Trash').then(function() {
+                br.selectMailbox('[Gmail]/Trash').then(() => {
                     expect(br.exec.callCount).to.equal(1);
                     expect(br._parseSELECT.withArgs('abc').callCount).to.equal(1);
                     expect(br.state).to.equal(br.STATE_SELECTED);
                 }).then(done).catch(done);
             });
 
-            it('should run SELECT with CONDSTORE', function(done) {
+            it('should run SELECT with CONDSTORE', (done) => {
                 br.exec.withArgs({
                     command: 'SELECT',
                     attributes: [{
@@ -987,14 +987,14 @@
                 br.capability = ['CONDSTORE'];
                 br.selectMailbox('[Gmail]/Trash', {
                     condstore: true
-                }).then(function() {
+                }).then(() => {
                     expect(br.exec.callCount).to.equal(1);
                     expect(br._parseSELECT.withArgs('abc').callCount).to.equal(1);
                     expect(br.state).to.equal(br.STATE_SELECTED);
                 }).then(done).catch(done);
             });
 
-            it('should emit onselectmailbox', function(done) {
+            it('should emit onselectmailbox', (done) => {
                 br.exec.returns(Promise.resolve('abc'));
                 br._parseSELECT.withArgs('abc').returns('def');
 
@@ -1004,91 +1004,91 @@
                     done();
                 };
 
-                br.selectMailbox('[Gmail]/Trash').then(function() {
+                br.selectMailbox('[Gmail]/Trash').then(() => {
                     expect(br._parseSELECT.callCount).to.equal(1);
                 }).catch(done);
             });
 
-            it('should emit onclosemailbox', function(done) {
+            it('should emit onclosemailbox', (done) => {
                 br.exec.returns(Promise.resolve('abc'));
                 br._parseSELECT.withArgs('abc').returns('def');
 
                 br.onclosemailbox = (path) => expect(path).to.equal('yyy');
 
                 br.selectedMailbox = 'yyy';
-                br.selectMailbox('[Gmail]/Trash').then(function() {
+                br.selectMailbox('[Gmail]/Trash').then(() => {
                     expect(br._parseSELECT.callCount).to.equal(1);
                 }).then(done).catch(done);
             });
         });
 
-        describe('#hasCapability', function() {
-            it('should detect existing capability', function() {
+        describe('#hasCapability', () => {
+            it('should detect existing capability', () => {
                 br.capability = ['ZZZ'];
                 expect(br.hasCapability('zzz')).to.be.true;
             });
 
-            it('should detect non existing capability', function() {
+            it('should detect non existing capability', () => {
                 br.capability = ['ZZZ'];
                 expect(br.hasCapability('ooo')).to.be.false;
                 expect(br.hasCapability()).to.be.false;
             });
         });
 
-        describe('#_untaggedOkHandler', function() {
-            it('should update capability if present', function() {
+        describe('#_untaggedOkHandler', () => {
+            it('should update capability if present', () => {
                 br._untaggedOkHandler({
                     capability: ['abc']
-                }, function() {});
+                }, () => {});
                 expect(br.capability).to.deep.equal(['abc']);
             });
         });
 
-        describe('#_untaggedCapabilityHandler', function() {
-            it('should update capability', function() {
+        describe('#_untaggedCapabilityHandler', () => {
+            it('should update capability', () => {
                 br._untaggedCapabilityHandler({
                     attributes: [{
                         value: 'abc'
                     }]
-                }, function() {});
+                }, () => {});
                 expect(br.capability).to.deep.equal(['ABC']);
             });
         });
 
-        describe('#_untaggedExistsHandler', function() {
-            it('should emit onupdate', function() {
+        describe('#_untaggedExistsHandler', () => {
+            it('should emit onupdate', () => {
                 sinon.stub(br, 'onupdate');
 
                 br._untaggedExistsHandler({
                     nr: 123
-                }, function() {});
+                }, () => {});
                 expect(br.onupdate.withArgs('exists', 123).callCount).to.equal(1);
 
                 br.onupdate.restore();
             });
         });
 
-        describe('#_untaggedExpungeHandler', function() {
-            it('should emit onupdate', function() {
+        describe('#_untaggedExpungeHandler', () => {
+            it('should emit onupdate', () => {
                 sinon.stub(br, 'onupdate');
 
                 br._untaggedExpungeHandler({
                     nr: 123
-                }, function() {});
+                }, () => {});
                 expect(br.onupdate.withArgs('expunge', 123).callCount).to.equal(1);
 
                 br.onupdate.restore();
             });
         });
 
-        describe('#_untaggedFetchHandler', function() {
-            it('should emit onupdate', function() {
+        describe('#_untaggedFetchHandler', () => {
+            it('should emit onupdate', () => {
                 sinon.stub(br, 'onupdate');
                 sinon.stub(br, '_parseFETCH').returns('abc');
 
                 br._untaggedFetchHandler({
                     nr: 123
-                }, function() {});
+                }, () => {});
                 expect(br.onupdate.withArgs('fetch', 'abc').callCount).to.equal(1);
                 expect(br._parseFETCH.args[0][0]).to.deep.equal({
                     payload: {
@@ -1103,8 +1103,8 @@
             });
         });
 
-        describe('#_parseSELECT', function() {
-            it('should parse a complete response', function() {
+        describe('#_parseSELECT', () => {
+            it('should parse a complete response', () => {
                 expect(br._parseSELECT({
                     code: 'READ-WRITE',
                     payload: {
@@ -1147,7 +1147,7 @@
                 });
             });
 
-            it('should parse response with no modseq', function() {
+            it('should parse response with no modseq', () => {
                 expect(br._parseSELECT({
                     code: 'READ-WRITE',
                     payload: {
@@ -1186,7 +1186,7 @@
                 });
             });
 
-            it('should parse response with read-only', function() {
+            it('should parse response with read-only', () => {
                 expect(br._parseSELECT({
                     code: 'READ-ONLY',
                     payload: {
@@ -1225,7 +1225,7 @@
                 });
             });
 
-            it('should parse response with NOMODSEQ flag', function() {
+            it('should parse response with NOMODSEQ flag', () => {
                 expect(br._parseSELECT({
                     code: 'READ-WRITE',
                     payload: {
@@ -1268,8 +1268,8 @@
             });
         });
 
-        describe('#_parseNAMESPACE', function() {
-            it('should not succeed for no namespace response', function() {
+        describe('#_parseNAMESPACE', () => {
+            it('should not succeed for no namespace response', () => {
                 expect(br._parseNAMESPACE({
                     payload: {
                         NAMESPACE: []
@@ -1277,7 +1277,7 @@
                 })).to.be.false;
             });
 
-            it('should return single personal namespace', function() {
+            it('should return single personal namespace', () => {
                 expect(br._parseNAMESPACE({
                     payload: {
                         NAMESPACE: [{
@@ -1304,7 +1304,7 @@
                 });
             });
 
-            it('should return single personal, single users, multiple shared', function() {
+            it('should return single personal, single users, multiple shared', () => {
                 expect(br._parseNAMESPACE({
                     payload: {
                         NAMESPACE: [{
@@ -1368,7 +1368,7 @@
                 });
             });
 
-            it.skip('should handle NIL namespace hierarchy delim', function() {
+            it('should handle NIL namespace hierarchy delim', () => {
                 expect(br._parseNAMESPACE({
                     payload: {
                         NAMESPACE: [
@@ -1388,8 +1388,8 @@
             });
         });
 
-        describe('#_buildFETCHCommand', function() {
-            it('should build single ALL', function() {
+        describe('#_buildFETCHCommand', () => {
+            it('should build single ALL', () => {
                 expect(br._buildFETCHCommand('1:*', 'all', {})).to.deep.equal({
                     command: 'FETCH',
                     attributes: [{
@@ -1402,7 +1402,7 @@
                 });
             });
 
-            it('should build FETCH with uid', function() {
+            it('should build FETCH with uid', () => {
                 expect(br._buildFETCHCommand('1:*', 'all', {
                     byUid: true
                 })).to.deep.equal({
@@ -1417,7 +1417,7 @@
                 });
             });
 
-            it('should build FETCH with uid, envelope', function() {
+            it('should build FETCH with uid, envelope', () => {
                 expect(br._buildFETCHCommand('1:*', ['uid', 'envelope'], {})).to.deep.equal({
                     command: 'FETCH',
                     attributes: [{
@@ -1435,7 +1435,7 @@
                 });
             });
 
-            it('should build FETCH with modseq', function() {
+            it('should build FETCH with modseq', () => {
                 expect(br._buildFETCHCommand('1:*', ['modseq (1234567)'], {})).to.deep.equal({
                     command: 'FETCH',
                     attributes: [{
@@ -1455,7 +1455,7 @@
                 });
             });
 
-            it('should build FETCH with section', function() {
+            it('should build FETCH with section', () => {
                 expect(br._buildFETCHCommand('1:*', 'body[text]', {})).to.deep.equal({
                     command: 'FETCH',
                     attributes: [{
@@ -1472,7 +1472,7 @@
                 });
             });
 
-            it('should build FETCH with section and list', function() {
+            it('should build FETCH with section and list', () => {
                 expect(br._buildFETCHCommand('1:*', 'body[header.fields (date in-reply-to)]', {})).to.deep.equal({
                     command: 'FETCH',
                     attributes: [{
@@ -1497,7 +1497,7 @@
                 });
             });
 
-            it('should build FETCH with ', function() {
+            it('should build FETCH with ', () => {
                 expect(br._buildFETCHCommand('1:*', 'all', {
                     changedSince: '123456'
                 })).to.deep.equal({
@@ -1520,7 +1520,7 @@
                 });
             });
 
-            it('should build FETCH with partial', function() {
+            it('should build FETCH with partial', () => {
                 expect(br._buildFETCHCommand('1:*', 'body[]', {})).to.deep.equal({
                     command: 'FETCH',
                     attributes: [{
@@ -1535,8 +1535,8 @@
             });
         });
 
-        describe('#_parseFETCH', function() {
-            it('should return values lowercase keys', function() {
+        describe('#_parseFETCH', () => {
+            it('should return values lowercase keys', () => {
                 sinon.stub(br, '_parseFetchValue').returns('def');
                 expect(br._parseFETCH({
                     payload: {
@@ -1579,7 +1579,7 @@
                 br._parseFetchValue.restore();
             });
 
-            it('should merge multiple responses based on sequence number', function() {
+            it('should merge multiple responses based on sequence number', () => {
                 expect(br._parseFETCH({
                     payload: {
                         FETCH: [{
@@ -1628,18 +1628,18 @@
             });
         });
 
-        describe('#_parseENVELOPE', function() {
-            it('should parsed envelope object', function() {
+        describe('#_parseENVELOPE', () => {
+            it('should parsed envelope object', () => {
                 expect(br._parseENVELOPE(testEnvelope.source)).to.deep.equal(testEnvelope.parsed);
             });
         });
 
-        describe('#_parseBODYSTRUCTURE', function() {
-            it('should parse bodystructure object', function() {
+        describe('#_parseBODYSTRUCTURE', () => {
+            it('should parse bodystructure object', () => {
                 expect(br._parseBODYSTRUCTURE(mimeTorture.source)).to.deep.equal(mimeTorture.parsed);
             });
 
-            it('should parse bodystructure with unicode filename', function() {
+            it('should parse bodystructure with unicode filename', () => {
                 var input = [
                     [{
                             type: 'STRING',
@@ -1706,8 +1706,8 @@
             });
         });
 
-        describe('#_buildSEARCHCommand', function() {
-            it('should compose a search command', function() {
+        describe('#_buildSEARCHCommand', () => {
+            it('should compose a search command', () => {
                 expect(br._buildSEARCHCommand({
                     unseen: true,
                     header: ['subject', 'hello world'],
@@ -1786,7 +1786,7 @@
                 });
             });
 
-            it('should compose an unicode search command', function() {
+            it('should compose an unicode search command', () => {
                 expect(br._buildSEARCHCommand({
                     body: 'jõgeva'
                 }, {})).to.deep.equal({
@@ -1808,8 +1808,8 @@
             });
         });
 
-        describe('#_parseSEARCH', function() {
-            it('should parse SEARCH response', function() {
+        describe('#_parseSEARCH', () => {
+            it('should parse SEARCH response', () => {
                 expect(br._parseSEARCH({
                     payload: {
                         SEARCH: [{
@@ -1827,7 +1827,7 @@
                 })).to.deep.equal([5, 6, 7]);
             });
 
-            it('should parse empty SEARCH response', function() {
+            it('should parse empty SEARCH response', () => {
                 expect(br._parseSEARCH({
                     payload: {
                         SEARCH: [{
@@ -1839,8 +1839,8 @@
             });
         });
 
-        describe('#_buildSTORECommand', function() {
-            it('should compose a store command from an array', function() {
+        describe('#_buildSTORECommand', () => {
+            it('should compose a store command from an array', () => {
                 expect(br._buildSTORECommand('1,2,3', 'FLAGS', ['a', 'b'], {})).to.deep.equal({
                     command: 'STORE',
                     attributes: [{
@@ -1861,7 +1861,7 @@
                 });
             });
 
-            it('should compose a store set flags command', function() {
+            it('should compose a store set flags command', () => {
                 expect(br._buildSTORECommand('1,2,3', 'FLAGS', ['a', 'b'], {})).to.deep.equal({
                     command: 'STORE',
                     attributes: [{
@@ -1882,7 +1882,7 @@
                 });
             });
 
-            it('should compose a store add flags command', function() {
+            it('should compose a store add flags command', () => {
                 expect(br._buildSTORECommand('1,2,3', '+FLAGS', ['a', 'b'], {})).to.deep.equal({
                     command: 'STORE',
                     attributes: [{
@@ -1903,7 +1903,7 @@
                 });
             });
 
-            it('should compose a store remove flags command', function() {
+            it('should compose a store remove flags command', () => {
                 expect(br._buildSTORECommand('1,2,3', '-FLAGS', ['a', 'b'], {})).to.deep.equal({
                     command: 'STORE',
                     attributes: [{
@@ -1924,7 +1924,7 @@
                 });
             });
 
-            it('should compose a store remove silent flags command', function() {
+            it('should compose a store remove silent flags command', () => {
                 expect(br._buildSTORECommand('1,2,3', '-FLAGS', ['a', 'b'], {
                     silent: true
                 })).to.deep.equal({
@@ -1947,7 +1947,7 @@
                 });
             });
 
-            it('should compose a uid store flags command', function() {
+            it('should compose a uid store flags command', () => {
                 expect(br._buildSTORECommand('1,2,3', 'FLAGS', ['a', 'b'], {
                     byUid: true
                 })).to.deep.equal({
@@ -1972,14 +1972,14 @@
 
         });
 
-        describe('#_changeState', function() {
-            it('should set the state value', function() {
+        describe('#_changeState', () => {
+            it('should set the state value', () => {
                 br._changeState(12345);
 
                 expect(br.state).to.equal(12345);
             });
 
-            it('should emit onclosemailbox if mailbox was closed', function() {
+            it('should emit onclosemailbox if mailbox was closed', () => {
                 sinon.stub(br, 'onclosemailbox');
                 br.state = br.STATE_SELECTED;
                 br.selectedMailbox = 'aaa';
@@ -1992,8 +1992,8 @@
             });
         });
 
-        describe('#_ensurePath', function() {
-            it('should create the path if not present', function() {
+        describe('#_ensurePath', () => {
+            it('should create the path if not present', () => {
                 var tree = {
                     children: []
                 };
@@ -2018,7 +2018,7 @@
                 });
             });
 
-            it('should return existing path if possible', function() {
+            it('should return existing path if possible', () => {
                 var tree = {
                     children: [{
                         name: 'hello',
@@ -2042,7 +2042,7 @@
                 });
             });
 
-            it('should handle case insensitive Inbox', function() {
+            it('should handle case insensitive Inbox', () => {
                 var tree = {
                     children: []
                 };
@@ -2080,25 +2080,25 @@
             });
         });
 
-        describe('#_checkSpecialUse', function() {
-            it('should exist', function() {
+        describe('#_checkSpecialUse', () => {
+            it('should exist', () => {
                 expect(br._checkSpecialUse({
                     flags: ['test', '\\All']
                 })).to.equal('\\All');
 
             });
 
-            it('should fail for non-existent flag', function() {
+            it('should fail for non-existent flag', () => {
                 expect(false, br._checkSpecialUse({}));
             });
 
-            it('should fail for invalid flag', function() {
+            it('should fail for invalid flag', () => {
                 expect(br._checkSpecialUse({
                     flags: ['test']
                 })).to.be.false;
             });
 
-            it('should return special use flag if match is found', function() {
+            it('should return special use flag if match is found', () => {
                 expect(br._checkSpecialUse({
                     name: 'test'
                 })).to.be.false;
@@ -2108,16 +2108,16 @@
             });
         });
 
-        describe('#_buildXOAuth2Token', function() {
-            it('should return base64 encoded XOAUTH2 token', function() {
+        describe('#_buildXOAuth2Token', () => {
+            it('should return base64 encoded XOAUTH2 token', () => {
                 expect(br._buildXOAuth2Token('user@host', 'abcde')).to.equal('dXNlcj11c2VyQGhvc3QBYXV0aD1CZWFyZXIgYWJjZGUBAQ==');
             });
         });
 
-        describe('untagged updates', function() {
-            it('should receive information about untagged exists', function(done) {
+        describe('untagged updates', () => {
+            it('should receive information about untagged exists', (done) => {
                 br.client._connectionReady = true;
-                br.onupdate = function(type, value) {
+                br.onupdate = (type, value) => {
                     expect(type).to.equal('exists');
                     expect(value).to.equal(123);
                     done();
@@ -2125,9 +2125,9 @@
                 br.client._addToServerQueue('* 123 EXISTS');
             });
 
-            it('should receive information about untagged expunge', function(done) {
+            it('should receive information about untagged expunge', (done) => {
                 br.client._connectionReady = true;
-                br.onupdate = function(type, value) {
+                br.onupdate = (type, value) => {
                     expect(type).to.equal('expunge');
                     expect(value).to.equal(456);
                     done();
@@ -2135,9 +2135,9 @@
                 br.client._addToServerQueue('* 456 EXPUNGE');
             });
 
-            it('should receive information about untagged fetch', function(done) {
+            it('should receive information about untagged fetch', (done) => {
                 br.client._connectionReady = true;
-                br.onupdate = function(type, value) {
+                br.onupdate = (type, value) => {
                     expect(type).to.equal('fetch');
                     expect(value).to.deep.equal({
                         '#': 123,

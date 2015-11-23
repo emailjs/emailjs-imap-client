@@ -13,23 +13,22 @@
     var host = 'localhost';
     var port = 10000;
 
-    describe('browserbox imap unit tests', function() {
+    describe('browserbox imap unit tests', () => {
         var client, TCPSocket, openStub, socketStub;
 
         /* jshint indent:false */
 
-        beforeEach(function() {
+        beforeEach(() => {
             client = new ImapClient(host, port);
             expect(client).to.exist;
 
             TCPSocket = client._TCPSocket = function() {};
-
-            TCPSocket.open = function() {};
-            TCPSocket.prototype.close = function() {};
-            TCPSocket.prototype.send = function() {};
-            TCPSocket.prototype.suspend = function() {};
-            TCPSocket.prototype.resume = function() {};
-            TCPSocket.prototype.upgradeToSecure = function() {};
+            TCPSocket.open = () => {};
+            TCPSocket.prototype.close = () => {};
+            TCPSocket.prototype.send = () => {};
+            TCPSocket.prototype.suspend = () => {};
+            TCPSocket.prototype.resume = () => {};
+            TCPSocket.prototype.upgradeToSecure = () => {};
 
             socketStub = sinon.createStubInstance(TCPSocket);
             openStub = sinon.stub(TCPSocket, 'open');
@@ -43,18 +42,18 @@
             expect(socketStub.onopen).to.exist;
         });
 
-        afterEach(function() {
+        afterEach(() => {
             TCPSocket.open.restore();
         });
 
-        describe('#connect', function() {
-            it('should not throw', function() {
+        describe('#connect', () => {
+            it('should not throw', () => {
                 var client = new ImapClient(host, port);
                 client._TCPSocket = {
-                    open: function() {
+                    open: () => {
                         var socket = {
-                            onopen: function() {},
-                            onerror: function() {}
+                            onopen: () => {},
+                            onerror: () => {}
                         };
                         // disallow setting new properties (eg. oncert)
                         Object.preventExtensions(socket);
@@ -65,8 +64,8 @@
             });
         });
 
-        describe('#close', function() {
-            it('should call socket.close', function() {
+        describe('#close', () => {
+            it('should call socket.close', () => {
                 client.socket.readyState = 'open';
 
                 client.close();
@@ -74,7 +73,7 @@
                 expect(client.socket.close.callCount).to.equal(1);
             });
 
-            it('should call _destroy if closed', function() {
+            it('should call _destroy if closed', () => {
                 sinon.stub(client, '_destroy');
 
                 client.socket.readyState = false;
@@ -86,19 +85,19 @@
             });
         });
 
-        describe('#upgrade', function() {
-            it('should upgrade socket', function(done) {
+        describe('#upgrade', () => {
+            it('should upgrade socket', (done) => {
                 client.secureMode = false;
-                client.upgrade(function(err, upgraded) {
+                client.upgrade((err, upgraded) => {
                     expect(err).to.not.exist;
                     expect(upgraded).to.be.true;
                     done();
                 });
             });
 
-            it('should not upgrade socket', function(done) {
+            it('should not upgrade socket', (done) => {
                 client.secureMode = true;
-                client.upgrade(function(err, upgraded) {
+                client.upgrade((err, upgraded) => {
                     expect(err).to.not.exist;
                     expect(upgraded).to.be.false;
                     done();
@@ -106,8 +105,8 @@
             });
         });
 
-        describe('#exec', function() {
-            it('should add command to queue', function() {
+        describe('#exec', () => {
+            it('should add command to queue', () => {
                 sinon.stub(client, '_addToClientQueue');
 
                 client.exec('a', 'b', 'c', 'd');
@@ -120,17 +119,17 @@
             });
         });
 
-        describe('#setHandler', function() {
-            it('should set global handler for keyword', function() {
-                var handler = function() {};
+        describe('#setHandler', () => {
+            it('should set global handler for keyword', () => {
+                var handler = () => {};
                 client.setHandler('fetch', handler);
 
                 expect(client._globalAcceptUntagged.FETCH).to.equal(handler);
             });
         });
 
-        describe('#_onError', function() {
-            it('should emit error and close connection', function() {
+        describe('#_onError', () => {
+            it('should emit error and close connection', () => {
                 sinon.stub(client, 'onerror');
                 sinon.stub(client, 'close');
 
@@ -147,8 +146,8 @@
             });
         });
 
-        describe('#_destroy', function() {
-            it('should emit onclose', function() {
+        describe('#_destroy', () => {
+            it('should emit onclose', () => {
                 sinon.stub(client, 'onclose');
 
                 client.destroyed = false;
@@ -159,7 +158,7 @@
                 client.onclose.restore();
             });
 
-            it('should not emit onclose', function() {
+            it('should not emit onclose', () => {
                 sinon.stub(client, 'onclose');
 
                 client.destroyed = true;
@@ -171,8 +170,8 @@
             });
         });
 
-        describe('#_onClose', function() {
-            it('should call _destroy', function() {
+        describe('#_onClose', () => {
+            it('should call _destroy', () => {
                 sinon.stub(client, '_destroy');
 
                 client._onClose();
@@ -183,8 +182,8 @@
             });
         });
 
-        describe('#_onDrain', function() {
-            it('should emit ondrain', function() {
+        describe('#_onDrain', () => {
+            it('should emit ondrain', () => {
                 sinon.stub(client, 'ondrain');
 
                 client._onDrain();
@@ -195,8 +194,8 @@
             });
         });
 
-        describe('#_onData', function() {
-            it('should process normal input', function() {
+        describe('#_onData', () => {
+            it('should process normal input', () => {
                 var list = [
                         '* 1 FETCH (UID 1)',
                         '* 2 FETCH (UID 2)',
@@ -204,7 +203,7 @@
                     ],
                     pos = 0;
 
-                sinon.stub(client, '_addToServerQueue', function(cmd) {
+                sinon.stub(client, '_addToServerQueue', (cmd) => {
                     expect(list[pos++]).to.equal(cmd);
                 });
 
@@ -217,7 +216,7 @@
                 client._addToServerQueue.restore();
             });
 
-            it('should process chunked input', function() {
+            it('should process chunked input', () => {
                 var input = ['* 1 FETCH (UID 1)\r\n* 2 F', 'ETCH (UID 2)\r\n* 3 FETCH (UID 3', ')\r\n'];
 
                 var output = [
@@ -227,7 +226,7 @@
                     ],
                     pos = 0;
 
-                sinon.stub(client, '_addToServerQueue', function(cmd) {
+                sinon.stub(client, '_addToServerQueue', (cmd) => {
                     expect(output[pos++]).to.equal(cmd);
                 });
 
@@ -240,7 +239,7 @@
                 client._addToServerQueue.restore();
             });
 
-            it('should process split input', function() {
+            it('should process split input', () => {
                 var input = ['* 1 ', 'F', 'ETCH (', 'UID 1)', '\r', '\n'];
 
                 var output = [
@@ -248,7 +247,7 @@
                     ],
                     pos = 0;
 
-                sinon.stub(client, '_addToServerQueue', function(cmd) {
+                sinon.stub(client, '_addToServerQueue', (cmd) => {
                     expect(output[pos++]).to.equal(cmd);
                 });
 
@@ -261,7 +260,7 @@
                 client._addToServerQueue.restore();
             });
 
-            it('chould process chunked literals', function() {
+            it('chould process chunked literals', () => {
                 var input = [
                     '* 1 FETCH (UID {1}\r\n1)\r\n* 2 FETCH (UID {4}\r\n2345)\r\n* 3 FETCH (UID {4}', '\r\n3789)\r\n'
                 ];
@@ -273,7 +272,7 @@
                     ],
                     pos = 0;
 
-                sinon.stub(client, '_addToServerQueue', function(cmd) {
+                sinon.stub(client, '_addToServerQueue', (cmd) => {
                     expect(output[pos++]).to.equal(cmd);
                 });
 
@@ -287,8 +286,8 @@
             });
         });
 
-        describe('#_addToServerQueue', function() {
-            it('should only push', function() {
+        describe('#_addToServerQueue', () => {
+            it('should only push', () => {
                 sinon.stub(client, '_processServerQueue');
 
                 client._processingServerData = true;
@@ -301,7 +300,7 @@
                 client._processServerQueue.restore();
             });
 
-            it('should push and run', function() {
+            it('should push and run', () => {
                 sinon.stub(client, '_processServerQueue');
 
                 client._processingServerData = false;
@@ -315,13 +314,13 @@
             });
         });
 
-        describe('#_processServerQueue', function() {
-            it('should process a tagged item from the queue', function(done) {
+        describe('#_processServerQueue', () => {
+            it('should process a tagged item from the queue', (done) => {
                 var ref = client._processServerQueue.bind(client);
 
                 sinon.stub(client, '_sendRequest');
 
-                sinon.stub(client, '_processServerResponse', function(response, callback) {
+                sinon.stub(client, '_processServerResponse', (response, callback) => {
                     expect(response).to.deep.equal({
                         tag: 'OK',
                         command: 'Hello',
@@ -333,7 +332,7 @@
                     return callback();
                 });
 
-                sinon.stub(client, '_processServerQueue', function() {
+                sinon.stub(client, '_processServerQueue', () => {
 
                     expect(client._sendRequest.callCount).to.equal(1);
                     expect(client._processServerResponse.callCount).to.equal(1);
@@ -348,12 +347,12 @@
                 ref();
             });
 
-            it('should process an untagged item from the queue', function(done) {
+            it('should process an untagged item from the queue', (done) => {
                 var ref = client._processServerQueue.bind(client);
 
                 sinon.stub(client, '_sendRequest');
 
-                sinon.stub(client, '_processServerResponse', function(response, callback) {
+                sinon.stub(client, '_processServerResponse', (response, callback) => {
                     expect(response).to.deep.equal({
                         tag: '*',
                         command: 'EXISTS',
@@ -363,7 +362,7 @@
                     return callback();
                 });
 
-                sinon.stub(client, '_processServerQueue', function() {
+                sinon.stub(client, '_processServerQueue', () => {
 
                     expect(client._sendRequest.callCount).to.equal(1);
                     expect(client._processServerResponse.callCount).to.equal(1);
@@ -378,11 +377,11 @@
                 ref();
             });
 
-            it('should process a plus tagged item from the queue', function(done) {
+            it('should process a plus tagged item from the queue', (done) => {
                 var ref = client._processServerQueue.bind(client);
                 sinon.stub(client, 'send');
 
-                sinon.stub(client, '_processServerQueue', function() {
+                sinon.stub(client, '_processServerQueue', () => {
 
                     expect(client.send.withArgs('literal data\r\n').callCount).to.equal(1);
 
@@ -399,17 +398,17 @@
             });
         });
 
-        describe('#_processServerResponse', function() {
-            it('should invoke global handler by default', function() {
+        describe('#_processServerResponse', () => {
+            it('should invoke global handler by default', () => {
                 sinon.stub(client, '_processResponse');
-                client._globalAcceptUntagged.TEST = function() {};
+                client._globalAcceptUntagged.TEST = () => {};
                 sinon.stub(client._globalAcceptUntagged, 'TEST');
 
                 client._currentCommand = false;
                 client._processServerResponse({
                     tag: '*',
                     command: 'test'
-                }, function() {});
+                }, () => {});
 
                 expect(client._globalAcceptUntagged.TEST.withArgs({
                     tag: '*',
@@ -420,9 +419,9 @@
                 client._globalAcceptUntagged.TEST.restore();
             });
 
-            it('should invoke global handler if needed', function() {
+            it('should invoke global handler if needed', () => {
                 sinon.stub(client, '_processResponse');
-                client._globalAcceptUntagged.TEST = function() {};
+                client._globalAcceptUntagged.TEST = () => {};
                 sinon.stub(client._globalAcceptUntagged, 'TEST');
 
                 client._currentCommand = {
@@ -431,7 +430,7 @@
                 client._processServerResponse({
                     tag: '*',
                     command: 'test'
-                }, function() {});
+                }, () => {});
 
                 expect(client._globalAcceptUntagged.TEST.withArgs({
                     tag: '*',
@@ -442,9 +441,9 @@
                 client._globalAcceptUntagged.TEST.restore();
             });
 
-            it('should push to payload', function() {
+            it('should push to payload', () => {
                 sinon.stub(client, '_processResponse');
-                client._globalAcceptUntagged.TEST = function() {};
+                client._globalAcceptUntagged.TEST = () => {};
                 sinon.stub(client._globalAcceptUntagged, 'TEST');
 
                 client._currentCommand = {
@@ -455,7 +454,7 @@
                 client._processServerResponse({
                     tag: '*',
                     command: 'test'
-                }, function() {});
+                }, () => {});
 
                 expect(client._globalAcceptUntagged.TEST.callCount).to.equal(0);
                 expect(client._currentCommand.payload.TEST).to.deep.equal([{
@@ -467,14 +466,14 @@
                 client._globalAcceptUntagged.TEST.restore();
             });
 
-            it('should invoke command callback', function() {
+            it('should invoke command callback', () => {
                 sinon.stub(client, '_processResponse');
-                client._globalAcceptUntagged.TEST = function() {};
+                client._globalAcceptUntagged.TEST = () => {};
                 sinon.stub(client._globalAcceptUntagged, 'TEST');
 
                 client._currentCommand = {
                     tag: 'A',
-                    callback: function(response) {
+                    callback: (response) => {
 
                         expect(response).to.deep.equal({
                             tag: 'A',
@@ -491,7 +490,7 @@
                 client._processServerResponse({
                     tag: 'A',
                     command: 'test'
-                }, function() {});
+                }, () => {});
 
                 expect(client._globalAcceptUntagged.TEST.callCount).to.equal(0);
 
@@ -500,15 +499,15 @@
             });
         });
 
-        describe('#_addToClientQueue', function() {
-            it('should invoke sending', function() {
+        describe('#_addToClientQueue', () => {
+            it('should invoke sending', () => {
                 sinon.stub(client, '_sendRequest');
 
                 client._tagCounter = 100;
                 client._clientQueue = [];
                 client._canSend = true;
 
-                var cb = function() {};
+                var cb = () => {};
 
                 client._addToClientQueue({
                     command: 'abc'
@@ -528,14 +527,14 @@
                 client._sendRequest.restore();
             });
 
-            it('should only queue', function() {
+            it('should only queue', () => {
                 sinon.stub(client, '_sendRequest');
 
                 client._tagCounter = 100;
                 client._clientQueue = [];
                 client._canSend = false;
 
-                var cb = function() {};
+                var cb = () => {};
 
                 client._addToClientQueue({
                     command: 'abc'
@@ -551,8 +550,8 @@
             });
         });
 
-        describe('#_sendRequest', function() {
-            it('should enter idle if nothing is to process', function() {
+        describe('#_sendRequest', () => {
+            it('should enter idle if nothing is to process', () => {
                 sinon.stub(client, '_enterIdle');
 
                 client._clientQueue = [];
@@ -563,7 +562,7 @@
                 client._enterIdle.restore();
             });
 
-            it('should send data', function() {
+            it('should send data', () => {
                 sinon.stub(client, '_clearIdle');
                 sinon.stub(client, 'send');
 
@@ -582,7 +581,7 @@
                 client.send.restore();
             });
 
-            it('should send partial data', function() {
+            it('should send partial data', () => {
                 sinon.stub(client, '_clearIdle');
                 sinon.stub(client, 'send');
 
@@ -605,7 +604,7 @@
                 client.send.restore();
             });
 
-            it('should run precheck', function(done) {
+            it('should run precheck', (done) => {
                 sinon.stub(client, '_clearIdle');
 
                 client._canSend = true;
@@ -618,10 +617,10 @@
                             value: 'abc'
                         }]
                     },
-                    precheck: function(ctx) {
+                    precheck: (ctx) => {
                         expect(ctx).to.exist;
                         expect(client._canSend).to.be.true;
-                        client._sendRequest = function() {
+                        client._sendRequest = () => {
                             expect(client._clientQueue.length).to.equal(2);
                             expect(client._clientQueue[0].tag).to.include('.p');
                             expect(client._clientQueue[0].request.tag).to.include('.p');
@@ -638,9 +637,9 @@
             });
         });
 
-        describe('#_enterIdle', function() {
-            it('should set idle timer', function(done) {
-                client.onidle = function() {
+        describe('#_enterIdle', () => {
+            it('should set idle timer', (done) => {
+                client.onidle = () => {
                     done();
                 };
                 client.TIMEOUT_ENTER_IDLE = 1;
@@ -649,8 +648,8 @@
             });
         });
 
-        describe('#_processResponse', function() {
-            it('should set humanReadable', function() {
+        describe('#_processResponse', () => {
+            it('should set humanReadable', () => {
                 var response = {
                     tag: '*',
                     command: 'OK',
@@ -664,7 +663,7 @@
                 expect(response.humanReadable).to.equal('Some random text');
             });
 
-            it('should set response code', function() {
+            it('should set response code', () => {
                 var response = {
                     tag: '*',
                     command: 'OK',
@@ -691,26 +690,26 @@
             });
         });
 
-        describe('#isError', function() {
-            it('should detect if an object is an error', function() {
+        describe('#isError', () => {
+            it('should detect if an object is an error', () => {
                 expect(client.isError(new RangeError('abc'))).to.be.true;
                 expect(client.isError('abc')).to.be.false;
             });
         });
 
-        describe('#enableCompression', function() {
-            it('should create inflater and deflater streams', function() {
-                client.socket.ondata = function() {};
+        describe('#enableCompression', () => {
+            it('should create inflater and deflater streams', () => {
+                client.socket.ondata = () => {};
                 sinon.stub(client.socket, 'ondata');
 
                 expect(client.compressed).to.be.false;
                 client.enableCompression();
                 expect(client.compressed).to.be.true;
 
-                sinon.stub(client._compression, 'inflate', function() {
+                sinon.stub(client._compression, 'inflate', () => {
                     client._compression.inflatedReady(new Uint8Array([1, 2, 3]).buffer);
                 });
-                sinon.stub(client._compression, 'deflate', function() {
+                sinon.stub(client._compression, 'deflate', () => {
                     client._compression.deflatedReady(new Uint8Array([4, 5, 6]).buffer);
                 });
 
