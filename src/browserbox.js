@@ -1310,7 +1310,7 @@
                 if (!name) {
                     formatted = address;
                 } else {
-                    formatted = encodeAddressName(name) + ' <' + address + '>';
+                    formatted = this._encodeAddressName(name) + ' <' + address + '>';
                 }
 
                 var parsed = addressparser.parse(formatted).shift(); // there should bu just a single address
@@ -1847,7 +1847,7 @@
      * @param {String} name Name part of an address
      * @returns {String} Mime word encoded or quoted string
      */
-    function encodeAddressName(name) {
+    BrowserBox.prototype._encodeAddressName = function(name) {
         if (!/^[\w ']*$/.test(name)) {
             if (/^[\x20-\x7e]*$/.test(name)) {
                 return JSON.stringify(name);
@@ -1856,7 +1856,7 @@
             }
         }
         return name;
-    }
+    };
 
     return BrowserBox;
 }));
