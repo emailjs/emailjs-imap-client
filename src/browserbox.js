@@ -1379,9 +1379,6 @@
      * @param {Object} Envelope object
      */
     BrowserBox.prototype._parseBODYSTRUCTURE = function(value) {
-        // doesn't do anything yet
-
-        var that = this;
         var processNode = (node, path) => {
             path = path || [];
 
@@ -1469,7 +1466,7 @@
 
                     // envelope
                     if (node[i]) {
-                        curNode.envelope = that._parseENVELOPE([].concat(node[i] || []));
+                        curNode.envelope = this._parseENVELOPE([].concat(node[i] || []));
                     }
                     i++;
 
