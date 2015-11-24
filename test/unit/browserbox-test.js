@@ -1390,7 +1390,7 @@
 
         describe('#_buildFETCHCommand', () => {
             it('should build single ALL', () => {
-                expect(br._buildFETCHCommand('1:*', 'all', {})).to.deep.equal({
+                expect(br._buildFETCHCommand('1:*', ['all'], {})).to.deep.equal({
                     command: 'FETCH',
                     attributes: [{
                         type: 'SEQUENCE',
@@ -1403,7 +1403,7 @@
             });
 
             it('should build FETCH with uid', () => {
-                expect(br._buildFETCHCommand('1:*', 'all', {
+                expect(br._buildFETCHCommand('1:*', ['all'], {
                     byUid: true
                 })).to.deep.equal({
                     command: 'UID FETCH',
@@ -1456,7 +1456,7 @@
             });
 
             it('should build FETCH with section', () => {
-                expect(br._buildFETCHCommand('1:*', 'body[text]', {})).to.deep.equal({
+                expect(br._buildFETCHCommand('1:*', ['body[text]'], {})).to.deep.equal({
                     command: 'FETCH',
                     attributes: [{
                         type: 'SEQUENCE',
@@ -1473,7 +1473,7 @@
             });
 
             it('should build FETCH with section and list', () => {
-                expect(br._buildFETCHCommand('1:*', 'body[header.fields (date in-reply-to)]', {})).to.deep.equal({
+                expect(br._buildFETCHCommand('1:*', ['body[header.fields (date in-reply-to)]'], {})).to.deep.equal({
                     command: 'FETCH',
                     attributes: [{
                         type: 'SEQUENCE',
@@ -1498,7 +1498,7 @@
             });
 
             it('should build FETCH with ', () => {
-                expect(br._buildFETCHCommand('1:*', 'all', {
+                expect(br._buildFETCHCommand('1:*', ['all'], {
                     changedSince: '123456'
                 })).to.deep.equal({
                     command: 'FETCH',
@@ -1521,7 +1521,7 @@
             });
 
             it('should build FETCH with partial', () => {
-                expect(br._buildFETCHCommand('1:*', 'body[]', {})).to.deep.equal({
+                expect(br._buildFETCHCommand('1:*', ['body[]'], {})).to.deep.equal({
                     command: 'FETCH',
                     attributes: [{
                         type: 'SEQUENCE',

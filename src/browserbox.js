@@ -685,9 +685,9 @@
      * @param {Function} callback Callback function with fetched message info
      */
     BrowserBox.prototype.listMessages = function(sequence, items, options) {
-        items = items || {
+        items = items || [{
             fast: true
-        };
+        }];
         options = options || {};
 
         var command = this._buildFETCHCommand(sequence, items, options);
@@ -1154,18 +1154,17 @@
      */
     BrowserBox.prototype._buildFETCHCommand = function(sequence, items, options) {
         var command = {
-                command: options.byUid ? 'UID FETCH' : 'FETCH',
-                attributes: [{
-                    type: 'SEQUENCE',
-                    value: sequence
-                }]
-            },
+            command: options.byUid ? 'UID FETCH' : 'FETCH',
+            attributes: [{
+                type: 'SEQUENCE',
+                value: sequence
+            }]
+        };
+        var query = [];
 
-            query = [];
-
-        [].concat(items || []).forEach((item) => {
+        items.forEach((item) => {
             var cmd;
-            item = (item || '').toString().toUpperCase().trim();
+            item = item.toUpperCase().trim();
 
             if (/^\w+$/.test(item)) {
                 // alphanum strings can be used directly
@@ -1203,6 +1202,7 @@
                 value: options.changedSince
             }]);
         }
+
         return command;
     };
 
