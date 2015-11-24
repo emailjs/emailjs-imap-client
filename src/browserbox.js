@@ -1104,31 +1104,44 @@
      * @return {Object} Namespaces object
      */
     BrowserBox.prototype._parseNAMESPACE = function(response) {
-        var attributes,
-            namespaces = false,
-            parseNsElement = (arr) => {
-                return !arr ? false : [].concat(arr || []).map((ns) => {
-                    return !ns || !ns.length ? false : {
-                        prefix: ns[0].value,
-                        // The delimiter can legally be NIL which maps to null
-                        delimiter: ns[1] && ns[1].value
-                    };
-                });
-            };
-
-        if (response.payload &&
-            response.payload.NAMESPACE &&
-            response.payload.NAMESPACE.length &&
-            (attributes = [].concat(response.payload.NAMESPACE.pop().attributes || [])).length) {
-
-            namespaces = {
-                personal: parseNsElement(attributes[0]),
-                users: parseNsElement(attributes[1]),
-                shared: parseNsElement(attributes[2])
-            };
+        if (!response.payload || !response.payload.NAMESPACE || !response.payload.NAMESPACE.length) {
+            return false;
         }
 
-        return namespaces;
+        var attributes = [].concat(response.payload.NAMESPACE.pop().attributes || []);
+        if (!attributes.length) {
+            return false;
+        }
+
+        return {
+            personal: this._parseNAMESPACEElement(attributes[0]),
+            users: this._parseNAMESPACEElement(attributes[1]),
+            shared: this._parseNAMESPACEElement(attributes[2])
+        };
+    };
+
+    /**
+     * Parses a NAMESPACE element
+     *
+     * @param {Object} element
+     * @return {Object} Namespaces element object
+     */
+    BrowserBox.prototype._parseNAMESPACEElement = function(element) {
+        if (!element) {
+            return false;
+        }
+
+        element = [].concat(element || []);
+        return element.map((ns) => {
+            if (!ns || !ns.length) {
+                return false;
+            }
+
+            return {
+                prefix: ns[0].value,
+                delimiter: ns[1] && ns[1].value // The delimiter can legally be NIL which maps to null
+            };
+        });
     };
 
     /**
