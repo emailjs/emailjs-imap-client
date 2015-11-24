@@ -91,38 +91,6 @@
         this._enteredIdle = false;
         this._idleTimeout = false;
 
-        this._init();
-    }
-
-    // State constants
-
-    BrowserBox.prototype.STATE_CONNECTING = 1;
-    BrowserBox.prototype.STATE_NOT_AUTHENTICATED = 2;
-    BrowserBox.prototype.STATE_AUTHENTICATED = 3;
-    BrowserBox.prototype.STATE_SELECTED = 4;
-    BrowserBox.prototype.STATE_LOGOUT = 5;
-
-    // Timeout constants
-
-    /**
-     * Milliseconds to wait for the greeting from the server until the connection is considered failed
-     */
-    BrowserBox.prototype.TIMEOUT_CONNECTION = 90 * 1000;
-
-    /**
-     * Milliseconds between NOOP commands while idling
-     */
-    BrowserBox.prototype.TIMEOUT_NOOP = 60 * 1000;
-
-    /**
-     * Milliseconds until IDLE command is cancelled
-     */
-    BrowserBox.prototype.TIMEOUT_IDLE = 60 * 1000;
-
-    /**
-     * Initialization method. Setup event handlers and such
-     */
-    BrowserBox.prototype._init = function() {
         // proxy error events
         this.client.onerror = (err) => {
             this.onerror(err);
@@ -157,7 +125,32 @@
         this.client.setHandler('expunge', (response) => this._untaggedExpungeHandler(response));
         // message has been updated (eg. flag change), not supported by gmail
         this.client.setHandler('fetch', (response) => this._untaggedFetchHandler(response));
-    };
+    }
+
+    // State constants
+
+    BrowserBox.prototype.STATE_CONNECTING = 1;
+    BrowserBox.prototype.STATE_NOT_AUTHENTICATED = 2;
+    BrowserBox.prototype.STATE_AUTHENTICATED = 3;
+    BrowserBox.prototype.STATE_SELECTED = 4;
+    BrowserBox.prototype.STATE_LOGOUT = 5;
+
+    // Timeout constants
+
+    /**
+     * Milliseconds to wait for the greeting from the server until the connection is considered failed
+     */
+    BrowserBox.prototype.TIMEOUT_CONNECTION = 90 * 1000;
+
+    /**
+     * Milliseconds between NOOP commands while idling
+     */
+    BrowserBox.prototype.TIMEOUT_NOOP = 60 * 1000;
+
+    /**
+     * Milliseconds until IDLE command is cancelled
+     */
+    BrowserBox.prototype.TIMEOUT_IDLE = 60 * 1000;
 
     // Event placeholders
     BrowserBox.prototype.onclose = function() {};
