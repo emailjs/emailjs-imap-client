@@ -193,7 +193,6 @@
      * @event
      */
     BrowserBox.prototype._onReady = function() {
-
         clearTimeout(this._connectionTimeout);
         console.log(this.options.sessionId + ' session: connection established');
         this._changeState(this.STATE_NOT_AUTHENTICATED);
@@ -247,7 +246,6 @@
      * Close current connection
      */
     BrowserBox.prototype.close = function() {
-
         console.log(this.options.sessionId + ' closing connection');
         this._changeState(this.STATE_LOGOUT);
 
@@ -263,7 +261,6 @@
      * @param {Array} acceptUntagged a list of untagged responses that will be included in 'payload' property
      */
     BrowserBox.prototype.exec = function(request, acceptUntagged, options) {
-
         return this.breakIdle().then(() => {
             return new Promise((resolve, reject) => {
                 this.client.exec(request, acceptUntagged, options, (response) => {
@@ -660,7 +657,6 @@
      *     [ALREADYEXISTS], we treat that as success and return true.
      */
     BrowserBox.prototype.createMailbox = function(path) {
-
         return this.exec({
             command: 'CREATE',
             attributes: [utf7.imap.encode(path)]
@@ -1204,7 +1200,6 @@
      * @return {Object} Message object
      */
     BrowserBox.prototype._parseFETCH = function(response) {
-
         if (!response || !response.payload || !response.payload.FETCH || !response.payload.FETCH.length) {
             return [];
         }
@@ -1295,7 +1290,6 @@
         var envelope = {};
         var processAddresses = (list) => {
             return [].concat(list || []).map((addr) => {
-
                 // ENVELOPE lists addresses as [name-part, source-route, username, hostname]
                 // where source-route is not used anymore and can be ignored.
                 // To get comparable results with other parts of the email.js stack
@@ -1411,7 +1405,6 @@
                     i++;
                 }
             } else {
-
                 // content type
                 curNode.type = [
                     ((node[i++] || {}).value || '').toString().toLowerCase(), ((node[i++] || {}).value || '').toString().toLowerCase()
