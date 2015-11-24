@@ -1288,14 +1288,17 @@
      */
     BrowserBox.prototype._parseENVELOPE = function(value) {
         var envelope = {};
+
+        /*
+         * ENVELOPE lists addresses as [name-part, source-route, username, hostname]
+         * where source-route is not used anymore and can be ignored.
+         * To get comparable results with other parts of the email.js stack
+         * browserbox feeds the parsed address values from ENVELOPE
+         * to addressparser and uses resulting values instead of the
+         * pre-parsed addresses
+         */
         var processAddresses = (list) => {
             return [].concat(list || []).map((addr) => {
-                // ENVELOPE lists addresses as [name-part, source-route, username, hostname]
-                // where source-route is not used anymore and can be ignored.
-                // To get comparable results with other parts of the email.js stack
-                // browserbox feeds the parsed address values from ENVELOPE
-                // to addressparser and uses resulting values instead of the
-                // pre-parsed addresses
 
                 var name = (addr[0] && addr[0].value || '').trim();
                 var address = (addr[2] && addr[2].value || '') + '@' + (addr[3] && addr[3].value || '');
@@ -1310,7 +1313,6 @@
                 var parsed = addressparser.parse(formatted).shift(); // there should bu just a single address
                 parsed.name = mimefuncs.mimeWordsDecode(parsed.name);
                 return parsed;
-
             });
         };
 
