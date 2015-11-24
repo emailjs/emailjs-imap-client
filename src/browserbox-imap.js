@@ -296,7 +296,7 @@
      *
      * @param {Object} request Structured request object
      * @param {Array} acceptUntagged a list of untagged responses that will be included in 'payload' property
-     * @param {Object} [options] Optional data for the command payload, eg. {onplustagged: function(response, next){next();}}
+     * @param {Object} [options] Optional data for the command payload
      * @param {Function} callback Callback function to run once the command has been processed
      */
     ImapClient.prototype.exec = function(request, acceptUntagged, options, callback) {
@@ -550,9 +550,8 @@
             if (this._currentCommand.data.length) {
                 data = this._currentCommand.data.shift();
                 this.send(data + (!this._currentCommand.data.length ? '\r\n' : ''));
-            } else if (typeof this._currentCommand.onplustagged === 'function') {
-                this._currentCommand.onplustagged(response, this._processServerQueue.bind(this));
-                return;
+            } else if (typeof this._currentCommand.errorResponseExpectsEmptyLine) {
+                this.send('\r\n');
             }
             setTimeout(this._processServerQueue.bind(this), 0);
             return;
@@ -632,7 +631,7 @@
      *
      * @param {Object} request Structured request object
      * @param {Array} [acceptUntagged] a list of untagged responses that will be included in 'payload' property
-     * @param {Object} [options] Optional data for the command payload, eg. {onplustagged: function(response, next){next();}}
+     * @param {Object} [options] Optional data for the command payload
      * @param {Function} callback Callback function to run once the command has been processed
      */
     ImapClient.prototype._addToClientQueue = function(request, acceptUntagged, options, callback) {

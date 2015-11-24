@@ -464,18 +464,8 @@
                     sensitive: true
                 }]
             };
-            options.onplustagged = (response) => {
-                var payload;
-                if (response && response.payload) {
-                    try {
-                        payload = JSON.parse(mimefuncs.base64Decode(response.payload));
-                    } catch (e) {
-                        console.error(this.options.sessionId + ' error parsing XOAUTH2 payload: ' + e + '\nstack trace: ' + e.stack);
-                    }
-                }
-                // + tagged error response expects an empty line in return
-                this.client.send('\r\n');
-            };
+
+            options.errorResponseExpectsEmptyLine = true; // + tagged error response expects an empty line in return
         } else {
             command = {
                 command: 'login',
