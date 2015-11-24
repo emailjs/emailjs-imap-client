@@ -1793,18 +1793,20 @@
     BrowserBox.prototype._checkSpecialUse = function(mailbox) {
         var i, type;
 
-        if (mailbox.flags) {
-            for (i = 0; i < SPECIAL_USE_FLAGS.length; i++) {
-                type = SPECIAL_USE_FLAGS[i];
-                if ((mailbox.flags || []).indexOf(type) >= 0) {
-                    mailbox.specialUse = type;
-                    mailbox.specialUseFlag = type;
-                    return type;
-                }
+        if (!mailbox.flags) {
+            return this._checkSpecialUseByName(mailbox);
+        }
+
+        for (i = 0; i < SPECIAL_USE_FLAGS.length; i++) {
+            type = SPECIAL_USE_FLAGS[i];
+            if ((mailbox.flags || []).indexOf(type) >= 0) {
+                mailbox.specialUse = type;
+                mailbox.specialUseFlag = type;
+                return type;
             }
         }
 
-        return this._checkSpecialUseByName(mailbox);
+        return false;
     };
 
     BrowserBox.prototype._checkSpecialUseByName = function(mailbox) {
