@@ -8,7 +8,7 @@
     }
 }(function(sinon, chai, BrowserBox, imapHandler, mimeTorture, testEnvelope) {
     var expect = chai.expect;
-    chai.Assertion.includeStack = true;
+    chai.config.includeStack = true;
 
     describe('browserbox unit tests', () => {
         var br;

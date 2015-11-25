@@ -10,7 +10,7 @@
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
     var expect = chai.expect;
-    chai.Assertion.includeStack = true;
+    chai.config.includeStack = true;
 
     describe('browserbox integration tests', () => {
         var imap, port = 10000,
