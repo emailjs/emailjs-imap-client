@@ -200,7 +200,7 @@
                 this.close().then(resolve).catch(reject);
             };
 
-            this.exec('LOGOUT', () => {});
+            this.enqueueCommand('LOGOUT', () => {});
         });
     };
 
@@ -233,15 +233,61 @@
      * @param {Object} [options] Optional data for the command payload
      * @param {Function} callback Callback function to run once the command has been processed
      */
-    ImapClient.prototype.exec = function(request, acceptUntagged, options, callback) {
+    ImapClient.prototype.enqueueCommand = function(request, acceptUntagged, options, callback) {
+        if (!callback && typeof options === 'function') {
+            callback = options;
+            options = undefined;
+        }
+
+        if (!callback && typeof acceptUntagged === 'function') {
+            callback = acceptUntagged;
+            acceptUntagged = undefined;
+        }
 
         if (typeof request === 'string') {
             request = {
                 command: request
             };
         }
-        this._addToClientQueue(request, acceptUntagged, options, callback);
-        return this;
+
+        acceptUntagged = [].concat(acceptUntagged || []).map(function(untagged) {
+            return (untagged || '').toString().toUpperCase().trim();
+        });
+
+        var tag = 'W' + (++this._tagCounter);
+        request.tag = tag;
+
+        var data = {
+            tag: tag,
+            request: request,
+            payload: acceptUntagged.length ? {} : undefined,
+            callback: callback
+        };
+
+        // apply any additional options to the command
+        Object.keys(options || {}).forEach(function(key) {
+            data[key] = options[key];
+        });
+
+        acceptUntagged.forEach(function(command) {
+            data.payload[command] = [];
+        });
+
+        // if we're in priority mode (i.e. we ran commands in a precheck),
+        // queue any commands BEFORE the command that contianed the precheck,
+        // otherwise just queue command as usual
+        var index = data.ctx ? this._clientQueue.indexOf(data.ctx) : -1;
+        if (index >= 0) {
+            data.tag += '.p';
+            data.request.tag += '.p';
+            this._clientQueue.splice(index, 0, data);
+        } else {
+            this._clientQueue.push(data);
+        }
+
+        if (this._canSend) {
+            this._sendRequest();
+        }
     };
 
     /**
@@ -311,8 +357,8 @@
 
         clearTimeout(this._socketTimeoutTimer);
 
-        var match,
-            str = mimefuncs.fromTypedArray(evt.data);
+        var match;
+        var str = mimefuncs.fromTypedArray(evt.data);
 
         if (this._literalRemaining) {
             if (this._literalRemaining > str.length) {
@@ -324,6 +370,7 @@
             str = str.substr(this._literalRemaining);
             this._literalRemaining = 0;
         }
+
         this._remainder = str = this._remainder + str;
         while ((match = str.match(/(\{(\d+)(\+)?\})?\r?\n/))) {
 
@@ -489,68 +536,6 @@
         } else {
             // Unexpected response
             return callback();
-        }
-    };
-
-    /**
-     * Adds a request object to outgoing queue. And if data can be sent to the server,
-     * the command is executed
-     *
-     * @param {Object} request Structured request object
-     * @param {Array} [acceptUntagged] a list of untagged responses that will be included in 'payload' property
-     * @param {Object} [options] Optional data for the command payload
-     * @param {Function} callback Callback function to run once the command has been processed
-     */
-    ImapClient.prototype._addToClientQueue = function(request, acceptUntagged, options, callback) {
-        var tag = 'W' + (++this._tagCounter),
-            data;
-
-        if (!callback && typeof options === 'function') {
-            callback = options;
-            options = undefined;
-        }
-
-        if (!callback && typeof acceptUntagged === 'function') {
-            callback = acceptUntagged;
-            acceptUntagged = undefined;
-        }
-
-        acceptUntagged = [].concat(acceptUntagged || []).map(function(untagged) {
-            return (untagged || '').toString().toUpperCase().trim();
-        });
-
-        request.tag = tag;
-
-        data = {
-            tag: tag,
-            request: request,
-            payload: acceptUntagged.length ? {} : undefined,
-            callback: callback
-        };
-
-        // apply any additional options to the command
-        Object.keys(options || {}).forEach(function(key) {
-            data[key] = options[key];
-        });
-
-        acceptUntagged.forEach(function(command) {
-            data.payload[command] = [];
-        });
-
-        // if we're in priority mode (i.e. we ran commands in a precheck),
-        // queue any commands BEFORE the command that contianed the precheck,
-        // otherwise just queue command as usual
-        var index = data.ctx ? this._clientQueue.indexOf(data.ctx) : -1;
-        if (index >= 0) {
-            data.tag += '.p';
-            data.request.tag += '.p';
-            this._clientQueue.splice(index, 0, data);
-        } else {
-            this._clientQueue.push(data);
-        }
-
-        if (this._canSend) {
-            this._sendRequest();
         }
     };
 

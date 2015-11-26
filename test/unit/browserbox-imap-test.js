@@ -79,20 +79,6 @@
             });
         });
 
-        describe('#exec', () => {
-            it('should add command to queue', () => {
-                sinon.stub(client, '_addToClientQueue');
-
-                client.exec('a', 'b', 'c', 'd');
-
-                expect(client._addToClientQueue.withArgs({
-                    command: 'a'
-                }, 'b', 'c', 'd').callCount).to.equal(1);
-
-                client._addToClientQueue.restore();
-            });
-        });
-
         describe('#setHandler', () => {
             it('should set global handler for keyword', () => {
                 var handler = () => {};
@@ -429,7 +415,7 @@
             });
         });
 
-        describe('#_addToClientQueue', () => {
+        describe('#enqueueCommand', () => {
             it('should invoke sending', () => {
                 sinon.stub(client, '_sendRequest');
 
@@ -439,7 +425,7 @@
 
                 var cb = () => {};
 
-                client._addToClientQueue({
+                client.enqueueCommand({
                     command: 'abc'
                 }, ['def'], {
                     t: 1
@@ -466,7 +452,7 @@
 
                 var cb = () => {};
 
-                client._addToClientQueue({
+                client.enqueueCommand({
                     command: 'abc'
                 }, ['def'], {
                     t: 1
@@ -557,7 +543,7 @@
                             client._clearIdle.restore();
                             done();
                         };
-                        client._addToClientQueue({}, undefined, {
+                        client.enqueueCommand({}, undefined, {
                             ctx: ctx
                         });
                         return Promise.resolve();

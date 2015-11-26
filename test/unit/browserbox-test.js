@@ -153,22 +153,22 @@
             });
 
             afterEach(() => {
-                br.client.exec.restore();
+                br.client.enqueueCommand.restore();
                 br.breakIdle.restore();
             });
 
             it('should send string command', (done) => {
-                sinon.stub(br.client, 'exec', function() {
+                sinon.stub(br.client, 'enqueueCommand', function() {
                     arguments[arguments.length - 1]({});
                 });
                 br.exec('TEST').then((res) => {
                     expect(res).to.deep.equal({});
-                    expect(br.client.exec.args[0][0]).to.equal('TEST');
+                    expect(br.client.enqueueCommand.args[0][0]).to.equal('TEST');
                 }).then(done).catch(done);
             });
 
             it('should update capability from response', (done) => {
-                sinon.stub(br.client, 'exec', function() {
+                sinon.stub(br.client, 'enqueueCommand', function() {
                     arguments[arguments.length - 1]({
                         capability: ['A', 'B']
                     });
@@ -182,7 +182,7 @@
             });
 
             it('should return error on NO/BAD', (done) => {
-                sinon.stub(br.client, 'exec', function() {
+                sinon.stub(br.client, 'enqueueCommand', function() {
                     arguments[arguments.length - 1]({
                         command: 'NO'
                     });
@@ -209,14 +209,14 @@
             });
 
             it('should break IDLE after timeout', (done) => {
-                sinon.stub(br.client, 'exec');
+                sinon.stub(br.client, 'enqueueCommand');
                 sinon.stub(br.client.socket, 'send', (payload) => {
 
-                    expect(br.client.exec.args[0][0].command).to.equal('IDLE');
+                    expect(br.client.enqueueCommand.args[0][0].command).to.equal('IDLE');
                     expect([].slice.call(new Uint8Array(payload))).to.deep.equal([0x44, 0x4f, 0x4e, 0x45, 0x0d, 0x0a]);
 
                     br.client.socket.send.restore();
-                    br.client.exec.restore();
+                    br.client.enqueueCommand.restore();
                     done();
                 });
 

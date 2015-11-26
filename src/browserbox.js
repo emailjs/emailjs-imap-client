@@ -225,7 +225,7 @@
     BrowserBox.prototype.exec = function(request, acceptUntagged, options) {
         return this.breakIdle().then(() => {
             return new Promise((resolve, reject) => {
-                this.client.exec(request, acceptUntagged, options, (response) => {
+                this.client.enqueueCommand(request, acceptUntagged, options, (response) => {
                     if (response && response.capability) {
                         this.capability = response.capability;
                     }
@@ -264,7 +264,7 @@
         if (this._enteredIdle === 'NOOP') {
             this._idleTimeout = setTimeout(() => this.exec('NOOP'), this.TIMEOUT_NOOP);
         } else if (this._enteredIdle === 'IDLE') {
-            this.client.exec({
+            this.client.enqueueCommand({
                 command: 'IDLE'
             });
             this._idleTimeout = setTimeout(() => {
