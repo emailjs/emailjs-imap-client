@@ -8,21 +8,21 @@
     }
 }(function(sinon, chai, ImapClient, mimefuncs) {
     var expect = chai.expect;
-    chai.Assertion.includeStack = true;
+    chai.config.includeStack = true;
 
     var host = 'localhost';
     var port = 10000;
 
     describe('browserbox imap unit tests', () => {
-        var client, TCPSocket, openStub, socketStub;
+        var client, socketStub;
 
         /* jshint indent:false */
 
-        beforeEach(() => {
+        beforeEach((done) => {
             client = new ImapClient(host, port);
             expect(client).to.exist;
 
-            TCPSocket = client._TCPSocket = function() {};
+            var TCPSocket = client._TCPSocket = function() {};
             TCPSocket.open = () => {};
             TCPSocket.prototype.close = () => {};
             TCPSocket.prototype.send = () => {};
@@ -31,57 +31,40 @@
             TCPSocket.prototype.upgradeToSecure = () => {};
 
             socketStub = sinon.createStubInstance(TCPSocket);
-            openStub = sinon.stub(TCPSocket, 'open');
+            sinon.stub(TCPSocket, 'open').withArgs(host, port).returns(socketStub);
 
-            openStub.withArgs(host, port).returns(socketStub);
+            client.connect().then(() => {
+                expect(TCPSocket.open.callCount).to.equal(1);
 
-            client.connect();
+                expect(socketStub.onerror).to.exist;
+                expect(socketStub.onopen).to.exist;
+                expect(socketStub.onclose).to.exist;
+                expect(socketStub.ondata).to.exist;
+                expect(socketStub.ondrain).to.exist;
+            }).then(done).catch(done);
 
-            expect(openStub.callCount).to.equal(1);
-            expect(socketStub.onerror).to.exist;
-            expect(socketStub.onopen).to.exist;
-        });
-
-        afterEach(() => {
-            TCPSocket.open.restore();
-        });
-
-        describe('#connect', () => {
-            it('should not throw', () => {
-                var client = new ImapClient(host, port);
-                client._TCPSocket = {
-                    open: () => {
-                        var socket = {
-                            onopen: () => {},
-                            onerror: () => {}
-                        };
-                        // disallow setting new properties (eg. oncert)
-                        Object.preventExtensions(socket);
-                        return socket;
-                    }
-                };
-                client.connect();
-            });
+            setTimeout(() => socketStub.onopen(), 0);
         });
 
         describe('#close', () => {
-            it('should call socket.close', () => {
+            it('should call socket.close', (done) => {
                 client.socket.readyState = 'open';
 
-                client.close();
+                client.close().then(() => {
+                    expect(client.socket.close.callCount).to.equal(1);
+                }).then(done).catch(done);
 
-                expect(client.socket.close.callCount).to.equal(1);
+                setTimeout(() => socketStub.onclose(), 0);
             });
 
-            it('should call _destroy if closed', () => {
-                sinon.stub(client, '_destroy');
+            it('should call socket.close', (done) => {
+                client.socket.readyState = 'not open. duh.';
 
-                client.socket.readyState = false;
-                client.close();
+                client.close().then(() => {
+                    expect(client.socket.close.called).to.be.false;
+                }).then(done).catch(done);
 
-                expect(client._destroy.callCount).to.equal(1);
-
-                client._destroy.restore();
+                setTimeout(() => socketStub.onclose(), 0);
             });
         });
 
@@ -128,57 +111,25 @@
             });
         });
 
-        describe('#_onError', () => {
-            it('should emit error and close connection', () => {
-                sinon.stub(client, 'onerror');
-                sinon.stub(client, 'close');
-
-                client._onError({
+        describe('#socket.onerror', () => {
+            it('should emit error and close connection', (done) => {
+                client.socket.onerror({
                     data: new Error('err')
                 });
 
-                expect(client.onerror.callCount).to.equal(1);
-                expect(client.onerror.args[0][0]).to.exist;
-                expect(client.close.callCount).to.equal(1);
-
-                client.onerror.restore();
-                client.close.restore();
+                client.onerror = () => {
+                    done();
+                };
             });
         });
 
-        describe('#_destroy', () => {
-            it('should emit onclose', () => {
-                sinon.stub(client, 'onclose');
+        describe('#socket.onclose', () => {
+            it('should emit error ', (done) => {
+                client.socket.onclose();
 
-                client.destroyed = false;
-                client._destroy();
-
-                expect(client.onclose.callCount).to.equal(1);
-
-                client.onclose.restore();
-            });
-
-            it('should not emit onclose', () => {
-                sinon.stub(client, 'onclose');
-
-                client.destroyed = true;
-                client._destroy();
-
-                expect(client.onclose.callCount).to.equal(0);
-
-                client.onclose.restore();
-            });
-        });
-
-        describe('#_onClose', () => {
-            it('should call _destroy', () => {
-                sinon.stub(client, '_destroy');
-
-                client._onClose();
-
-                expect(client._destroy.callCount).to.equal(1);
-
-                client._destroy.restore();
+                client.onerror = () => {
+                    done();
+                };
             });
         });
 

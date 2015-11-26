@@ -89,20 +89,16 @@
                     },
                     useSecureTransport: false
                 });
-                expect(imap).to.exist;
 
-                imap.onclose = done;
+                imap.onerror = () => {
+                    done();
+                };
 
-                imap.onauth = () => {
+                imap.connect().then(() => {
                     expect(imap.client.secureMode).to.be.true;
-                    imap.close();
-                };
-
-                imap.onerror = (err) => {
-                    expect(err).to.not.exist;
-                };
-
-                imap.connect();
+                }).then(() => {
+                    return imap.close();
+                }).then(done).catch(done);
             });
 
             it('should ignore STARTTLS', (done) => {
@@ -114,20 +110,12 @@
                     useSecureTransport: false,
                     ignoreTLS: true
                 });
-                expect(imap).to.exist;
 
-                imap.onclose = done;
-
-                imap.onauth = () => {
+                imap.connect().then(() => {
                     expect(imap.client.secureMode).to.be.false;
-                    imap.close();
-                };
-
-                imap.onerror = (err) => {
-                    expect(err).to.not.exist;
-                };
-
-                imap.connect();
+                }).then(() => {
+                    return imap.close();
+                }).then(done).catch(done);
             });
 
             it('should fail connecting to non-STARTTLS host', (done) => {
@@ -139,21 +127,11 @@
                     useSecureTransport: false,
                     requireTLS: true
                 });
-                expect(imap).to.exist;
 
-                imap.onclose = done;
-
-                imap.onauth = () => {
-                    expect(imap.client.secureMode).to.be.false;
-                    imap.close();
-                };
-
-                imap.onerror = (err) => {
+                imap.connect().catch((err) => {
                     expect(err).to.exist;
-                    expect(imap.client.secureMode).to.be.false;
-                };
-
-                imap.connect();
+                    done();
+                });
             });
 
             it('should connect to non secure host', (done) => {
@@ -164,21 +142,12 @@
                     },
                     useSecureTransport: false
                 });
-                expect(imap).to.exist;
 
-                imap.onclose = done;
-
-                imap.onauth = () => {
+                imap.connect().then(() => {
                     expect(imap.client.secureMode).to.be.false;
-                    imap.close();
-                };
-
-                imap.onerror = (err) => {
-                    expect(err).to.not.exist;
-                    expect(imap.client.secureMode).to.be.false;
-                };
-
-                imap.connect();
+                }).then(() => {
+                    return imap.close();
+                }).then(done).catch(done);
             });
         });
 
@@ -192,16 +161,12 @@
                     },
                     useSecureTransport: false
                 });
-                expect(imap).to.exist;
 
-                imap.onauth = done;
-                imap.onerror = done;
-                imap.connect();
+                imap.connect().then(done);
             });
 
             afterEach((done) => {
-                imap.onclose = done;
-                imap.close();
+                imap.close().then(done);
             });
 
             describe('#listMailboxes', () => {
@@ -551,26 +516,17 @@
                     },
                     useSecureTransport: false
                 });
-                expect(imap).to.exist;
 
-                imap.onauth = done;
-                imap.connect();
+                imap.connect().then(done);
             });
 
             it('should timeout', (done) => {
-                var errored = false;
-
                 // remove the ondata event to simulate 100% packet loss and make the socket time out after 10ms
                 imap.client.TIMEOUT_SOCKET_LOWER_BOUND = 10;
                 imap.client.TIMEOUT_SOCKET_MULTIPLIER = 0;
                 imap.client.socket.ondata = () => {};
 
                 imap.onerror = () => {
-                    errored = true;
-                };
-
-                imap.onclose = () => {
-                    expect(errored).to.be.true;
                     done();
                 };
 

@@ -21,49 +21,6 @@
             };
         });
 
-        /* jshint indent:false */
-
-        describe('#_onClose', () => {
-            it('should emit onclose', () => {
-                sinon.stub(br, 'onclose');
-
-                br._onClose();
-
-                expect(br.onclose.callCount).to.equal(1);
-
-                br.onclose.restore();
-            });
-        });
-
-        describe('#_onTimeout', () => {
-            it('should emit onerror and call destroy', () => {
-                br.onerror = () => {}; // not defined by default
-                sinon.stub(br, 'onerror');
-                sinon.stub(br.client, '_destroy');
-
-                br._onTimeout();
-
-                expect(br.onerror.callCount).to.equal(1);
-                expect(br.client._destroy.callCount).to.equal(1);
-
-                br.onerror.restore();
-                br.client._destroy.restore();
-            });
-        });
-
-        describe('#_onReady', () => {
-            it('should call updateCapability', () => {
-                sinon.stub(br, 'updateCapability').returns(Promise.resolve(true));
-
-                br._onReady();
-
-                expect(br.updateCapability.callCount).to.equal(1);
-                expect(br.state).to.equal(br.STATE_NOT_AUTHENTICATED);
-
-                br.updateCapability.restore();
-            });
-        });
-
         describe('#_onIdle', () => {
             it('should call enterIdle', () => {
                 sinon.stub(br, 'enterIdle');
@@ -90,48 +47,100 @@
         });
 
         describe('#connect', () => {
-            it('should initiate tcp connection', () => {
+            beforeEach(() => {
                 sinon.stub(br.client, 'connect');
-
-                br.connect();
-
-                expect(br.client.connect.callCount).to.equal(1);
-
-                clearTimeout(br._connectionTimeout);
-                br.client.connect.restore();
+                sinon.stub(br.client, 'close');
+                sinon.stub(br, 'updateCapability');
+                sinon.stub(br, 'upgradeConnection');
+                sinon.stub(br, 'updateId');
+                sinon.stub(br, 'login');
+                sinon.stub(br, 'compressConnection');
             });
 
-            it('should timeout if connection is not created', (done) => {
-                sinon.stub(br.client, 'connect');
-                sinon.stub(br, '_onTimeout', () => {
+            afterEach(() => {
+                br.client.connect.restore();
+                br.client.close.restore();
+                br.updateCapability.restore();
+                br.upgradeConnection.restore();
+                br.updateId.restore();
+                br.login.restore();
+                br.compressConnection.restore();
+            });
 
-                    expect(br.client.connect.callCount).to.equal(1);
+            it('should connect', (done) => {
+                br.client.connect.returns(Promise.resolve());
+                br.updateCapability.returns(Promise.resolve());
+                br.upgradeConnection.returns(Promise.resolve());
+                br.updateId.returns(Promise.resolve());
+                br.login.returns(Promise.resolve());
+                br.compressConnection.returns(Promise.resolve());
 
-                    br.client.connect.restore();
-                    br._onTimeout.restore();
+                br.connect().then(() => {
+                    expect(br.client.connect.calledOnce).to.be.true;
+                    expect(br.updateCapability.calledOnce).to.be.true;
+                    expect(br.upgradeConnection.calledOnce).to.be.true;
+                    expect(br.updateId.calledOnce).to.be.true;
+                    expect(br.login.calledOnce).to.be.true;
+                    expect(br.compressConnection.calledOnce).to.be.true;
+                }).then(done).catch(done);
+
+                setTimeout(() => br.client.onready(), 0);
+            });
+
+            it('should fail to login', (done) => {
+                br.client.connect.returns(Promise.resolve());
+                br.updateCapability.returns(Promise.resolve());
+                br.upgradeConnection.returns(Promise.resolve());
+                br.updateId.returns(Promise.resolve());
+                br.login.returns(Promise.reject(new Error()));
+
+                br.connect().catch((err) => {
+                    expect(err).to.exist;
+
+                    expect(br.client.connect.calledOnce).to.be.true;
+                    expect(br.client.close.calledOnce).to.be.true;
+                    expect(br.updateCapability.calledOnce).to.be.true;
+                    expect(br.upgradeConnection.calledOnce).to.be.true;
+                    expect(br.updateId.calledOnce).to.be.true;
+                    expect(br.login.calledOnce).to.be.true;
+
+                    expect(br.compressConnection.called).to.be.false;
 
                     done();
                 });
 
+                setTimeout(() => br.client.onready(), 0);
+            });
+
+            it('should timeout', (done) => {
+                br.client.connect.returns(Promise.resolve());
                 br.TIMEOUT_CONNECTION = 1;
-                br.connect();
+
+                br.connect().catch((err) => {
+                    expect(err).to.exist;
+
+                    expect(br.client.connect.calledOnce).to.be.true;
+                    expect(br.client.close.calledOnce).to.be.true;
+
+                    expect(br.updateCapability.called).to.be.false;
+                    expect(br.upgradeConnection.called).to.be.false;
+                    expect(br.updateId.called).to.be.false;
+                    expect(br.login.called).to.be.false;
+                    expect(br.compressConnection.called).to.be.false;
+
+                    done();
+                });
             });
         });
 
         describe('#close', () => {
-            it('should send LOGOUT', (done) => {
-                sinon.stub(br.client, 'close');
-                sinon.stub(br, 'exec').withArgs('LOGOUT').returns(Promise.resolve());
+            it('should force-close', (done) => {
+                sinon.stub(br.client, 'close').returns(Promise.resolve());
 
                 br.close().then(() => {
-                    // the close call comes after the current event loop iteration hass been handled.
-                    setTimeout(() => {
-                        expect(br.state).to.equal(br.STATE_LOGOUT);
-                        expect(br.client.close.calledOnce).to.be.true;
-                        br.exec.restore();
-                        br.client.close.restore();
-                        done();
-                    }, 0);
+                    expect(br.state).to.equal(br.STATE_LOGOUT);
+                    expect(br.client.close.calledOnce).to.be.true;
+                    done();
                 });
             });
         });
@@ -230,22 +239,20 @@
         });
 
         describe('#upgradeConnection', () => {
-            describe('Skip upgrade', () => {
-                it('should do nothing if already secured', (done) => {
-                    br.client.secureMode = true;
-                    br.capability = ['starttls'];
-                    br.upgradeConnection().then((upgraded) => {
-                        expect(upgraded).to.be.false;
-                    }).then(done).catch(done);
-                });
+            it('should do nothing if already secured', (done) => {
+                br.client.secureMode = true;
+                br.capability = ['starttls'];
+                br.upgradeConnection().then((upgraded) => {
+                    expect(upgraded).to.be.false;
+                }).then(done).catch(done);
+            });
 
-                it('should do nothing if STARTTLS not available', (done) => {
-                    br.client.secureMode = false;
-                    br.capability = [];
-                    br.upgradeConnection().then((upgraded) => {
-                        expect(upgraded).to.be.false;
-                    }).then(done).catch(done);
-                });
+            it('should do nothing if STARTTLS not available', (done) => {
+                br.client.secureMode = false;
+                br.capability = [];
+                br.upgradeConnection().then((upgraded) => {
+                    expect(upgraded).to.be.false;
+                }).then(done).catch(done);
             });
 
             it('should run STARTTLS', (done) => {

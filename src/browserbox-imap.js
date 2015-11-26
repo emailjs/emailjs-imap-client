@@ -80,12 +80,6 @@
         this.socket = false;
 
         /**
-         * Indicates if the connection has been closed and can't be used anymore
-         *
-         */
-        this.destroyed = false;
-
-        /**
          * Keeps track if the downstream socket is currently full and
          * a drain event should be waited for or not
          */
@@ -192,8 +186,7 @@
     // Event functions should be overriden, these are just placeholders
 
     /**
-     * Will be run when an error occurs. Connection to the server will be closed automatically,
-     * so wait for an `onclose` event as well.
+     * Will be run when an error occurs. Connection to the server will be closed automatically.
      *
      * @event
      * @param {Error} err Error object
@@ -208,13 +201,6 @@
      * @event
      */
     ImapClient.prototype.ondrain = function() {};
-
-    /**
-     * The connection to the server has been closed
-     *
-     * @event
-     */
-    ImapClient.prototype.onclose = function() {};
 
     /**
      * The connection to the server has been established and greeting is received
@@ -236,34 +222,80 @@
      * Initiate a connection to the server. Wait for onready event
      */
     ImapClient.prototype.connect = function() {
-        this.socket = this._TCPSocket.open(this.host, this.port, {
-            binaryType: 'arraybuffer',
-            useSecureTransport: this.secureMode,
-            ca: this.options.ca,
-            tlsWorkerPath: this.options.tlsWorkerPath
+        return new Promise((resolve, reject) => {
+            this.socket = this._TCPSocket.open(this.host, this.port, {
+                binaryType: 'arraybuffer',
+                useSecureTransport: this.secureMode,
+                ca: this.options.ca,
+                tlsWorkerPath: this.options.tlsWorkerPath
+            });
+
+            // allows certificate handling for platform w/o native tls support
+            // oncert is non standard so setting it might throw if the socket object is immutable
+            try {
+                this.socket.oncert = this.oncert;
+            } catch (E) {}
+
+            // Connection closing unexpected is an error
+            this.socket.onclose = () => this._onError(new Error('Socket closed unexceptedly!'));
+            this.socket.ondata = this._onData.bind(this);
+            this.socket.ondrain = this._onDrain.bind(this);
+
+            // if an error happens during create time, reject the promise
+            this.socket.onerror = (e) => {
+                reject(new Error('Could not open socket: ' + e.data.message));
+            };
+
+            this.socket.onopen = () => {
+                // use proper "irrecoverable error, tear down everything"-handler only after socket is open
+                this.socket.onerror = this._onError.bind(this);
+                resolve();
+            };
         });
-
-        // allows certificate handling for platform w/o native tls support
-        // oncert is non standard so setting it might throw if the socket object is immutable
-        try {
-            this.socket.oncert = this.oncert;
-        } catch (E) {}
-
-        this.socket.onerror = this._onError.bind(this);
-        this.socket.onopen = this._onOpen.bind(this);
     };
 
     /**
      * Closes the connection to the server
      */
     ImapClient.prototype.close = function() {
-        this._disableCompression();
+        return new Promise((resolve) => {
+            var tearDown = () => {
+                this._serverQueue = [];
+                this._clientQueue = [];
+                this._currentCommand = false;
+                clearTimeout(this._idleTimer);
+                clearTimeout(this._socketTimeoutTimer);
 
-        if (this.socket && this.socket.readyState === 'open') {
+                if (this.socket) {
+                    // remove all listeners
+                    this.socket.onclose = () => {};
+                    this.socket.ondata = () => {};
+                    this.socket.ondrain = () => {};
+                    this.socket.onerror = () => {};
+                }
+
+                resolve();
+            };
+
+            this._disableCompression();
+
+            if (!this.socket || this.socket.readyState !== 'open') {
+                return tearDown();
+            }
+
+            this.socket.onclose = this.socket.onerror = tearDown; // we don't really care about the error here
             this.socket.close();
-        } else {
-            this._destroy();
-        }
+        });
+    };
+
+    ImapClient.prototype.logout = function() {
+        return new Promise((resolve, reject) => {
+            this.socket.onclose = this.socket.onerror = () => {
+                this.close().then(resolve).catch(reject);
+            };
+
+            this.exec('LOGOUT', () => {});
+        });
     };
 
     /**
@@ -321,7 +353,7 @@
             timeout = this.TIMEOUT_SOCKET_LOWER_BOUND + Math.floor(buffer.byteLength * this.TIMEOUT_SOCKET_MULTIPLIER);
 
         clearTimeout(this._socketTimeoutTimer); // clear pending timeouts
-        this._socketTimeoutTimer = setTimeout(this._onTimeout.bind(this), timeout); // arm the next timeout
+        this._socketTimeoutTimer = setTimeout(() => this._onError(new Error(this.options.sessionId + ' Socket timed out!')), timeout); // arm the next timeout
 
         if (this.compressed) {
             this._sendCompressed(buffer);
@@ -351,58 +383,15 @@
      * @param {Event} evt Event object. See evt.data for the error
      */
     ImapClient.prototype._onError = function(evt) {
-        if (this.destroyed) {
-            // ignore errors that happen after we close the connection
-            return;
-        }
-
-        if (this.isError(evt)) {
-            this.onerror(evt);
-        } else if (evt && this.isError(evt.data)) {
-            this.onerror(evt.data);
-        } else {
-            this.onerror(new Error(evt && evt.data && evt.data.message || evt.data || evt || 'Error'));
-        }
-
-        this.close();
-    };
-
-    /**
-     * Ensures that the connection is closed
-     */
-    ImapClient.prototype._destroy = function() {
-        this._serverQueue = [];
-        this._clientQueue = [];
-        this._currentCommand = false;
-
-        clearTimeout(this._idleTimer);
-        clearTimeout(this._socketTimeoutTimer);
-
-        if (!this.destroyed) {
-            this.destroyed = true;
-            this.onclose();
-        }
-    };
-
-    /**
-     * Indicates that the socket has been closed
-     *
-     * @event
-     * @param {Event} evt Event object. Not used
-     */
-    ImapClient.prototype._onClose = function() {
-        this._disableCompression();
-        this._destroy();
-    };
-
-    /**
-     * Indicates that a socket timeout has occurred
-     */
-    ImapClient.prototype._onTimeout = function() {
-        // inform about the timeout, _onError takes case of the rest
-        var error = new Error(this.options.sessionId + ' Socket timed out!');
-        // TODO: axe.error(DEBUG_TAG, error);
-        this._onError(error);
+        this.close().then(() => {
+            if (this.isError(evt)) {
+                this.onerror(evt);
+            } else if (evt && this.isError(evt.data)) {
+                this.onerror(evt.data);
+            } else {
+                this.onerror(new Error(evt && evt.data && evt.data.message || evt.data || evt || 'Error'));
+            }
+        });
     };
 
     /**
@@ -474,19 +463,6 @@
                 this._literalRemaining = 0;
             }
         }
-    };
-
-    /**
-     * Connection listener that is run when the connection to the server is opened.
-     * Sets up different event handlers for the opened socket
-     *
-     * @event
-     */
-    ImapClient.prototype._onOpen = function() {
-        // TODO: axe.debug(DEBUG_TAG, this.options.sessionId + ' tcp socket opened');
-        this.socket.ondata = this._onData.bind(this);
-        this.socket.onclose = this._onClose.bind(this);
-        this.socket.ondrain = this._onDrain.bind(this);
     };
 
     // PRIVATE METHODS
@@ -929,6 +905,7 @@
         if (!this.compressed) {
             return;
         }
+
         this.compressed = false;
         this.socket.ondata = this._socketOnData;
         this._socketOnData = null;

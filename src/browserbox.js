@@ -83,48 +83,28 @@
          */
         this.selectedMailbox = false;
 
+        this._enteredIdle = false;
+        this._idleTimeout = false;
+
         /**
          * IMAP client object
          */
         this.client = new ImapClient(host, port, this.options);
 
-        this._enteredIdle = false;
-        this._idleTimeout = false;
+        // Event Handlers
+        this.client.onerror = (err) => this.onerror(err); // proxy error events
+        this.client.oncert = (cert) => this.oncert(cert); // allows certificate handling for platforms w/o native tls support
+        this.client.onidle = () => this._onIdle(); // start idling
 
-        // proxy error events
-        this.client.onerror = (err) => {
-            this.onerror(err);
-        };
+        // Default handlers for untagged responses
+        this.client.setHandler('capability', (response) => this._untaggedCapabilityHandler(response)); // capability updates
+        this.client.setHandler('ok', (response) => this._untaggedOkHandler(response)); // notifications
+        this.client.setHandler('exists', (response) => this._untaggedExistsHandler(response)); // message count has changed
+        this.client.setHandler('expunge', (response) => this._untaggedExpungeHandler(response)); // message has been deleted
+        this.client.setHandler('fetch', (response) => this._untaggedFetchHandler(response)); // message has been updated (eg. flag change)
 
-        // allows certificate handling for platforms w/o native tls support
-        this.client.oncert = (cert) => {
-            this.oncert(cert);
-        };
-
-        // proxy close events
-        this.client.onclose = () => {
-            clearTimeout(this._connectionTimeout);
-            clearTimeout(this._idleTimeout);
-            this.onclose();
-        };
-
-        // handle ready event which is fired when server has sent the greeting
-        this.client.onready = () => this._onReady();
-
-        // start idling
-        this.client.onidle = () => this._onIdle();
-
-        // set default handlers for untagged responses
-        // capability updates
-        this.client.setHandler('capability', (response) => this._untaggedCapabilityHandler(response));
-        // notifications
-        this.client.setHandler('ok', (response) => this._untaggedOkHandler(response));
-        // message count has changed
-        this.client.setHandler('exists', (response) => this._untaggedExistsHandler(response));
-        // message has been deleted
-        this.client.setHandler('expunge', (response) => this._untaggedExpungeHandler(response));
-        // message has been updated (eg. flag change), not supported by gmail
-        this.client.setHandler('fetch', (response) => this._untaggedFetchHandler(response));
+        // Event placeholders
+        this.onupdate = this.oncert = this.onselectmailbox = this.onclosemailbox = function() {};
     }
 
     // State constants
@@ -152,66 +132,7 @@
      */
     BrowserBox.prototype.TIMEOUT_IDLE = 60 * 1000;
 
-    // Event placeholders
-    BrowserBox.prototype.onclose = function() {};
-    BrowserBox.prototype.onauth = function() {};
-    BrowserBox.prototype.onupdate = function() {};
-    BrowserBox.prototype.oncert = function() {};
-    /* BrowserBox.prototype.onerror = function(err){}; // not defined by default */
-    BrowserBox.prototype.onselectmailbox = function() {};
-    BrowserBox.prototype.onclosemailbox = function() {};
-
     // Event handlers
-
-    /**
-     * Connection to the server is closed. Proxies to 'onclose'.
-     *
-     * @event
-     */
-    BrowserBox.prototype._onClose = function() {
-        console.log(this.options.sessionId + ' connection closed. goodbye.');
-        this.onclose();
-    };
-
-    /**
-     * Connection to the server was not established. Proxies to 'onerror'.
-     *
-     * @event
-     */
-    BrowserBox.prototype._onTimeout = function() {
-        clearTimeout(this._connectionTimeout);
-        var error = new Error(this.options.sessionId + ' Timeout creating connection to the IMAP server');
-        console.error(error);
-        this.onerror(error);
-        this.client._destroy();
-    };
-
-    /**
-     * Connection to the server is established. Method performs initial
-     * tasks like updating capabilities and authenticating the user
-     *
-     * @event
-     */
-    BrowserBox.prototype._onReady = function() {
-        clearTimeout(this._connectionTimeout);
-        console.log(this.options.sessionId + ' session: connection established');
-        this._changeState(this.STATE_NOT_AUTHENTICATED);
-
-        this.updateCapability().then(() => {
-            return this.upgradeConnection();
-        }).then(() => {
-            return this.updateId(this.options.id);
-        }).then(() => {
-            return this.login(this.options.auth);
-        }).then(() => {
-            return this.compressConnection();
-        }).then(() => {
-            this.onauth(); // emit
-        }).catch((err) => {
-            this.onerror(err);
-            this.close();
-        });
-    };
 
     /**
      * Indicates that the connection started idling. Initiates a cycle
@@ -233,25 +154,66 @@
      * Initiate connection to the IMAP server
      */
     BrowserBox.prototype.connect = function() {
-        console.log(this.options.sessionId + ' connecting to ' + this.client.host + ':' + this.client.port);
-        this._changeState(this.STATE_CONNECTING);
+        return new Promise((resolve, reject) => {
+            var connectionTimeout = setTimeout(() => reject(new Error(this.options.sessionId + ' Timeout connecting to server')), this.TIMEOUT_CONNECTION);
+            console.log(this.options.sessionId + ' connecting to ' + this.client.host + ':' + this.client.port);
+            this._changeState(this.STATE_CONNECTING);
+            this.client.connect().then(() => {
+                console.log(this.options.sessionId + ' Socket opened, waiting for greeting from the server...');
 
-        // set timeout to fail connection establishing
-        clearTimeout(this._connectionTimeout);
-        this._connectionTimeout = setTimeout(() => this._onTimeout(), this.TIMEOUT_CONNECTION);
-        this.client.connect();
+                this.client.onready = () => {
+                    clearTimeout(connectionTimeout);
+                    resolve();
+                };
+
+                this.client.onerror = (err) => {
+                    clearTimeout(connectionTimeout);
+                    reject(err);
+                };
+            }).catch(reject);
+        }).then(() => {
+            this._changeState(this.STATE_NOT_AUTHENTICATED);
+            return this.updateCapability();
+        }).then(() => {
+            return this.upgradeConnection();
+        }).then(() => {
+            return this.updateId(this.options.id);
+        }).then(() => {
+            return this.login(this.options.auth);
+        }).then(() => {
+            return this.compressConnection();
+        }).then(() => {
+            console.log(this.options.sessionId + ' Connection established, ready to roll!');
+            this.client.onerror = (err) => this.onerror(err); // proxy error events
+        }).catch((err) => {
+            this.close(); // we don't really care whether this works or not
+            throw err;
+        });
     };
 
     /**
-     * Close current connection
+     * Logout
+     *
+     * Use is discouraged if network status is unclear!
+     *
+     * LOGOUT details:
+     *   https://tools.ietf.org/html/rfc3501#section-6.1.3
+     */
+    BrowserBox.prototype.logout = function() {
+        this._changeState(this.STATE_LOGOUT);
+        return this.client.logout().then(() => {
+            clearTimeout(this._idleTimeout);
+        });
+    };
+
+    /**
+     * Force-closes the current connection
      */
     BrowserBox.prototype.close = function() {
-        console.log(this.options.sessionId + ' closing connection');
         this._changeState(this.STATE_LOGOUT);
-
-        return this.exec('LOGOUT').then(() => {
-            this.client.close();
-        });
+        clearTimeout(this._idleTimeout);
+        console.log(this.options.sessionId + ' closing connection');
+        return this.client.close();
     };
 
     /**
