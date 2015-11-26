@@ -315,14 +315,9 @@
         }
 
         return this.exec('STARTTLS').then(() => {
-            return new Promise((resolve, reject) => {
-                this.capability = [];
-                this.client.upgrade((err, upgraded) => {
-                    this.updateCapability().then(() => {
-                        resolve(upgraded);
-                    }).catch(reject);
-                });
-            });
+            this.capability = [];
+            this.client.upgrade();
+            return this.updateCapability();
         });
     };
 

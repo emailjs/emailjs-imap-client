@@ -242,29 +242,23 @@
             it('should do nothing if already secured', (done) => {
                 br.client.secureMode = true;
                 br.capability = ['starttls'];
-                br.upgradeConnection().then((upgraded) => {
-                    expect(upgraded).to.be.false;
-                }).then(done).catch(done);
+                br.upgradeConnection().then(done).catch(done);
             });
 
             it('should do nothing if STARTTLS not available', (done) => {
                 br.client.secureMode = false;
                 br.capability = [];
-                br.upgradeConnection().then((upgraded) => {
-                    expect(upgraded).to.be.false;
-                }).then(done).catch(done);
+                br.upgradeConnection().then(done).catch(done);
             });
 
             it('should run STARTTLS', (done) => {
-                sinon.stub(br.client, 'upgrade').yields(null, false);
+                sinon.stub(br.client, 'upgrade');
                 sinon.stub(br, 'exec').withArgs('STARTTLS').returns(Promise.resolve());
                 sinon.stub(br, 'updateCapability').returns(Promise.resolve());
 
                 br.capability = ['STARTTLS'];
 
-                br.upgradeConnection().then((upgraded) => {
-                    expect(upgraded).to.be.false;
-
+                br.upgradeConnection().then(() => {
                     expect(br.client.upgrade.callCount).to.equal(1);
                     expect(br.capability.length).to.equal(0);
 

@@ -68,22 +68,14 @@
         });
 
         describe('#upgrade', () => {
-            it('should upgrade socket', (done) => {
+            it('should upgrade socket', () => {
                 client.secureMode = false;
-                client.upgrade((err, upgraded) => {
-                    expect(err).to.not.exist;
-                    expect(upgraded).to.be.true;
-                    done();
-                });
+                client.upgrade();
             });
 
-            it('should not upgrade socket', (done) => {
+            it('should not upgrade socket', () => {
                 client.secureMode = true;
-                client.upgrade((err, upgraded) => {
-                    expect(err).to.not.exist;
-                    expect(upgraded).to.be.false;
-                    done();
-                });
+                client.upgrade();
             });
         });
 

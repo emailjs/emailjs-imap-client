@@ -207,13 +207,9 @@
     /**
      * Closes the connection to the server
      */
-    ImapClient.prototype.upgrade = function(callback) {
-        if (this.secureMode) {
-            return callback(null, false);
-        }
+    ImapClient.prototype.upgrade = function() {
         this.secureMode = true;
         this.socket.upgradeToSecure();
-        callback(null, true);
     };
 
     /**
