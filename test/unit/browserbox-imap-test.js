@@ -40,7 +40,6 @@
                 expect(socketStub.onopen).to.exist;
                 expect(socketStub.onclose).to.exist;
                 expect(socketStub.ondata).to.exist;
-                expect(socketStub.ondrain).to.exist;
             }).then(done).catch(done);
 
             setTimeout(() => socketStub.onopen(), 0);
@@ -130,18 +129,6 @@
                 client.onerror = () => {
                     done();
                 };
-            });
-        });
-
-        describe('#_onDrain', () => {
-            it('should emit ondrain', () => {
-                sinon.stub(client, 'ondrain');
-
-                client._onDrain();
-
-                expect(client.ondrain.callCount).to.equal(1);
-
-                client.ondrain.restore();
             });
         });
 

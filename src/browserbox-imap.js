@@ -62,103 +62,44 @@
         this.port = port || (this.options.useSecureTransport ? 993 : 143);
         this.host = host || 'localhost';
 
-        /**
-         * If set to true, start an encrypted connection instead of the plaintext one
-         * (recommended if applicable). If useSecureTransport is not set but the port used is 993,
-         * then ecryption is used by default.
-         */
+        // Use a TLS connection. Port 993 also forces TLS.
         this.options.useSecureTransport = 'useSecureTransport' in this.options ? !!this.options.useSecureTransport : this.port === 993;
 
-        /**
-         * Authentication object. If not set, authentication step will be skipped.
-         */
-        this.options.auth = this.options.auth || false;
+        this.secureMode = !!this.options.useSecureTransport; // Does the connection use SSL/TLS
 
-        /**
-         * Downstream TCP socket to the IMAP server, created with TCPSocket
-         */
-        this.socket = false;
+        this._serverQueue = []; // Queue of received commands
+        this._processingServerData = false; // Is there something being processed
+        this._connectionReady = false; // Is the conection established and greeting is received from the server
 
-        /**
-         * Keeps track if the downstream socket is currently full and
-         * a drain event should be waited for or not
-         */
-        this.waitDrain = false;
+        this._globalAcceptUntagged = {}; // Global handlers for unrelated responses (EXPUNGE, EXISTS etc.)
 
-        /**
-         * Is the connection compressed and needs inflating/deflating
-         */
-        this.compressed = false;
+        this._clientQueue = []; // Queue of outgoing commands
+        this._canSend = false; // Is it OK to send something to the server
+        this._tagCounter = 0; // Counter to allow uniqueue imap tags
+        this._currentCommand = false; // Current command that is waiting for response from the server
 
-        /**
-         * Does the connection use SSL/TLS
-         */
-        this.secureMode = !!this.options.useSecureTransport;
+        this._idleTimer = false; // Timer waiting to enter idle
+        this._socketTimeoutTimer = false; // Timer waiting to declare the socket dead starting from the last write
 
-        /**
-         * Is the conection established and greeting is received from the server
-         */
-        this._connectionReady = false;
+        this.compressed = false; // Is the connection compressed and needs inflating/deflating
+        this._workerPath = this.options.compressionWorkerPath; // The path for the compressor's worker script
+        this._compression = new Compression();
 
-        /**
-         * As the server sends data in chunks, it needs to be split into
-         * separate lines. These variables help with parsing the input.
-         */
+        //
+        // HELPERS
+        //
+
+        // As the server sends data in chunks, it needs to be split into separate lines. Helps parsing the input.
         this._remainder = '';
         this._command = '';
         this._literalRemaining = 0;
 
-        /**
-         * Is there something being processed
-         */
-        this._processingServerData = false;
-
-        /**
-         * Queue of received commands
-         */
-        this._serverQueue = [];
-
-        /**
-         * Is it OK to send something to the server
-         */
-        this._canSend = false;
-
-        /**
-         * Queue of outgoing commands
-         */
-        this._clientQueue = [];
-
-        /**
-         * Counter to allow uniqueue imap tags
-         */
-        this._tagCounter = 0;
-
-        /**
-         * Current command that is waiting for response from the server
-         */
-        this._currentCommand = false;
-
-        /**
-         * Global handlers for unrelated responses (EXPUNGE, EXISTS etc.)
-         */
-        this._globalAcceptUntagged = {};
-
-        /**
-         * Timer waiting to enter idle
-         */
-        this._idleTimer = false;
-
-        /**
-         * Timer waiting to declare the socket dead starting from the last write
-         */
-        this._socketTimeoutTimer = false;
-
-        /**
-         * The path for the compressor's worker script
-         */
-        this._workerPath = this.options.compressionWorkerPath;
-
-        this._compression = new Compression();
+        //
+        // Event placeholders, should be overriden
+        //
+        this.onerror = () => {}; // Irrecoverable error occurred. Connection to the server will be closed automatically.
+        this.onready = () => {}; // The connection to the server has been established and greeting is received
+        this.onidle = () => {}; // There are no more commands to process
     }
 
     // Constants
@@ -181,40 +122,6 @@
      * upload would be 110 seconds to wait for the timeout. 10 KB/s === 0.1 s/B
      */
     ImapClient.prototype.TIMEOUT_SOCKET_MULTIPLIER = 0.1;
-
-    // PUBLIC EVENTS
-    // Event functions should be overriden, these are just placeholders
-
-    /**
-     * Will be run when an error occurs. Connection to the server will be closed automatically.
-     *
-     * @event
-     * @param {Error} err Error object
-     */
-    ImapClient.prototype.onerror = function() {};
-
-    /**
-     * More data can be buffered in the socket. See `waitDrain` property or
-     * check if `send` method returns false to see if you should be waiting
-     * for the drain event.
-     *
-     * @event
-     */
-    ImapClient.prototype.ondrain = function() {};
-
-    /**
-     * The connection to the server has been established and greeting is received
-     *
-     * @event
-     */
-    ImapClient.prototype.onready = function() {};
-
-    /**
-     * There are no more commands to process
-     *
-     * @event
-     */
-    ImapClient.prototype.onidle = function() {};
 
     // PUBLIC METHODS
 
@@ -239,7 +146,6 @@
             // Connection closing unexpected is an error
             this.socket.onclose = () => this._onError(new Error('Socket closed unexceptedly!'));
             this.socket.ondata = this._onData.bind(this);
-            this.socket.ondrain = this._onDrain.bind(this);
 
             // if an error happens during create time, reject the promise
             this.socket.onerror = (e) => {
@@ -358,7 +264,7 @@
         if (this.compressed) {
             this._sendCompressed(buffer);
         } else {
-            this.waitDrain = this.socket.send(buffer);
+            this.socket.send(buffer);
         }
     };
 
@@ -371,7 +277,7 @@
      * @param {Function} callback Callback function with response object and continue callback function
      */
     ImapClient.prototype.setHandler = function(command, callback) {
-        this._globalAcceptUntagged[(command || '').toString().toUpperCase().trim()] = callback;
+        this._globalAcceptUntagged[command.toUpperCase().trim()] = callback;
     };
 
     // INTERNAL EVENTS
@@ -392,17 +298,6 @@
                 this.onerror(new Error(evt && evt.data && evt.data.message || evt.data || evt || 'Error'));
             }
         });
-    };
-
-    /**
-     * More data can be buffered in the socket, `waitDrain` is reset to false
-     *
-     * @event
-     * @param {Event} evt Event object. Not used
-     */
-    ImapClient.prototype._onDrain = function() {
-        this.waitDrain = false;
-        this.ondrain();
     };
 
     /**
