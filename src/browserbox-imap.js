@@ -147,7 +147,7 @@
 
             // Connection closing unexpected is an error
             this.socket.onclose = () => this._onError(new Error('Socket closed unexceptedly!'));
-            this.socket.ondata = this._onData.bind(this);
+            this.socket.ondata = (evt) => this._onData(evt);
 
             // if an error happens during create time, reject the promise
             this.socket.onerror = (e) => {
@@ -156,7 +156,7 @@
 
             this.socket.onopen = () => {
                 // use proper "irrecoverable error, tear down everything"-handler only after socket is open
-                this.socket.onerror = this._onError.bind(this);
+                this.socket.onerror = (e) => this._onError(e);
                 resolve();
             };
         });
@@ -252,9 +252,7 @@
             };
         }
 
-        acceptUntagged = [].concat(acceptUntagged || []).map(function(untagged) {
-            return (untagged || '').toString().toUpperCase().trim();
-        });
+        acceptUntagged = [].concat(acceptUntagged || []).map((untagged) => (untagged || '').toString().toUpperCase().trim());
 
         var tag = 'W' + (++this._tagCounter);
         request.tag = tag;
@@ -267,13 +265,9 @@
         };
 
         // apply any additional options to the command
-        Object.keys(options || {}).forEach(function(key) {
-            data[key] = options[key];
-        });
+        Object.keys(options || {}).forEach((key) => data[key] = options[key]);
 
-        acceptUntagged.forEach(function(command) {
-            data.payload[command] = [];
-        });
+        acceptUntagged.forEach((command) => data.payload[command] = []);
 
         // if we're in priority mode (i.e. we ran commands in a precheck),
         // queue any commands BEFORE the command that contianed the precheck,
@@ -458,11 +452,11 @@
                 // OAuth2 login expects an empty line if login failed
                 this.send('\r\n');
             }
-            setTimeout(this._processServerQueue.bind(this), 0);
+            setTimeout(() => this._processServerQueue(), 0);
             return;
         }
 
-        this._processServerResponse(response, function(err) {
+        this._processServerResponse(response, (err) => {
             if (err) {
                 return this._onError(err);
             }
@@ -479,8 +473,8 @@
                 this._sendRequest();
             }
 
-            setTimeout(this._processServerQueue.bind(this), 0);
-        }.bind(this));
+            setTimeout(() => this._processServerQueue(), 0);
+        });
     };
 
     /**
@@ -553,13 +547,13 @@
             this._restartQueue = true;
 
             // invoke the precheck command and resume normal operation after the promise resolves
-            precheck(context).then(function() {
+            precheck(context).then(() => {
                 // we're done with the precheck
                 if (this._restartQueue) {
                     // we need to restart the queue handling
                     this._sendRequest();
                 }
-            }.bind(this)).catch(function(err) {
+            }).catch((err) => {
                 // precheck callback failed, so we remove the initial command
                 // from the queue, invoke its callback and resume normal operation
                 var cmd, index = this._clientQueue.indexOf(context);
@@ -567,13 +561,13 @@
                     cmd = this._clientQueue.splice(index, 1)[0];
                 }
                 if (cmd && cmd.callback) {
-                    cmd.callback(err, function() {
+                    cmd.callback(err, () => {
                         this._canSend = true;
                         this._sendRequest();
-                        setTimeout(this._processServerQueue.bind(this), 0);
-                    }.bind(this));
+                        setTimeout(() => this._processServerQueue(), 0);
+                    });
                 }
-            }.bind(this));
+            });
             return;
         }
 
@@ -601,9 +595,7 @@
      */
     ImapClient.prototype._enterIdle = function() {
         clearTimeout(this._idleTimer);
-        this._idleTimer = setTimeout(function() {
-            this.onidle();
-        }.bind(this), this.TIMEOUT_ENTER_IDLE);
+        this._idleTimer = setTimeout(() => this.onidle(), this.TIMEOUT_ENTER_IDLE);
     };
 
     /**
@@ -640,14 +632,12 @@
             if (
                 (option = response && response.attributes &&
                     response.attributes.length && response.attributes[0].type === 'ATOM' &&
-                    response.attributes[0].section && response.attributes[0].section.map(function(key) {
+                    response.attributes[0].section && response.attributes[0].section.map((key) => {
                         if (!key) {
                             return;
                         }
                         if (Array.isArray(key)) {
-                            return key.map(function(key) {
-                                return (key.value || '').toString().trim();
-                            });
+                            return key.map((key) => (key.value || '').toString().trim());
                         } else {
                             return (key.value || '').toString().toUpperCase().trim();
                         }
@@ -698,7 +688,7 @@
             //
 
             this._compressionWorker = new Worker(this._workerPath);
-            this._compressionWorker.onmessage = function(e) {
+            this._compressionWorker.onmessage = (e) => {
                 var message = e.data.message,
                     buffer = e.data.buffer;
 
@@ -714,13 +704,13 @@
                         break;
 
                 }
-            }.bind(this);
+            };
 
-            this._compressionWorker.onerror = function(e) {
+            this._compressionWorker.onerror = (e) => {
                 var error = new Error('Error handling compression web worker: Line ' + e.lineno + ' in ' + e.filename + ': ' + e.message);
                 console.error(error);
                 this._onError(error);
-            }.bind(this);
+            };
 
             // first message starts the worker
             this._compressionWorker.postMessage(this._createMessage(MESSAGE_START));
@@ -731,25 +721,25 @@
             // without web worker support
             //
 
-            this._compression.inflatedReady = function(buffer) {
+            this._compression.inflatedReady = (buffer) => {
                 // emit inflated data
                 this._socketOnData({
                     data: buffer
                 });
-            }.bind(this);
+            };
 
-            this._compression.deflatedReady = function(buffer) {
+            this._compression.deflatedReady = (buffer) => {
                 // write deflated data to socket
                 if (!this.compressed) {
                     return;
                 }
 
                 this.waitDrain = this.socket.send(buffer);
-            }.bind(this);
+            };
         }
 
         // override data handler, decompress incoming data
-        this.socket.ondata = function(evt) {
+        this.socket.ondata = (evt) => {
             if (!this.compressed) {
                 return;
             }
@@ -760,7 +750,7 @@
             } else {
                 this._compression.inflate(evt.data);
             }
-        }.bind(this);
+        };
     };
 
 
