@@ -435,10 +435,10 @@
                 };
             } else {
                 response = imapHandler.parser(data);
-                // TODO: axe.debug(DEBUG_TAG, this.options.sessionId + ' S: ' + imapHandler.compiler(response, false, true));
+                // console.log(this.options.sessionId + ' S: ' + imapHandler.compiler(response, false, true));
             }
         } catch (e) {
-            // TODO: axe.error(DEBUG_TAG, this.options.sessionId + ' error parsing imap response: ' + e + '\n' + e.stack + '\nraw:' + data);
+            console.error(this.options.sessionId + ' error parsing imap response: ' + e + '\n' + e.stack + '\nraw:' + data);
             return this._onError(e);
         }
 
@@ -585,11 +585,11 @@
             this._currentCommand.data = imapHandler.compiler(this._currentCommand.request, true);
             loggedCommand = imapHandler.compiler(this._currentCommand.request, false, true);
         } catch (e) {
-            // TODO: axe.error(DEBUG_TAG, this.options.sessionId + ' error compiling imap command: ' + e + '\nstack trace: ' + e.stack + '\nraw:' + this._currentCommand.request);
+            console.error(this.options.sessionId + ' error compiling imap command: ' + e + '\nstack trace: ' + e.stack + '\nraw:' + this._currentCommand.request);
             return this._onError(e);
         }
 
-        // TODO: axe.debug(DEBUG_TAG, this.options.sessionId + ' C: ' + loggedCommand);
+        // console.log(this.options.sessionId + ' C: ' + loggedCommand);
         var data = this._currentCommand.data.shift();
 
         this.send(data + (!this._currentCommand.data.length ? '\r\n' : ''));
@@ -718,7 +718,7 @@
 
             this._compressionWorker.onerror = function(e) {
                 var error = new Error('Error handling compression web worker: Line ' + e.lineno + ' in ' + e.filename + ': ' + e.message);
-                // TODO: axe.error(DEBUG_TAG, error);
+                console.error(error);
                 this._onError(error);
             }.bind(this);
 

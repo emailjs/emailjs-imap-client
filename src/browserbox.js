@@ -144,7 +144,7 @@
             return;
         }
 
-        console.log(this.options.sessionId + ' client: started idling');
+        // console.log(this.options.sessionId + ' client: started idling');
         this.enterIdle();
     };
 
@@ -156,10 +156,10 @@
     BrowserBox.prototype.connect = function() {
         return new Promise((resolve, reject) => {
             var connectionTimeout = setTimeout(() => reject(new Error(this.options.sessionId + ' Timeout connecting to server')), this.TIMEOUT_CONNECTION);
-            console.log(this.options.sessionId + ' connecting to ' + this.client.host + ':' + this.client.port);
+            // console.log(this.options.sessionId + ' connecting to ' + this.client.host + ':' + this.client.port);
             this._changeState(this.STATE_CONNECTING);
             this.client.connect().then(() => {
-                console.log(this.options.sessionId + ' Socket opened, waiting for greeting from the server...');
+                // console.log(this.options.sessionId + ' Socket opened, waiting for greeting from the server...');
 
                 this.client.onready = () => {
                     clearTimeout(connectionTimeout);
@@ -183,7 +183,7 @@
         }).then(() => {
             return this.compressConnection();
         }).then(() => {
-            console.log(this.options.sessionId + ' Connection established, ready to roll!');
+            // console.log(this.options.sessionId + ' Connection established, ready to roll!');
             this.client.onerror = (err) => this.onerror(err); // proxy error events
         }).catch((err) => {
             this.close(); // we don't really care whether this works or not
@@ -212,7 +212,7 @@
     BrowserBox.prototype.close = function() {
         this._changeState(this.STATE_LOGOUT);
         clearTimeout(this._idleTimeout);
-        console.log(this.options.sessionId + ' closing connection');
+        // console.log(this.options.sessionId + ' closing connection');
         return this.client.close();
     };
 
@@ -259,7 +259,7 @@
             return;
         }
         this._enteredIdle = this.capability.indexOf('IDLE') >= 0 ? 'IDLE' : 'NOOP';
-        console.log(this.options.sessionId + ' entering idle with ' + this._enteredIdle);
+        // console.log(this.options.sessionId + ' entering idle with ' + this._enteredIdle);
 
         if (this._enteredIdle === 'NOOP') {
             this._idleTimeout = setTimeout(() => this.exec('NOOP'), this.TIMEOUT_NOOP);
@@ -268,7 +268,7 @@
                 command: 'IDLE'
             });
             this._idleTimeout = setTimeout(() => {
-                console.log(this.options.sessionId + ' sending idle DONE');
+                // console.log(this.options.sessionId + ' sending idle DONE');
                 this.client.send('DONE\r\n');
                 this._enteredIdle = false;
             }, this.TIMEOUT_IDLE);
@@ -285,12 +285,12 @@
 
         clearTimeout(this._idleTimeout);
         if (this._enteredIdle === 'IDLE') {
-            console.log(this.options.sessionId + ' sending idle DONE');
+            // console.log(this.options.sessionId + ' sending idle DONE');
             this.client.send('DONE\r\n');
         }
         this._enteredIdle = false;
 
-        console.log(this.options.sessionId + ' idle terminated');
+        // console.log(this.options.sessionId + ' idle terminated');
 
         return Promise.resolve();
     };
@@ -361,7 +361,7 @@
         }
 
         return this.exec('NAMESPACE', 'NAMESPACE').then((response) => {
-            console.log(response);
+            // console.log(response);
             return this._parseNAMESPACE(response);
         });
     };
@@ -384,7 +384,7 @@
                 value: 'DEFLATE'
             }]
         }).then(() => {
-            console.log(this.options.sessionId + ' compression enabled, all data sent and received is deflated');
+            // console.log(this.options.sessionId + ' compression enabled, all data sent and received is deflated');
             this.client.enableCompression();
             return true;
         });
@@ -458,7 +458,7 @@
                 return this.updateCapability(true);
             }
         }).then(() => {
-            console.log(this.options.sessionId + ' post-auth capabilites updated: ' + this.capability);
+            // console.log(this.options.sessionId + ' post-auth capabilites updated: ' + this.capability);
             return true;
         });
     };
@@ -1684,7 +1684,7 @@
             return;
         }
 
-        console.log(this.options.sessionId + ' entering state: ' + this.state);
+        // console.log(this.options.sessionId + ' entering state: ' + this.state);
 
         // if a mailbox was opened, emit onclosemailbox and clear selectedMailbox value
         if (this.state === this.STATE_SELECTED && this.selectedMailbox) {
