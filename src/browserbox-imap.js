@@ -42,6 +42,8 @@
     var MESSAGE_DEFLATE = 'deflate';
     var MESSAGE_DEFLATED_DATA_READY = 'deflated_ready';
 
+    var COMMAND_REGEX = /(\{(\d+)(\+)?\})?\r?\n/;
+
     /**
      * Creates a connection object to an IMAP server. Call `connect` method to inititate
      * the actual connection, the constructor only defines the properties but does not actually connect.
@@ -90,7 +92,7 @@
         //
 
         // As the server sends data in chunks, it needs to be split into separate lines. Helps parsing the input.
-        this._remainder = '';
+        this._incomingBuffer = '';
         this._command = '';
         this._literalRemaining = 0;
 
@@ -351,55 +353,43 @@
      * @param {Event} evt
      */
     ImapClient.prototype._onData = function(evt) {
-        if (!evt || !evt.data) {
-            return;
-        }
-
-        clearTimeout(this._socketTimeoutTimer);
-
         var match;
-        var str = mimefuncs.fromTypedArray(evt.data);
 
-        if (this._literalRemaining) {
-            if (this._literalRemaining > str.length) {
-                this._literalRemaining -= str.length;
-                this._command += str;
+        clearTimeout(this._socketTimeoutTimer); // clear the timeout, the socket is still up
+        this._incomingBuffer += mimefuncs.fromTypedArray(evt.data); // append to the incoming buffer
+
+        // The input is interesting as long as there are complete lines
+        while ((match = this._incomingBuffer.match(COMMAND_REGEX))) {
+            if (this._literalRemaining && this._literalRemaining > this._incomingBuffer.length) {
+                // we're expecting more incoming literal data than available, wait for the next chunk
                 return;
             }
-            this._command += str.substr(0, this._literalRemaining);
-            str = str.substr(this._literalRemaining);
-            this._literalRemaining = 0;
-        }
 
-        this._remainder = str = this._remainder + str;
-        while ((match = str.match(/(\{(\d+)(\+)?\})?\r?\n/))) {
-
-            if (!match[2]) {
-                // Now we have a full command line, so lets do something with it
-                this._addToServerQueue(this._command + str.substr(0, match.index));
-
-                this._remainder = str = str.substr(match.index + match[0].length);
-                this._command = '';
+            if (this._literalRemaining) {
+                // we're expecting incoming literal data:
+                // take portion of pending literal data from the chunk, parse the remaining buffer in the next iteration
+                this._command += this._incomingBuffer.substr(0, this._literalRemaining);
+                this._incomingBuffer = this._incomingBuffer.substr(this._literalRemaining);
+                this._literalRemaining = 0;
                 continue;
             }
 
-            this._remainder = '';
-
-            this._command += str.substr(0, match.index + match[0].length);
-
-            this._literalRemaining = Number(match[2]);
-
-            str = str.substr(match.index + match[0].length);
-
-            if (this._literalRemaining > str.length) {
-                this._command += str;
-                this._literalRemaining -= str.length;
-                return;
-            } else {
-                this._command += str.substr(0, this._literalRemaining);
-                this._remainder = str = str.substr(this._literalRemaining);
-                this._literalRemaining = 0;
+            if (match[2]) {
+                // we have a literal data command:
+                // take command portion (match.index) including the literal data octet count (match[0].length)
+                // from the chunk, parse the literal data in the next iteration
+                this._literalRemaining = Number(match[2]);
+                this._command += this._incomingBuffer.substr(0, match.index + match[0].length);
+                this._incomingBuffer = this._incomingBuffer.substr(match.index + match[0].length);
+                continue;
             }
+
+            // we have a complete command, pass on to processing
+            this._command += this._incomingBuffer.substr(0, match.index);
+            this._incomingBuffer = this._incomingBuffer.substr(match.index + match[0].length);
+            this._addToServerQueue(this._command);
+
+            this._command = ''; // clear for next iteration
         }
     };
 
@@ -465,6 +455,7 @@
                 data = this._currentCommand.data.shift();
                 this.send(data + (!this._currentCommand.data.length ? '\r\n' : ''));
             } else if (typeof this._currentCommand.errorResponseExpectsEmptyLine) {
+                // OAuth2 login expects an empty line if login failed
                 this.send('\r\n');
             }
             setTimeout(this._processServerQueue.bind(this), 0);
