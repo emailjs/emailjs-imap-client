@@ -236,7 +236,7 @@
 
                 sinon.stub(client, '_sendRequest');
 
-                sinon.stub(client, '_processServerResponse', (response, callback) => {
+                sinon.stub(client, '_processServerResponse', (response) => {
                     expect(response).to.deep.equal({
                         tag: 'OK',
                         command: 'Hello',
@@ -245,7 +245,6 @@
                             value: 'world!'
                         }]
                     });
-                    return callback();
                 });
 
                 sinon.stub(client, '_processServerQueue', () => {
@@ -268,14 +267,13 @@
 
                 sinon.stub(client, '_sendRequest');
 
-                sinon.stub(client, '_processServerResponse', (response, callback) => {
+                sinon.stub(client, '_processServerResponse', (response) => {
                     expect(response).to.deep.equal({
                         tag: '*',
                         command: 'EXISTS',
                         attributes: [],
                         nr: 1
                     });
-                    return callback();
                 });
 
                 sinon.stub(client, '_processServerQueue', () => {
@@ -324,7 +322,7 @@
                 client._processServerResponse({
                     tag: '*',
                     command: 'test'
-                }, () => {});
+                });
 
                 expect(client._globalAcceptUntagged.TEST.withArgs({
                     tag: '*',
@@ -346,7 +344,7 @@
                 client._processServerResponse({
                     tag: '*',
                     command: 'test'
-                }, () => {});
+                });
 
                 expect(client._globalAcceptUntagged.TEST.withArgs({
                     tag: '*',
@@ -370,7 +368,7 @@
                 client._processServerResponse({
                     tag: '*',
                     command: 'test'
-                }, () => {});
+                });
 
                 expect(client._globalAcceptUntagged.TEST.callCount).to.equal(0);
                 expect(client._currentCommand.payload.TEST).to.deep.equal([{
@@ -406,7 +404,7 @@
                 client._processServerResponse({
                     tag: 'A',
                     command: 'test'
-                }, () => {});
+                });
 
                 expect(client._globalAcceptUntagged.TEST.callCount).to.equal(0);
 

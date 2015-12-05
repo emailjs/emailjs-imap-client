@@ -223,17 +223,10 @@
      * the value for it is 'FETCH' then the reponse includes 'payload.FETCH' property
      * that is an array including all listed * FETCH responses.
      *
-     * Callback function provides 2 arguments, parsed response object and continue callback.
-     *
-     *   function(response, next){
-     *     console.log(response);
-     *     next();
-     *   }
-     *
      * @param {Object} request Structured request object
      * @param {Array} acceptUntagged a list of untagged responses that will be included in 'payload' property
      * @param {Object} [options] Optional data for the command payload
-     * @param {Function} callback Callback function to run once the command has been processed
+     * @returns {Promise} Promise that resolves when the request is done
      */
     ImapClient.prototype.enqueueCommand = function(request, acceptUntagged, options) {
         if (typeof request === 'string') {
@@ -450,34 +443,29 @@
             return;
         }
 
-        this._processServerResponse(response, (err) => {
-            if (err) {
-                return this._onError(err);
-            }
+        this._processServerResponse(response);
 
-            // first response from the server, connection is now usable
-            if (!this._connectionReady) {
-                this._connectionReady = true;
-                this.onready();
-                this._canSend = true;
-                this._sendRequest();
-            } else if (response.tag !== '*') {
-                // allow sending next command after full response
-                this._canSend = true;
-                this._sendRequest();
-            }
+        // first response from the server, connection is now usable
+        if (!this._connectionReady) {
+            this._connectionReady = true;
+            this.onready();
+            this._canSend = true;
+            this._sendRequest();
+        } else if (response.tag !== '*') {
+            // allow sending next command after full response
+            this._canSend = true;
+            this._sendRequest();
+        }
 
-            setTimeout(() => this._processServerQueue(), 0);
-        });
+        setTimeout(() => this._processServerQueue(), 0);
     };
 
     /**
      * Feeds a parsed response object to an appropriate handler
      *
      * @param {Object} response Parsed command object
-     * @param {Function} callback Continue callback function
      */
-    ImapClient.prototype._processServerResponse = function(response, callback) {
+    ImapClient.prototype._processServerResponse = function(response) {
         var command = (response && response.command || '').toUpperCase().trim();
 
         this._processResponse(response);
@@ -486,35 +474,15 @@
             if (response.tag === '*' && command in this._globalAcceptUntagged) {
                 this._globalAcceptUntagged[command](response);
             }
-
-            return callback();
-        }
-
-        if (this._currentCommand.payload && response.tag === '*' && command in this._currentCommand.payload) {
+        } else if (this._currentCommand.payload && response.tag === '*' && command in this._currentCommand.payload) {
             this._currentCommand.payload[command].push(response);
-            return callback();
-
         } else if (response.tag === '*' && command in this._globalAcceptUntagged) {
-            this._globalAcceptUntagged[command](response, callback);
-            return callback();
-
+            this._globalAcceptUntagged[command](response);
         } else if (response.tag === this._currentCommand.tag) {
-
-            if (typeof this._currentCommand.callback === 'function') {
-
-                if (this._currentCommand.payload && Object.keys(this._currentCommand.payload).length) {
-                    response.payload = this._currentCommand.payload;
-                }
-
-                this._currentCommand.callback(response);
-                return callback();
-            } else {
-                return callback();
+            if (this._currentCommand.payload && Object.keys(this._currentCommand.payload).length) {
+                response.payload = this._currentCommand.payload;
             }
-
-        } else {
-            // Unexpected response
-            return callback();
+            this._currentCommand.callback(response);
         }
     };
 
