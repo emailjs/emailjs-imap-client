@@ -416,53 +416,74 @@
         });
 
         describe('#enqueueCommand', () => {
-            it('should invoke sending', () => {
-                sinon.stub(client, '_sendRequest');
+            it('should reject on NO/BAD', (done) => {
+                sinon.stub(client, '_sendRequest', function() {
+                    client._clientQueue[0].callback({ command: 'NO' });
+                });
 
                 client._tagCounter = 100;
                 client._clientQueue = [];
                 client._canSend = true;
 
-                var cb = () => {};
+                client.enqueueCommand({
+                    command: 'abc'
+                }, ['def'], {
+                    t: 1
+                }).catch((err) => {
+                    expect(err).to.exist;
+                    done();
+                });
+            });
+
+            it('should invoke sending', (done) => {
+                sinon.stub(client, '_sendRequest', function() {
+                    client._clientQueue[0].callback({});
+                });
+
+                client._tagCounter = 100;
+                client._clientQueue = [];
+                client._canSend = true;
 
                 client.enqueueCommand({
                     command: 'abc'
                 }, ['def'], {
                     t: 1
-                }, cb);
+                }).then(() => {
+                    expect(client._sendRequest.callCount).to.equal(1);
+                    expect(client._clientQueue.length).to.equal(1);
+                    expect(client._clientQueue[0].tag).to.equal('W101');
+                    expect(client._clientQueue[0].request).to.deep.equal({
+                        command: 'abc',
+                        tag: 'W101'
+                    });
+                    expect(client._clientQueue[0].t).to.equal(1);
 
-                expect(client._sendRequest.callCount).to.equal(1);
-                expect(client._clientQueue.length).to.equal(1);
-                expect(client._clientQueue[0].tag).to.equal('W101');
-                expect(client._clientQueue[0].request).to.deep.equal({
-                    command: 'abc',
-                    tag: 'W101'
-                });
-                expect(client._clientQueue[0].t).to.equal(1);
-
-                client._sendRequest.restore();
+                    client._sendRequest.restore();
+                }).then(done).catch(done);
             });
 
-            it('should only queue', () => {
+            it('should only queue', (done) => {
                 sinon.stub(client, '_sendRequest');
 
                 client._tagCounter = 100;
                 client._clientQueue = [];
                 client._canSend = false;
 
-                var cb = () => {};
-
                 client.enqueueCommand({
                     command: 'abc'
                 }, ['def'], {
                     t: 1
-                }, cb);
+                }).then(() => {
+                    expect(client._sendRequest.callCount).to.equal(0);
+                    expect(client._clientQueue.length).to.equal(1);
+                    expect(client._clientQueue[0].tag).to.equal('W101');
 
-                expect(client._sendRequest.callCount).to.equal(0);
-                expect(client._clientQueue.length).to.equal(1);
-                expect(client._clientQueue[0].tag).to.equal('W101');
+                    client._sendRequest.restore();
+                }).then(done).catch(done);
 
-                client._sendRequest.restore();
+                setTimeout(() => {
+                    client._clientQueue[0].callback({});
+                }, 0);
             });
         });
 

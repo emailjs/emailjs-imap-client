@@ -224,25 +224,12 @@
      */
     BrowserBox.prototype.exec = function(request, acceptUntagged, options) {
         return this.breakIdle().then(() => {
-            return new Promise((resolve, reject) => {
-                this.client.enqueueCommand(request, acceptUntagged, options, (response) => {
-                    if (response && response.capability) {
-                        this.capability = response.capability;
-                    }
-
-                    if (this.client.isError(response)) {
-                        return reject(response);
-                    } else if (['NO', 'BAD'].indexOf((response && response.command || '').toString().toUpperCase().trim()) >= 0) {
-                        const error = new Error(response.humanReadable || 'Error');
-                        if (response.code) {
-                            error.code = response.code;
-                        }
-                        return reject(error);
-                    }
-
-                    resolve(response);
-                });
-            });
+            return this.client.enqueueCommand(request, acceptUntagged, options);
+        }).then((response) => {
+            if (response && response.capability) {
+                this.capability = response.capability;
+            }
+            return response;
         });
     };
 

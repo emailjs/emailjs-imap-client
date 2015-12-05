@@ -158,9 +158,7 @@
             });
 
             it('should send string command', (done) => {
-                sinon.stub(br.client, 'enqueueCommand', function() {
-                    arguments[arguments.length - 1]({});
-                });
+                sinon.stub(br.client, 'enqueueCommand').returns(Promise.resolve({}));
                 br.exec('TEST').then((res) => {
                     expect(res).to.deep.equal({});
                     expect(br.client.enqueueCommand.args[0][0]).to.equal('TEST');
@@ -168,29 +166,15 @@
             });
 
             it('should update capability from response', (done) => {
-                sinon.stub(br.client, 'enqueueCommand', function() {
-                    arguments[arguments.length - 1]({
-                        capability: ['A', 'B']
-                    });
-                });
+                sinon.stub(br.client, 'enqueueCommand').returns(Promise.resolve({
+                    capability: ['A', 'B']
+                }));
                 br.exec('TEST').then((res) => {
                     expect(res).to.deep.equal({
                         capability: ['A', 'B']
                     });
                     expect(br.capability).to.deep.equal(['A', 'B']);
                 }).then(done).catch(done);
-            });
-
-            it('should return error on NO/BAD', (done) => {
-                sinon.stub(br.client, 'enqueueCommand', function() {
-                    arguments[arguments.length - 1]({
-                        command: 'NO'
-                    });
-                });
-                br.exec('TEST').catch((err) => {
-                    expect(err).to.exist;
-                    done();
-                });
             });
         });
 

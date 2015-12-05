@@ -202,7 +202,7 @@
                 this.close().then(resolve).catch(reject);
             };
 
-            this.enqueueCommand('LOGOUT', () => {});
+            this.enqueueCommand('LOGOUT');
         });
     };
 
@@ -235,17 +235,7 @@
      * @param {Object} [options] Optional data for the command payload
      * @param {Function} callback Callback function to run once the command has been processed
      */
-    ImapClient.prototype.enqueueCommand = function(request, acceptUntagged, options, callback) {
-        if (!callback && typeof options === 'function') {
-            callback = options;
-            options = undefined;
-        }
-
-        if (!callback && typeof acceptUntagged === 'function') {
-            callback = acceptUntagged;
-            acceptUntagged = undefined;
-        }
-
+    ImapClient.prototype.enqueueCommand = function(request, acceptUntagged, options) {
         if (typeof request === 'string') {
             request = {
                 command: request
@@ -257,33 +247,47 @@
         var tag = 'W' + (++this._tagCounter);
         request.tag = tag;
 
-        var data = {
-            tag: tag,
-            request: request,
-            payload: acceptUntagged.length ? {} : undefined,
-            callback: callback
-        };
+        return new Promise((resolve, reject) => {
+            var data = {
+                tag: tag,
+                request: request,
+                payload: acceptUntagged.length ? {} : undefined,
+                callback: (response) => {
+                    if (this.isError(response)) {
+                        return reject(response);
+                    } else if (['NO', 'BAD'].indexOf((response && response.command || '').toString().toUpperCase().trim()) >= 0) {
+                        const error = new Error(response.humanReadable || 'Error');
+                        if (response.code) {
+                            error.code = response.code;
+                        }
+                        return reject(error);
+                    }
 
-        // apply any additional options to the command
-        Object.keys(options || {}).forEach((key) => data[key] = options[key]);
+                    resolve(response);
+                }
+            };
 
-        acceptUntagged.forEach((command) => data.payload[command] = []);
+            // apply any additional options to the command
+            Object.keys(options || {}).forEach((key) => data[key] = options[key]);
 
-        // if we're in priority mode (i.e. we ran commands in a precheck),
-        // queue any commands BEFORE the command that contianed the precheck,
-        // otherwise just queue command as usual
-        var index = data.ctx ? this._clientQueue.indexOf(data.ctx) : -1;
-        if (index >= 0) {
-            data.tag += '.p';
-            data.request.tag += '.p';
-            this._clientQueue.splice(index, 0, data);
-        } else {
-            this._clientQueue.push(data);
-        }
+            acceptUntagged.forEach((command) => data.payload[command] = []);
 
-        if (this._canSend) {
-            this._sendRequest();
-        }
+            // if we're in priority mode (i.e. we ran commands in a precheck),
+            // queue any commands BEFORE the command that contianed the precheck,
+            // otherwise just queue command as usual
+            var index = data.ctx ? this._clientQueue.indexOf(data.ctx) : -1;
+            if (index >= 0) {
+                data.tag += '.p';
+                data.request.tag += '.p';
+                this._clientQueue.splice(index, 0, data);
+            } else {
+                this._clientQueue.push(data);
+            }
+
+            if (this._canSend) {
+                this._sendRequest();
+            }
+        });
     };
 
     /**
