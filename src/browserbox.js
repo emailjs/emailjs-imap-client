@@ -616,7 +616,7 @@
      * @param {String} sequence Sequence set, eg 1:* for all messages
      * @param {Object} [items] Message data item names or macro
      * @param {Object} [options] Query modifiers
-     * @param {Function} callback Callback function with fetched message info
+     * @returns {Promise} Promise with the fetched message info
      */
     BrowserBox.prototype.listMessages = function(sequence, items, options) {
         items = items || [{
