@@ -471,16 +471,18 @@
         this._processResponse(response);
 
         if (!this._currentCommand) {
-            // unsolicited server update
+            // unsolicited untagged response
             if (response.tag === '*' && command in this._globalAcceptUntagged) {
                 this._globalAcceptUntagged[command](response);
             }
         } else if (this._currentCommand.payload && response.tag === '*' && command in this._currentCommand.payload) {
-            // response is only a subset
+            // expected untagged response
             this._currentCommand.payload[command].push(response);
         } else if (response.tag === '*' && command in this._globalAcceptUntagged) {
+            // unexpected untagged response
             this._globalAcceptUntagged[command](response);
         } else if (response.tag === this._currentCommand.tag) {
+            // tagged response
             if (this._currentCommand.payload && Object.keys(this._currentCommand.payload).length) {
                 response.payload = this._currentCommand.payload;
             }
