@@ -471,10 +471,12 @@
         this._processResponse(response);
 
         if (!this._currentCommand) {
+            // unsolicited server update
             if (response.tag === '*' && command in this._globalAcceptUntagged) {
                 this._globalAcceptUntagged[command](response);
             }
         } else if (this._currentCommand.payload && response.tag === '*' && command in this._currentCommand.payload) {
+            // response is only a subset
             this._currentCommand.payload[command].push(response);
         } else if (response.tag === '*' && command in this._globalAcceptUntagged) {
             this._globalAcceptUntagged[command](response);
@@ -551,37 +553,41 @@
             option,
             key;
 
-        if (['OK', 'NO', 'BAD', 'BYE', 'PREAUTH'].indexOf(command) >= 0) {
-            // Check if the response includes an optional response code
-            if (
-                (option = response && response.attributes &&
-                    response.attributes.length && response.attributes[0].type === 'ATOM' &&
-                    response.attributes[0].section && response.attributes[0].section.map((key) => {
-                        if (!key) {
-                            return;
-                        }
-                        if (Array.isArray(key)) {
-                            return key.map((key) => (key.value || '').toString().trim());
-                        } else {
-                            return (key.value || '').toString().toUpperCase().trim();
-                        }
-                    }))) {
+        // no optional response code
+        if (['OK', 'NO', 'BAD', 'BYE', 'PREAUTH'].indexOf(command) < 0) {
+            return;
+        }
 
-                key = option && option.shift();
+        // no attributes
+        if (!response || !response.attributes || !response.attributes.length) {
+            return;
+        }
 
-                response.code = key;
+        // If last element of the response is TEXT then this is for humans
+        if (response.attributes[response.attributes.length - 1].type === 'TEXT') {
+            response.humanReadable = response.attributes[response.attributes.length - 1].value;
+        }
 
-                if (option.length) {
-                    option = [].concat(option || []);
-                    response[key.toLowerCase()] = option.length === 1 ? option[0] : option;
+        // Parse and format ATOM values
+        if (response.attributes[0].type === 'ATOM' && response.attributes[0].section) {
+            option = response.attributes[0].section.map((key) => {
+                if (!key) {
+                    return;
                 }
-            }
+                if (Array.isArray(key)) {
+                    return key.map((key) => (key.value || '').toString().trim());
+                } else {
+                    return (key.value || '').toString().toUpperCase().trim();
+                }
+            });
 
-            // If last element of the response is TEXT then this is for humans
-            if (response && response.attributes && response.attributes.length &&
-                response.attributes[response.attributes.length - 1].type === 'TEXT') {
+            key = option.shift();
+            response.code = key;
 
-                response.humanReadable = response.attributes[response.attributes.length - 1].value;
+            if (option.length === 1) {
+                response[key.toLowerCase()] = option[0];
+            } else if (option.length > 1) {
+                response[key.toLowerCase()] = option;
             }
         }
     };
