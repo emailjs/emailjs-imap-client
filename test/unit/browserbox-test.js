@@ -2107,7 +2107,10 @@
                     expect(value).to.equal(123);
                     done();
                 };
-                br.client._addToServerQueue('* 123 EXISTS');
+                br.client._onData({
+                    /* * 123 EXISTS\r\n */
+                    data: new Uint8Array([42, 32, 49, 50, 51, 32, 69, 88, 73, 83, 84, 83, 13, 10]).buffer
+                });
             });
 
             it('should receive information about untagged expunge', (done) => {
@@ -2117,7 +2120,10 @@
                     expect(value).to.equal(456);
                     done();
                 };
-                br.client._addToServerQueue('* 456 EXPUNGE');
+                br.client._onData({
+                    /* * 456 EXPUNGE\r\n */
+                    data: new Uint8Array([42, 32, 52, 53, 54, 32, 69, 88, 80, 85, 78, 71, 69, 13, 10]).buffer
+                });
             });
 
             it('should receive information about untagged fetch', (done) => {
@@ -2131,7 +2137,10 @@
                     });
                     done();
                 };
-                br.client._addToServerQueue('* 123 FETCH (FLAGS (\\Seen) MODSEQ (4))');
+                br.client._onData({
+                    /* * 123 FETCH (FLAGS (\\Seen) MODSEQ (4))\r\n */
+                    data: new Uint8Array([42, 32, 49, 50, 51, 32, 70, 69, 84, 67, 72, 32, 40, 70, 76, 65, 71, 83, 32, 40, 92, 83, 101, 101, 110, 41, 32, 77, 79, 68, 83, 69, 81, 32, 40, 52, 41, 41, 13, 10]).buffer
+                });
             });
         });
     });

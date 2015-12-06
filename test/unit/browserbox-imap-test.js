@@ -111,204 +111,108 @@
         });
 
         describe('#_onData', () => {
-            it('should process normal input', () => {
-                var list = [
-                        '* 1 FETCH (UID 1)',
-                        '* 2 FETCH (UID 2)',
-                        '* 3 FETCH (UID 3)',
-                    ],
-                    pos = 0;
+            it('should process input', () => {
+                sinon.stub(client, '_parseIncomingCommands');
+                sinon.stub(client, '_iterateIncomingBuffer');
 
-                sinon.stub(client, '_addToServerQueue', (cmd) => {
-                    expect(list[pos++]).to.equal(cmd);
+                client._onData({
+                    data: mimefuncs.toTypedArray('foobar').buffer
                 });
 
-                for (var i = 0; i < list.length; i++) {
-                    client._onData({
-                        data: mimefuncs.toTypedArray(list[i] + '\r\n').buffer
-                    });
-                }
+                expect(client._parseIncomingCommands.calledOnce).to.be.true;
+                expect(client._iterateIncomingBuffer.calledOnce).to.be.true;
 
-                client._addToServerQueue.restore();
+                client._parseIncomingCommands.restore();
+                client._iterateIncomingBuffer.restore();
             });
+        });
 
-            it('should process chunked input', () => {
-                var input = ['* 1 FETCH (UID 1)\r\n* 2 F', 'ETCH (UID 2)\r\n* 3 FETCH (UID 3', ')\r\n'];
+        describe('#_iterateIncomingBuffer', () => {
+            it('should iterate chunked input', () => {
+                client._incomingBuffer = '* 1 FETCH (UID 1)\r\n* 2 FETCH (UID 2)\r\n* 3 FETCH (UID 3)\r\n';
+                var iterator = client._iterateIncomingBuffer();
 
-                var output = [
-                        '* 1 FETCH (UID 1)',
-                        '* 2 FETCH (UID 2)',
-                        '* 3 FETCH (UID 3)'
-                    ],
-                    pos = 0;
-
-                sinon.stub(client, '_addToServerQueue', (cmd) => {
-                    expect(output[pos++]).to.equal(cmd);
-                });
-
-                for (var i = 0; i < input.length; i++) {
-                    client._onData({
-                        data: mimefuncs.toTypedArray(input[i]).buffer
-                    });
-                }
-
-                client._addToServerQueue.restore();
-            });
-
-            it('should process split input', () => {
-                var input = ['* 1 ', 'F', 'ETCH (', 'UID 1)', '\r', '\n'];
-
-                var output = [
-                        '* 1 FETCH (UID 1)'
-                    ],
-                    pos = 0;
-
-                sinon.stub(client, '_addToServerQueue', (cmd) => {
-                    expect(output[pos++]).to.equal(cmd);
-                });
-
-                for (var i = 0; i < input.length; i++) {
-                    client._onData({
-                        data: mimefuncs.toTypedArray(input[i]).buffer
-                    });
-                }
-
-                client._addToServerQueue.restore();
+                expect(iterator.next().value).to.equal('* 1 FETCH (UID 1)');
+                expect(iterator.next().value).to.equal('* 2 FETCH (UID 2)');
+                expect(iterator.next().value).to.equal('* 3 FETCH (UID 3)');
+                expect(iterator.next().value).to.be.undefined;
             });
 
             it('chould process chunked literals', () => {
-                var input = [
-                    '* 1 FETCH (UID {1}\r\n1)\r\n* 2 FETCH (UID {4}\r\n2345)\r\n* 3 FETCH (UID {4}', '\r\n3789)\r\n'
-                ];
+                client._incomingBuffer = '* 1 FETCH (UID {1}\r\n1)\r\n* 2 FETCH (UID {4}\r\n2345)\r\n* 3 FETCH (UID {4}\r\n3789)\r\n';
+                var iterator = client._iterateIncomingBuffer();
 
-                var output = [
-                        '* 1 FETCH (UID {1}\r\n1)',
-                        '* 2 FETCH (UID {4}\r\n2345)',
-                        '* 3 FETCH (UID {4}\r\n3789)'
-                    ],
-                    pos = 0;
-
-                sinon.stub(client, '_addToServerQueue', (cmd) => {
-                    expect(output[pos++]).to.equal(cmd);
-                });
-
-                for (var i = 0; i < input.length; i++) {
-                    client._onData({
-                        data: mimefuncs.toTypedArray(input[i]).buffer
-                    });
-                }
-
-                client._addToServerQueue.restore();
+                expect(iterator.next().value).to.equal('* 1 FETCH (UID {1}\r\n1)');
+                expect(iterator.next().value).to.equal('* 2 FETCH (UID {4}\r\n2345)');
+                expect(iterator.next().value).to.equal('* 3 FETCH (UID {4}\r\n3789)');
+                expect(iterator.next().value).to.be.undefined;
             });
         });
 
-        describe('#_addToServerQueue', () => {
-            it('should only push', () => {
-                sinon.stub(client, '_processServerQueue');
-
-                client._processingServerData = true;
-                client._serverQueue = [];
-                client._addToServerQueue('abc');
-
-                expect(client._serverQueue).to.deep.equal(['abc']);
-                expect(client._processServerQueue.callCount).to.equal(0);
-
-                client._processServerQueue.restore();
-            });
-
-            it('should push and run', () => {
-                sinon.stub(client, '_processServerQueue');
-
-                client._processingServerData = false;
-                client._serverQueue = [];
-                client._addToServerQueue('abc');
-
-                expect(client._serverQueue).to.deep.equal(['abc']);
-                expect(client._processServerQueue.callCount).to.equal(1);
-
-                client._processServerQueue.restore();
-            });
-        });
-
-        describe('#_processServerQueue', () => {
-            it('should process a tagged item from the queue', (done) => {
-                var ref = client._processServerQueue.bind(client);
-
+        describe('#_parseIncomingCommands', () => {
+            it('should process a tagged item from the queue', () => {
                 sinon.stub(client, '_sendRequest');
+                sinon.stub(client, 'onready');
+                sinon.stub(client, '_processServerResponse');
 
-                sinon.stub(client, '_processServerResponse', (response) => {
-                    expect(response).to.deep.equal({
-                        tag: 'OK',
-                        command: 'Hello',
-                        attributes: [{
-                            type: 'ATOM',
-                            value: 'world!'
-                        }]
-                    });
-                });
+                function* gen() { yield 'OK Hello world!'; }
 
-                sinon.stub(client, '_processServerQueue', () => {
+                client._parseIncomingCommands(gen());
 
-                    expect(client._sendRequest.callCount).to.equal(1);
-                    expect(client._processServerResponse.callCount).to.equal(1);
-
-                    client._sendRequest.restore();
-                    client._processServerResponse.restore();
-                    client._processServerQueue.restore();
-                    done();
-                });
-
-                client._serverQueue = ['OK Hello world!'];
-                ref();
+                expect(client._sendRequest.callCount).to.equal(1);
+                expect(client.onready.callCount).to.equal(1);
+                expect(client._processServerResponse.withArgs({
+                    tag: 'OK',
+                    command: 'Hello',
+                    attributes: [{
+                        type: 'ATOM',
+                        value: 'world!'
+                    }]
+                }).calledOnce).to.be.true;
             });
 
-            it('should process an untagged item from the queue', (done) => {
-                var ref = client._processServerQueue.bind(client);
-
+            it('should process an untagged item from the queue', () => {
                 sinon.stub(client, '_sendRequest');
+                sinon.stub(client, '_processServerResponse');
 
-                sinon.stub(client, '_processServerResponse', (response) => {
-                    expect(response).to.deep.equal({
-                        tag: '*',
-                        command: 'EXISTS',
-                        attributes: [],
-                        nr: 1
-                    });
-                });
+                function* gen() { yield '* 1 EXISTS'; }
 
-                sinon.stub(client, '_processServerQueue', () => {
+                client._parseIncomingCommands(gen());
 
-                    expect(client._sendRequest.callCount).to.equal(1);
-                    expect(client._processServerResponse.callCount).to.equal(1);
-
-                    client._sendRequest.restore();
-                    client._processServerResponse.restore();
-                    client._processServerQueue.restore();
-                    done();
-                });
-
-                client._serverQueue = ['* 1 EXISTS'];
-                ref();
+                expect(client._sendRequest.callCount).to.equal(1);
+                expect(client._processServerResponse.withArgs({
+                    tag: '*',
+                    command: 'EXISTS',
+                    attributes: [],
+                    nr: 1
+                }).calledOnce).to.be.true;
             });
 
-            it('should process a plus tagged item from the queue', (done) => {
-                var ref = client._processServerQueue.bind(client);
+            it('should process a plus tagged item from the queue', () => {
                 sinon.stub(client, 'send');
 
-                sinon.stub(client, '_processServerQueue', () => {
-
-                    expect(client.send.withArgs('literal data\r\n').callCount).to.equal(1);
-
-                    client._processServerQueue.restore();
-                    client.send.restore();
-                    done();
-                });
-
+                function* gen() { yield '+ Please continue'; }
                 client._currentCommand = {
                     data: ['literal data']
                 };
-                client._serverQueue = ['+ Please continue'];
-                ref();
+
+                client._parseIncomingCommands(gen());
+
+                expect(client.send.withArgs('literal data\r\n').callCount).to.equal(1);
+            });
+
+            it('should process an XOAUTH2 error challenge', () => {
+                sinon.stub(client, 'send');
+
+                function* gen() { yield '+ FOOBAR'; }
+                client._currentCommand = {
+                    data: [],
+                    errorResponseExpectsEmptyLine: true
+                };
+
+                client._parseIncomingCommands(gen());
+
+                expect(client.send.withArgs('\r\n').callCount).to.equal(1);
             });
         });
 

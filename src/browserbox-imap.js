@@ -43,6 +43,7 @@
     var MESSAGE_DEFLATED_DATA_READY = 'deflated_ready';
 
     var COMMAND_REGEX = /(\{(\d+)(\+)?\})?\r?\n/;
+    var EOL = '\r\n';
 
     /**
      * Creates a connection object to an IMAP server. Call `connect` method to inititate
@@ -69,8 +70,6 @@
 
         this.secureMode = !!this.options.useSecureTransport; // Does the connection use SSL/TLS
 
-        this._serverQueue = []; // Queue of received commands
-        this._processingServerData = false; // Is there something being processed
         this._connectionReady = false; // Is the conection established and greeting is received from the server
 
         this._globalAcceptUntagged = {}; // Global handlers for unrelated responses (EXPUNGE, EXISTS etc.)
@@ -168,7 +167,6 @@
     ImapClient.prototype.close = function() {
         return new Promise((resolve) => {
             var tearDown = () => {
-                this._serverQueue = [];
                 this._clientQueue = [];
                 this._currentCommand = false;
                 clearTimeout(this._idleTimer);
@@ -334,11 +332,13 @@
      * @param {Event} evt
      */
     ImapClient.prototype._onData = function(evt) {
-        var match;
-
         clearTimeout(this._socketTimeoutTimer); // clear the timeout, the socket is still up
         this._incomingBuffer += mimefuncs.fromTypedArray(evt.data); // append to the incoming buffer
+        this._parseIncomingCommands(this._iterateIncomingBuffer());
+    };
 
+    ImapClient.prototype._iterateIncomingBuffer = function* () {
+        var match;
         // The input is interesting as long as there are complete lines
         while ((match = this._incomingBuffer.match(COMMAND_REGEX))) {
             if (this._literalRemaining && this._literalRemaining > this._incomingBuffer.length) {
@@ -368,96 +368,73 @@
             // we have a complete command, pass on to processing
             this._command += this._incomingBuffer.substr(0, match.index);
             this._incomingBuffer = this._incomingBuffer.substr(match.index + match[0].length);
-            this._addToServerQueue(this._command);
+            yield this._command;
 
             this._command = ''; // clear for next iteration
         }
     };
 
+
+
     // PRIVATE METHODS
-
-    /**
-     * Pushes command line from the server to the server processing queue. If the
-     * processor is idle, start processing.
-     *
-     * @param {String} cmd Command line
-     */
-    ImapClient.prototype._addToServerQueue = function(cmd) {
-        this._serverQueue.push(cmd);
-
-        if (this._processingServerData) {
-            return;
-        }
-
-        this._processingServerData = true;
-        this._processServerQueue();
-    };
 
     /**
      * Process a command from the queue. The command is parsed and feeded to a handler
      */
-    ImapClient.prototype._processServerQueue = function() {
-        if (!this._serverQueue.length) {
-            this._processingServerData = false;
-            return;
-        } else {
-            this._clearIdle();
-        }
+    ImapClient.prototype._parseIncomingCommands = function(commands) {
+        for (var command of commands) {
+            this._clearIdle(); // TODO the way idle is handled is highly questionable
 
-        var data = this._serverQueue.shift(),
-            response;
+            /*
+             * The "+"-tagged response is a special case:
+             * Either the server can asks for the next chunk of data, e.g. for the AUTHENTICATE command.
+             *
+             * Or there was an error in the XOAUTH2 authentication, for which SASL initial client response extension
+             * dictates the client sends an empty EOL response to the challenge containing the error message.
+             *
+             * Details on "+"-tagged response:
+             *   https://tools.ietf.org/html/rfc3501#section-2.2.1
+             */
+            //
+            if (/^\+/.test(command)) {
+                if (this._currentCommand.data.length) {
+                    // feed the next chunk of data
+                    var chunk = this._currentCommand.data.shift();
+                    chunk += (!this._currentCommand.data.length ? EOL : ''); // EOL if there's nothing more to send
+                    this.send(chunk);
+                } else if (typeof this._currentCommand.errorResponseExpectsEmptyLine) {
+                    this.send(EOL); // XOAUTH2 empty response, error will be reported when server continues with NO response
+                }
+                continue;
+            }
 
-        try {
-            // + tagged response is a special case, do not try to parse it
-            if (/^\+/.test(data)) {
-                response = {
-                    tag: '+',
-                    payload: data.substr(2) || ''
-                };
-            } else {
-                response = imapHandler.parser(data);
+            var response;
+            try {
+                response = imapHandler.parser(command);
                 // console.log(this.options.sessionId + ' S: ' + imapHandler.compiler(response, false, true));
+            } catch (e) {
+                console.error(this.options.sessionId + ' error parsing imap response: ' + e + '\n' + e.stack + '\nraw:' + command);
+                return this._onError(e);
             }
-        } catch (e) {
-            console.error(this.options.sessionId + ' error parsing imap response: ' + e + '\n' + e.stack + '\nraw:' + data);
-            return this._onError(e);
-        }
 
-        if (response.tag === '*' &&
-            /^\d+$/.test(response.command) &&
-            response.attributes && response.attributes.length && response.attributes[0].type === 'ATOM') {
-            response.nr = Number(response.command);
-            response.command = (response.attributes.shift().value || '').toString().toUpperCase().trim();
-        }
-
-        // feed the next chunk to the server if a + tagged response was received
-        if (response.tag === '+') {
-            if (this._currentCommand.data.length) {
-                data = this._currentCommand.data.shift();
-                this.send(data + (!this._currentCommand.data.length ? '\r\n' : ''));
-            } else if (typeof this._currentCommand.errorResponseExpectsEmptyLine) {
-                // OAuth2 login expects an empty line if login failed
-                this.send('\r\n');
+            if (response.tag === '*' &&
+                /^\d+$/.test(response.command) &&
+                response.attributes && response.attributes.length && response.attributes[0].type === 'ATOM') {
+                response.nr = Number(response.command);
+                response.command = (response.attributes.shift().value || '').toString().toUpperCase().trim();
             }
-            setTimeout(() => this._processServerQueue(), 0);
-            return;
-        }
 
-        this._processServerResponse(response);
+            this._processServerResponse(response);
 
-        // first response from the server, connection is now usable
-        if (!this._connectionReady) {
-            this._connectionReady = true;
-            this.onready();
-            this._canSend = true;
-            this._sendRequest();
-        } else if (response.tag !== '*') {
-            // allow sending next command after full response
+            // first response from the server, connection is now usable
+            if (!this._connectionReady) {
+                this._connectionReady = true;
+                this.onready();
+            }
+
             this._canSend = true;
             this._sendRequest();
         }
-
-        setTimeout(() => this._processServerQueue(), 0);
     };
 
     /**
@@ -514,7 +491,7 @@
         // console.log(this.options.sessionId + ' C: ' + loggedCommand);
         var data = this._currentCommand.data.shift();
 
-        this.send(data + (!this._currentCommand.data.length ? '\r\n' : ''));
+        this.send(data + (!this._currentCommand.data.length ? EOL : ''));
         return this.waitDrain;
     };
 
