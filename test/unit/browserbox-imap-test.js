@@ -153,7 +153,7 @@
             it('should process a tagged item from the queue', () => {
                 sinon.stub(client, '_sendRequest');
                 sinon.stub(client, 'onready');
-                sinon.stub(client, '_processServerResponse');
+                sinon.stub(client, '_handleResponse');
 
                 function* gen() { yield 'OK Hello world!'; }
 
@@ -161,7 +161,7 @@
 
                 expect(client._sendRequest.callCount).to.equal(1);
                 expect(client.onready.callCount).to.equal(1);
-                expect(client._processServerResponse.withArgs({
+                expect(client._handleResponse.withArgs({
                     tag: 'OK',
                     command: 'Hello',
                     attributes: [{
@@ -173,14 +173,14 @@
 
             it('should process an untagged item from the queue', () => {
                 sinon.stub(client, '_sendRequest');
-                sinon.stub(client, '_processServerResponse');
+                sinon.stub(client, '_handleResponse');
 
                 function* gen() { yield '* 1 EXISTS'; }
 
                 client._parseIncomingCommands(gen());
 
                 expect(client._sendRequest.callCount).to.equal(1);
-                expect(client._processServerResponse.withArgs({
+                expect(client._handleResponse.withArgs({
                     tag: '*',
                     command: 'EXISTS',
                     attributes: [],
@@ -216,14 +216,14 @@
             });
         });
 
-        describe('#_processServerResponse', () => {
+        describe('#_handleResponse', () => {
             it('should invoke global handler by default', () => {
                 sinon.stub(client, '_processResponse');
                 client._globalAcceptUntagged.TEST = () => {};
                 sinon.stub(client._globalAcceptUntagged, 'TEST');
 
                 client._currentCommand = false;
-                client._processServerResponse({
+                client._handleResponse({
                     tag: '*',
                     command: 'test'
                 });
@@ -245,7 +245,7 @@
                 client._currentCommand = {
                     payload: {}
                 };
-                client._processServerResponse({
+                client._handleResponse({
                     tag: '*',
                     command: 'test'
                 });
@@ -269,7 +269,7 @@
                         TEST: []
                     }
                 };
-                client._processServerResponse({
+                client._handleResponse({
                     tag: '*',
                     command: 'test'
                 });
@@ -305,7 +305,7 @@
                         TEST: 'abc'
                     }
                 };
-                client._processServerResponse({
+                client._handleResponse({
                     tag: 'A',
                     command: 'test'
                 });

@@ -418,7 +418,7 @@
             }
 
             this._processResponse(response);
-            this._processServerResponse(response);
+            this._handleResponse(response);
 
             // first response from the server, connection is now usable
             if (!this._connectionReady) {
@@ -436,7 +436,7 @@
      *
      * @param {Object} response Parsed command object
      */
-    ImapClient.prototype._processServerResponse = function(response) {
+    ImapClient.prototype._handleResponse = function(response) {
         var command = (response && response.command || '').toUpperCase().trim();
 
         if (!this._currentCommand) {
