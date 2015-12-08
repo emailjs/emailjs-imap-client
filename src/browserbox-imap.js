@@ -417,13 +417,7 @@
                 return this._onError(e);
             }
 
-            if (response.tag === '*' &&
-                /^\d+$/.test(response.command) &&
-                response.attributes && response.attributes.length && response.attributes[0].type === 'ATOM') {
-                response.nr = Number(response.command);
-                response.command = (response.attributes.shift().value || '').toString().toUpperCase().trim();
-            }
-
+            this._processResponse(response);
             this._processServerResponse(response);
 
             // first response from the server, connection is now usable
@@ -444,8 +438,6 @@
      */
     ImapClient.prototype._processServerResponse = function(response) {
         var command = (response && response.command || '').toUpperCase().trim();
-
-        this._processResponse(response);
 
         if (!this._currentCommand) {
             // unsolicited untagged response
@@ -510,10 +502,10 @@
         clearTimeout(this._idleTimer);
     };
 
-    // HELPER FUNCTIONS
-
     /**
-     * Method checks if a response includes optional response codes
+     * Method processes a response into an easier to handle format.
+     * Add untagged numbered responses (e.g. FETCH) into a nicely feasible form
+     * Checks if a response includes optional response codes
      * and copies these into separate properties. For example the
      * following response includes a capability listing and a human
      * readable message:
@@ -532,13 +524,19 @@
             option,
             key;
 
-        // no optional response code
-        if (['OK', 'NO', 'BAD', 'BYE', 'PREAUTH'].indexOf(command) < 0) {
+        // no attributes
+        if (!response || !response.attributes || !response.attributes.length) {
             return;
         }
 
-        // no attributes
-        if (!response || !response.attributes || !response.attributes.length) {
+        // untagged responses w/ sequence numbers
+        if (response.tag === '*' && /^\d+$/.test(response.command) && response.attributes[0].type === 'ATOM') {
+            response.nr = Number(response.command);
+            response.command = (response.attributes.shift().value || '').toString().toUpperCase().trim();
+        }
+
+        // no optional response code
+        if (['OK', 'NO', 'BAD', 'BYE', 'PREAUTH'].indexOf(command) < 0) {
             return;
         }
 
