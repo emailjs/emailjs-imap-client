@@ -121,9 +121,6 @@
 
                 expect(client._parseIncomingCommands.calledOnce).to.be.true;
                 expect(client._iterateIncomingBuffer.calledOnce).to.be.true;
-
-                client._parseIncomingCommands.restore();
-                client._iterateIncomingBuffer.restore();
             });
         });
 
@@ -232,9 +229,6 @@
                     tag: '*',
                     command: 'test'
                 }).callCount).to.equal(1);
-
-                client._processResponse.restore();
-                client._globalAcceptUntagged.TEST.restore();
             });
 
             it('should invoke global handler if needed', () => {
@@ -254,9 +248,6 @@
                     tag: '*',
                     command: 'test'
                 }).callCount).to.equal(1);
-
-                client._processResponse.restore();
-                client._globalAcceptUntagged.TEST.restore();
             });
 
             it('should push to payload', () => {
@@ -279,9 +270,6 @@
                     tag: '*',
                     command: 'test'
                 }]);
-
-                client._processResponse.restore();
-                client._globalAcceptUntagged.TEST.restore();
             });
 
             it('should invoke command callback', () => {
@@ -311,9 +299,6 @@
                 });
 
                 expect(client._globalAcceptUntagged.TEST.callCount).to.equal(0);
-
-                client._processResponse.restore();
-                client._globalAcceptUntagged.TEST.restore();
             });
         });
 
@@ -359,8 +344,6 @@
                         tag: 'W101'
                     });
                     expect(client._clientQueue[0].t).to.equal(1);
-
-                    client._sendRequest.restore();
                 }).then(done).catch(done);
             });
 
@@ -379,8 +362,6 @@
                     expect(client._sendRequest.callCount).to.equal(0);
                     expect(client._clientQueue.length).to.equal(1);
                     expect(client._clientQueue[0].tag).to.equal('W101');
-
-                    client._sendRequest.restore();
                 }).then(done).catch(done);
 
                 setTimeout(() => {
@@ -397,8 +378,6 @@
                 client._sendRequest();
 
                 expect(client._enterIdle.callCount).to.equal(1);
-
-                client._enterIdle.restore();
             });
 
             it('should send data', () => {
@@ -415,9 +394,6 @@
 
                 expect(client._clearIdle.callCount).to.equal(1);
                 expect(client.send.args[0][0]).to.equal('W101 TEST\r\n');
-
-                client._clearIdle.restore();
-                client.send.restore();
             });
 
             it('should send partial data', () => {
@@ -439,8 +415,6 @@
                 expect(client._clearIdle.callCount).to.equal(1);
                 expect(client.send.args[0][0]).to.equal('W101 TEST {3}\r\n');
                 expect(client._currentCommand.data).to.deep.equal(['abc']);
-                client._clearIdle.restore();
-                client.send.restore();
             });
         });
 

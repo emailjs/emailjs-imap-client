@@ -30,8 +30,6 @@
                 br._onIdle();
 
                 expect(br.enterIdle.callCount).to.equal(1);
-
-                br.enterIdle.restore();
             });
 
             it('should not call enterIdle', () => {
@@ -41,8 +39,6 @@
                 br._onIdle();
 
                 expect(br.enterIdle.callCount).to.equal(0);
-
-                br.enterIdle.restore();
             });
         });
 
@@ -55,16 +51,6 @@
                 sinon.stub(br, 'updateId');
                 sinon.stub(br, 'login');
                 sinon.stub(br, 'compressConnection');
-            });
-
-            afterEach(() => {
-                br.client.connect.restore();
-                br.client.close.restore();
-                br.updateCapability.restore();
-                br.upgradeConnection.restore();
-                br.updateId.restore();
-                br.login.restore();
-                br.compressConnection.restore();
             });
 
             it('should connect', (done) => {
@@ -152,11 +138,6 @@
                 });
             });
 
-            afterEach(() => {
-                br.client.enqueueCommand.restore();
-                br.breakIdle.restore();
-            });
-
             it('should send string command', (done) => {
                 sinon.stub(br.client, 'enqueueCommand').returns(Promise.resolve({}));
                 br.exec('TEST').then((res) => {
@@ -183,7 +164,6 @@
                 sinon.stub(br, 'exec', (command) => {
                     expect(command).to.equal('NOOP');
 
-                    br.exec.restore();
                     done();
                 });
 
@@ -199,8 +179,6 @@
                     expect(br.client.enqueueCommand.args[0][0].command).to.equal('IDLE');
                     expect([].slice.call(new Uint8Array(payload))).to.deep.equal([0x44, 0x4f, 0x4e, 0x45, 0x0d, 0x0a]);
 
-                    br.client.socket.send.restore();
-                    br.client.enqueueCommand.restore();
                     done();
                 });
 
@@ -217,7 +195,6 @@
                 br._enteredIdle = 'IDLE';
                 br.breakIdle().then(() => {
                     expect([].slice.call(new Uint8Array(br.client.socket.send.args[0][0]))).to.deep.equal([0x44, 0x4f, 0x4e, 0x45, 0x0d, 0x0a]);
-                    br.client.socket.send.restore();
                 }).then(done).catch(done);
             });
         });
@@ -245,10 +222,6 @@
                 br.upgradeConnection().then(() => {
                     expect(br.client.upgrade.callCount).to.equal(1);
                     expect(br.capability.length).to.equal(0);
-
-                    br.exec.restore();
-                    br.client.upgrade.restore();
-                    br.updateCapability.restore();
                 }).then(done).catch(done);
             });
 
@@ -257,10 +230,6 @@
         describe('#updateCapability', () => {
             beforeEach(() => {
                 sinon.stub(br, 'exec');
-            });
-
-            afterEach(() => {
-                br.exec.restore();
             });
 
             it('should do nothing if capability is set', (done) => {
@@ -303,10 +272,6 @@
         describe('#listNamespaces', () => {
             beforeEach(() => {
                 sinon.stub(br, 'exec');
-            });
-
-            afterEach(() => {
-                br.exec.restore();
             });
 
             it('should run NAMESPACE if supported', (done) => {
@@ -356,11 +321,6 @@
             beforeEach(() => {
                 sinon.stub(br, 'exec');
                 sinon.stub(br.client, 'enableCompression');
-            });
-
-            afterEach(() => {
-                br.exec.restore();
-                br.client.enableCompression.restore();
             });
 
             it('should run COMPRESS=DEFLATE if supported', (done) => {
@@ -424,7 +384,6 @@
                         }]
                     });
 
-                    br.exec.restore();
                     done();
                 });
 
@@ -451,8 +410,6 @@
                             sensitive: true
                         }]
                     });
-
-                    br.exec.restore();
                 });
             });
         });
@@ -460,10 +417,6 @@
         describe('#updateId', () => {
             beforeEach(() => {
                 sinon.stub(br, 'exec');
-            });
-
-            afterEach(() => {
-                br.exec.restore();
             });
 
             it('should not nothing if not supported', (done) => {
@@ -541,10 +494,6 @@
                 sinon.stub(br, 'exec');
             });
 
-            afterEach(() => {
-                br.exec.restore();
-            });
-
             it('should call LIST and LSUB in sequence', (done) => {
                 br.exec.withArgs({
                     command: 'LIST',
@@ -603,10 +552,6 @@
                 sinon.stub(br, 'exec');
             });
 
-            afterEach(() => {
-                br.exec.restore();
-            });
-
             it('should call CREATE with a string payload', (done) => {
                 // The spec allows unquoted ATOM-style syntax too, but for
                 // simplicity we always generate a string even if it could be
@@ -658,12 +603,6 @@
                 sinon.stub(br, '_parseFETCH');
             });
 
-            afterEach(() => {
-                br.exec.restore();
-                br._buildFETCHCommand.restore();
-                br._parseFETCH.restore();
-            });
-
             it('should call FETCH', (done) => {
                 br.exec.returns(Promise.resolve('abc'));
                 br._buildFETCHCommand.withArgs(['1:2', ['uid', 'flags'], {
@@ -685,13 +624,6 @@
                 sinon.stub(br, '_buildSEARCHCommand');
                 sinon.stub(br, '_parseSEARCH');
             });
-
-            afterEach(() => {
-                br.exec.restore();
-                br._buildSEARCHCommand.restore();
-                br._parseSEARCH.restore();
-            });
-
 
             it('should call SEARCH', (done) => {
                 br.exec.returns(Promise.resolve('abc'));
@@ -716,10 +648,6 @@
         describe('#upload', () => {
             beforeEach(() => {
                 sinon.stub(br, 'exec');
-            });
-
-            afterEach(() => {
-                br.exec.restore();
             });
 
             it('should call APPEND with custom flag', (done) => {
@@ -750,12 +678,6 @@
                 sinon.stub(br, '_parseFETCH');
             });
 
-            afterEach(() => {
-                br.exec.restore();
-                br._buildSTORECommand.restore();
-                br._parseFETCH.restore();
-            });
-
             it('should call STORE', (done) => {
                 br.exec.returns(Promise.resolve('abc'));
                 br._buildSTORECommand.withArgs('1:2','FLAGS',['\\Seen', '$MyFlag'], {
@@ -778,12 +700,6 @@
                 sinon.stub(br, '_parseFETCH');
             });
 
-            afterEach(() => {
-                br.exec.restore();
-                br._buildSTORECommand.restore();
-                br._parseFETCH.restore();
-            });
-
             it('should call STORE', (done) => {
                 br.exec.returns(Promise.resolve('abc'));
                 br._buildSTORECommand.withArgs('1:2', '+X-GM-LABELS', ['\\Sent', '\\Junk'], {
@@ -804,11 +720,6 @@
             beforeEach(() => {
                 sinon.stub(br, 'setFlags');
                 sinon.stub(br, 'exec');
-            });
-
-            afterEach(() => {
-                br.setFlags.restore();
-                br.exec.restore();
             });
 
             it('should call UID EXPUNGE', (done) => {
@@ -851,10 +762,6 @@
                 sinon.stub(br, 'exec');
             });
 
-            afterEach(() => {
-                br.exec.restore();
-            });
-
             it('should call COPY', (done) => {
                 br.exec.withArgs({
                     command: 'UID COPY',
@@ -883,12 +790,6 @@
                 sinon.stub(br, 'exec');
                 sinon.stub(br, 'copyMessages');
                 sinon.stub(br, 'deleteMessages');
-            });
-
-            afterEach(() => {
-                br.exec.restore();
-                br.copyMessages.restore();
-                br.deleteMessages.restore();
             });
 
             it('should call MOVE if supported', (done) => {
@@ -932,11 +833,6 @@
             beforeEach(() => {
                 sinon.stub(br, 'exec');
                 sinon.stub(br, '_parseSELECT');
-            });
-
-            afterEach(() => {
-                br.exec.restore();
-                br._parseSELECT.restore();
             });
 
             it('should run SELECT', (done) => {
@@ -1048,8 +944,6 @@
                     nr: 123
                 }, () => {});
                 expect(br.onupdate.withArgs('exists', 123).callCount).to.equal(1);
-
-                br.onupdate.restore();
             });
         });
 
@@ -1061,8 +955,6 @@
                     nr: 123
                 }, () => {});
                 expect(br.onupdate.withArgs('expunge', 123).callCount).to.equal(1);
-
-                br.onupdate.restore();
             });
         });
 
@@ -1082,9 +974,6 @@
                         }]
                     }
                 });
-
-                br.onupdate.restore();
-                br._parseFETCH.restore();
             });
         });
 
@@ -1560,8 +1449,6 @@
                     type: 'ATOM',
                     value: 'abc'
                 }).callCount).to.equal(1);
-
-                br._parseFetchValue.restore();
             });
 
             it('should merge multiple responses based on sequence number', () => {
@@ -1973,7 +1860,6 @@
 
                 expect(br.selectedMailbox).to.be.false;
                 expect(br.onclosemailbox.withArgs('aaa').callCount).to.equal(1);
-                br.onclosemailbox.restore();
             });
         });
 
