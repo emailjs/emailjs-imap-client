@@ -416,6 +416,38 @@
                 expect(client.send.args[0][0]).to.equal('W101 TEST {3}\r\n');
                 expect(client._currentCommand.data).to.deep.equal(['abc']);
             });
+
+            it('should run precheck', (done) => {
+                sinon.stub(client, '_clearIdle');
+
+                client._canSend = true;
+                client._clientQueue = [{
+                    request: {
+                        tag: 'W101',
+                        command: 'TEST',
+                        attributes: [{
+                            type: 'LITERAL',
+                            value: 'abc'
+                        }]
+                    },
+                    precheck: (ctx) => {
+                        expect(ctx).to.exist;
+                        expect(client._canSend).to.be.true;
+                        client._sendRequest = () => {
+                            expect(client._clientQueue.length).to.equal(2);
+                            expect(client._clientQueue[0].tag).to.include('.p');
+                            expect(client._clientQueue[0].request.tag).to.include('.p');
+                            client._clearIdle.restore();
+                            done();
+                        };
+                        client.enqueueCommand({}, undefined, {
+                            ctx: ctx
+                        });
+                        return Promise.resolve();
+                    }
+                }];
+                client._sendRequest();
+            });
         });
 
         describe('#_enterIdle', () => {

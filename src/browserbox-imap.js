@@ -263,7 +263,17 @@
 
             acceptUntagged.forEach((command) => data.payload[command] = []);
 
-            this._clientQueue.push(data);
+            // if we're in priority mode (i.e. we ran commands in a precheck),
+            // queue any commands BEFORE the command that contianed the precheck,
+            // otherwise just queue command as usual
+            var index = data.ctx ? this._clientQueue.indexOf(data.ctx) : -1;
+            if (index >= 0) {
+                data.tag += '.p';
+                data.request.tag += '.p';
+                this._clientQueue.splice(index, 0, data);
+            } else {
+                this._clientQueue.push(data);
+            }
 
             if (this._canSend) {
                 this._sendRequest();
@@ -467,6 +477,44 @@
             return this._enterIdle();
         }
         this._clearIdle();
+
+        // an operation was made in the precheck, no need to restart the queue manually
+        this._restartQueue = false;
+
+        var command = this._clientQueue[0];
+        if (typeof command.precheck === 'function') {
+            // remember the context
+            var context = command;
+            var precheck = context.precheck;
+            delete context.precheck;
+
+            // we need to restart the queue handling if no operation was made in the precheck
+            this._restartQueue = true;
+
+            // invoke the precheck command and resume normal operation after the promise resolves
+            precheck(context).then(() => {
+                // we're done with the precheck
+                if (this._restartQueue) {
+                    // we need to restart the queue handling
+                    this._sendRequest();
+                }
+            }).catch((err) => {
+                // precheck callback failed, so we remove the initial command
+                // from the queue, invoke its callback and resume normal operation
+                var cmd, index = this._clientQueue.indexOf(context);
+                if (index >= 0) {
+                    cmd = this._clientQueue.splice(index, 1)[0];
+                }
+                if (cmd && cmd.callback) {
+                    cmd.callback(err, () => {
+                        this._canSend = true;
+                        this._sendRequest();
+                        setTimeout(() => this._processServerQueue(), 0);
+                    });
+                }
+            });
+            return;
+        }
 
         this._canSend = false;
         this._currentCommand = this._clientQueue.shift();

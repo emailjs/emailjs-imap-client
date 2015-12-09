@@ -614,7 +614,10 @@
         options = options || {};
 
         var command = this._buildFETCHCommand(sequence, items, options);
-        return this.exec(command, 'FETCH').then((response) => this._parseFETCH(response));
+        return this.exec(command, 'FETCH', {
+            precheck: options.precheck,
+            ctx: options.ctx
+        }).then((response) => this._parseFETCH(response));
     };
 
     /**
@@ -631,7 +634,10 @@
         options = options || {};
 
         var command = this._buildSEARCHCommand(query, options);
-        return this.exec(command, 'SEARCH').then((response) => this._parseSEARCH(response));
+        return this.exec(command, 'SEARCH', {
+            precheck: options.precheck,
+            ctx: options.ctx
+        }).then((response) => this._parseSEARCH(response));
     };
 
     /**
@@ -682,7 +688,10 @@
         options = options || {};
 
         var command = this._buildSTORECommand(sequence, action, flags, options);
-        return this.exec(command, 'FETCH').then((response) => this._parseFETCH(response));
+        return this.exec(command, 'FETCH', {
+            precheck: options.precheck,
+            ctx: options.ctx
+        }).then((response) => this._parseFETCH(response));
     };
 
     /**
@@ -719,7 +728,12 @@
             ]
         };
 
-        return this.exec(command);
+        return this.exec(command, {
+            precheck: options.precheck,
+            ctx: options.ctx
+        }).then(() => {
+            return true;
+        });
     };
 
     /**
@@ -790,6 +804,9 @@
                 type: 'atom',
                 value: destination
             }]
+        }, {
+            precheck: options.precheck,
+            ctx: options.ctx
         }).then((response) => (response.humanReadable || 'COPY completed'));
     };
 
@@ -828,7 +845,12 @@
                 type: 'atom',
                 value: destination
             }]
-        }, ['OK']);
+        }, ['OK'], {
+            precheck: options.precheck,
+            ctx: options.ctx
+        }).then(() => {
+            return true;
+        });
     };
 
     /**
@@ -861,7 +883,10 @@
             }]);
         }
 
-        return this.exec(query, ['EXISTS', 'FLAGS', 'OK']).then((response) => {
+        return this.exec(query, ['EXISTS', 'FLAGS', 'OK'], {
+            precheck: options.precheck,
+            ctx: options.ctx
+        }).then((response) => {
             this._changeState(this.STATE_SELECTED);
 
             if (this.selectedMailbox && this.selectedMailbox !== path) {
