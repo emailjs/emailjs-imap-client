@@ -1,23 +1,3 @@
-// Copyright (c) 2014 Andris Reinman
-
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
 (function(root, factory) {
     'use strict';
 
@@ -53,43 +33,28 @@
      * @param {Object} [options] Optional options object
      */
     function BrowserBox(host, port, options) {
+        this.serverId = false; // RFC 2971 Server ID as key value pairs
+
+        // Event placeholders
+        this.oncert = () => {};
+        this.onupdate = () => {};
+        this.onselectmailbox = () => {};
+        this.onclosemailbox = () => {};
+
+        //
+        // Internals
+        //
+
         this.options = options || {};
-
-        // Session identified used for logging
-        this.options.sessionId = this.options.sessionId || '[' + (++SESSIONCOUNTER) + ']';
-
-        /**
-         * List of extensions the server supports
-         */
-        this.capability = [];
-
-        /**
-         * Server ID (rfc2971) as key value pairs
-         */
-        this.serverId = false;
-
-        /**
-         * Current state
-         */
-        this.state = false;
-
-        /**
-         * Is the connection authenticated
-         */
-        this.authenticated = false;
-
-        /**
-         * Selected mailbox
-         */
-        this.selectedMailbox = false;
-
+        this.options.sessionId = this.options.sessionId || '[' + (++SESSIONCOUNTER) + ']'; // Session identifier (logging)
+        this._state = false; // Current state
+        this._authenticated = false; // Is the connection authenticated
+        this._capability = []; // List of extensions the server supports
+        this._selectedMailbox = false; // Selected mailbox
         this._enteredIdle = false;
         this._idleTimeout = false;
 
-        /**
-         * IMAP client object
-         */
-        this.client = new ImapClient(host, port, this.options);
+        this.client = new ImapClient(host, port, this.options); // IMAP client object
 
         // Event Handlers
         this.client.onerror = (err) => this.onerror(err); // proxy error events
@@ -102,53 +67,14 @@
         this.client.setHandler('exists', (response) => this._untaggedExistsHandler(response)); // message count has changed
         this.client.setHandler('expunge', (response) => this._untaggedExpungeHandler(response)); // message has been deleted
         this.client.setHandler('fetch', (response) => this._untaggedFetchHandler(response)); // message has been updated (eg. flag change)
-
-        // Event placeholders
-        this.onupdate = this.oncert = this.onselectmailbox = this.onclosemailbox = function() {};
     }
 
-    // State constants
+    //
+    //
+    // PUBLIC API
+    //
+    //
 
-    BrowserBox.prototype.STATE_CONNECTING = 1;
-    BrowserBox.prototype.STATE_NOT_AUTHENTICATED = 2;
-    BrowserBox.prototype.STATE_AUTHENTICATED = 3;
-    BrowserBox.prototype.STATE_SELECTED = 4;
-    BrowserBox.prototype.STATE_LOGOUT = 5;
-
-    // Timeout constants
-
-    /**
-     * Milliseconds to wait for the greeting from the server until the connection is considered failed
-     */
-    BrowserBox.prototype.TIMEOUT_CONNECTION = 90 * 1000;
-
-    /**
-     * Milliseconds between NOOP commands while idling
-     */
-    BrowserBox.prototype.TIMEOUT_NOOP = 60 * 1000;
-
-    /**
-     * Milliseconds until IDLE command is cancelled
-     */
-    BrowserBox.prototype.TIMEOUT_IDLE = 60 * 1000;
-
-    // Event handlers
-
-    /**
-     * Indicates that the connection started idling. Initiates a cycle
-     * of NOOPs or IDLEs to receive notifications about updates in the server
-     */
-    BrowserBox.prototype._onIdle = function() {
-        if (!this.authenticated || this._enteredIdle) {
-            // No need to IDLE when not logged in or already idling
-            return;
-        }
-
-        // console.log(this.options.sessionId + ' client: started idling');
-        this.enterIdle();
-    };
-
-    // Public methods
 
     /**
      * Initiate connection to the IMAP server
@@ -217,235 +143,6 @@
     };
 
     /**
-     * Run an IMAP command.
-     *
-     * @param {Object} request Structured request object
-     * @param {Array} acceptUntagged a list of untagged responses that will be included in 'payload' property
-     */
-    BrowserBox.prototype.exec = function(request, acceptUntagged, options) {
-        return this.breakIdle().then(() => {
-            return this.client.enqueueCommand(request, acceptUntagged, options);
-        }).then((response) => {
-            if (response && response.capability) {
-                this.capability = response.capability;
-            }
-            return response;
-        });
-    };
-
-    // IMAP macros
-
-    /**
-     * The connection is idling. Sends a NOOP or IDLE command
-     *
-     * IDLE details:
-     *   https://tools.ietf.org/html/rfc2177
-     */
-    BrowserBox.prototype.enterIdle = function() {
-        if (this._enteredIdle) {
-            return;
-        }
-        this._enteredIdle = this.capability.indexOf('IDLE') >= 0 ? 'IDLE' : 'NOOP';
-        // console.log(this.options.sessionId + ' entering idle with ' + this._enteredIdle);
-
-        if (this._enteredIdle === 'NOOP') {
-            this._idleTimeout = setTimeout(() => this.exec('NOOP'), this.TIMEOUT_NOOP);
-        } else if (this._enteredIdle === 'IDLE') {
-            this.client.enqueueCommand({
-                command: 'IDLE'
-            });
-            this._idleTimeout = setTimeout(() => {
-                // console.log(this.options.sessionId + ' sending idle DONE');
-                this.client.send('DONE\r\n');
-                this._enteredIdle = false;
-            }, this.TIMEOUT_IDLE);
-        }
-    };
-
-    /**
-     * Stops actions related idling, if IDLE is supported, sends DONE to stop it
-     */
-    BrowserBox.prototype.breakIdle = function() {
-        if (!this._enteredIdle) {
-            return Promise.resolve();
-        }
-
-        clearTimeout(this._idleTimeout);
-        if (this._enteredIdle === 'IDLE') {
-            // console.log(this.options.sessionId + ' sending idle DONE');
-            this.client.send('DONE\r\n');
-        }
-        this._enteredIdle = false;
-
-        // console.log(this.options.sessionId + ' idle terminated');
-
-        return Promise.resolve();
-    };
-
-    /**
-     * Runs STARTTLS command if needed
-     *
-     * STARTTLS details:
-     *   http://tools.ietf.org/html/rfc3501#section-6.2.1
-     *
-     * @param {Boolean} [forced] By default the command is not run if capability is already listed. Set to true to skip this validation
-     */
-    BrowserBox.prototype.upgradeConnection = function() {
-        // skip request, if already secured
-        if (this.client.secureMode) {
-            return Promise.resolve(false);
-        }
-
-        // skip if STARTTLS not available or starttls support disabled
-        if ((this.capability.indexOf('STARTTLS') < 0 || this.options.ignoreTLS) && !this.options.requireTLS) {
-            return Promise.resolve(false);
-        }
-
-        return this.exec('STARTTLS').then(() => {
-            this.capability = [];
-            this.client.upgrade();
-            return this.updateCapability();
-        });
-    };
-
-    /**
-     * Runs CAPABILITY command
-     *
-     * CAPABILITY details:
-     *   http://tools.ietf.org/html/rfc3501#section-6.1.1
-     *
-     * Doesn't register untagged CAPABILITY handler as this is already
-     * handled by global handler
-     *
-     * @param {Boolean} [forced] By default the command is not run if capability is already listed. Set to true to skip this validation
-     */
-    BrowserBox.prototype.updateCapability = function(forced) {
-        // skip request, if not forced update and capabilities are already loaded
-        if (!forced && this.capability.length) {
-            return Promise.resolve();
-        }
-
-        // If STARTTLS is required then skip capability listing as we are going to try
-        // STARTTLS anyway and we re-check capabilities after connection is secured
-        if (!this.client.secureMode && this.options.requireTLS) {
-            return Promise.resolve();
-        }
-
-        return this.exec('CAPABILITY');
-    };
-
-    /**
-     * Runs NAMESPACE command
-     *
-     * NAMESPACE details:
-     *   https://tools.ietf.org/html/rfc2342
-     */
-    BrowserBox.prototype.listNamespaces = function() {
-        if (this.capability.indexOf('NAMESPACE') < 0) {
-            return Promise.resolve(false);
-        }
-
-        return this.exec('NAMESPACE', 'NAMESPACE').then((response) => {
-            // console.log(response);
-            return this._parseNAMESPACE(response);
-        });
-    };
-
-    /**
-     * Runs COMPRESS command
-     *
-     * COMPRESS details:
-     *   https://tools.ietf.org/html/rfc4978
-     */
-    BrowserBox.prototype.compressConnection = function() {
-        if (!this.options.enableCompression || this.capability.indexOf('COMPRESS=DEFLATE') < 0 || this.client.compressed) {
-            return Promise.resolve(false);
-        }
-
-        return this.exec({
-            command: 'COMPRESS',
-            attributes: [{
-                type: 'ATOM',
-                value: 'DEFLATE'
-            }]
-        }).then(() => {
-            // console.log(this.options.sessionId + ' compression enabled, all data sent and received is deflated');
-            this.client.enableCompression();
-        });
-    };
-
-    /**
-     * Runs LOGIN or AUTHENTICATE XOAUTH2 command
-     *
-     * LOGIN details:
-     *   http://tools.ietf.org/html/rfc3501#section-6.2.3
-     * XOAUTH2 details:
-     *   https://developers.google.com/gmail/xoauth2_protocol#imap_protocol_exchange
-     *
-     * @param {String} auth.user
-     * @param {String} auth.pass
-     * @param {String} auth.xoauth2
-     */
-    BrowserBox.prototype.login = function(auth) {
-        var command, options = {};
-
-        if (!auth) {
-            return Promise.reject(new Error('Authentication information not provided'));
-        }
-
-        if (this.capability.indexOf('AUTH=XOAUTH2') >= 0 && auth && auth.xoauth2) {
-            command = {
-                command: 'AUTHENTICATE',
-                attributes: [{
-                    type: 'ATOM',
-                    value: 'XOAUTH2'
-                }, {
-                    type: 'ATOM',
-                    value: this._buildXOAuth2Token(auth.user, auth.xoauth2),
-                    sensitive: true
-                }]
-            };
-
-            options.errorResponseExpectsEmptyLine = true; // + tagged error response expects an empty line in return
-        } else {
-            command = {
-                command: 'login',
-                attributes: [{
-                    type: 'STRING',
-                    value: auth.user || ''
-                }, {
-                    type: 'STRING',
-                    value: auth.pass || '',
-                    sensitive: true
-                }]
-            };
-        }
-
-        return this.exec(command, 'capability', options).then((response) => {
-            /*
-             * update post-auth capabilites
-             * capability list shouldn't contain auth related stuff anymore
-             * but some new extensions might have popped up that do not
-             * make much sense in the non-auth state
-             */
-            if (response.capability && response.capability.length) {
-                // capabilites were listed with the OK [CAPABILITY ...] response
-                this.capability = [].concat(response.capability || []);
-            } else if (response.payload && response.payload.CAPABILITY && response.payload.CAPABILITY.length) {
-                // capabilites were listed with * CAPABILITY ... response
-                this.capability = [].concat(response.payload.CAPABILITY.pop().attributes || []).map((capa) => (capa.value || '').toString().toUpperCase().trim());
-            } else {
-                // capabilities were not automatically listed, reload
-                return this.updateCapability(true);
-            }
-        }).then(() => {
-            this._changeState(this.STATE_AUTHENTICATED);
-            this.authenticated = true;
-            // console.log(this.options.sessionId + ' post-auth capabilites updated: ' + this.capability);
-        });
-    };
-
-    /**
      * Runs ID command. Retrieves server ID
      *
      * ID details:
@@ -456,7 +153,7 @@
      * @param {Object} id ID as key value pairs. See http://tools.ietf.org/html/rfc2971#section-3.3 for possible values
      */
     BrowserBox.prototype.updateId = function(id) {
-        if (this.capability.indexOf('ID') < 0) {
+        if (this._capability.indexOf('ID') < 0) {
             return Promise.resolve();
         }
 
@@ -495,6 +192,75 @@
                     this.serverId[key] = (val && val.value || '').toString();
                 }
             });
+        });
+    };
+
+    /**
+     * Runs SELECT or EXAMINE to open a mailbox
+     *
+     * SELECT details:
+     *   http://tools.ietf.org/html/rfc3501#section-6.3.1
+     * EXAMINE details:
+     *   http://tools.ietf.org/html/rfc3501#section-6.3.2
+     *
+     * @param {String} path Full path to mailbox
+     * @param {Object} [options] Options object
+     * @returns {Promise} Promise with information about the selected mailbox
+     */
+    BrowserBox.prototype.selectMailbox = function(path, options) {
+        options = options || {};
+
+        var query = {
+            command: options.readOnly ? 'EXAMINE' : 'SELECT',
+            attributes: [{
+                type: 'STRING',
+                value: path
+            }]
+        };
+
+        if (options.condstore && this._capability.indexOf('CONDSTORE') >= 0) {
+            query.attributes.push([{
+                type: 'ATOM',
+                value: 'CONDSTORE'
+            }]);
+        }
+
+        return this.exec(query, ['EXISTS', 'FLAGS', 'OK'], {
+            precheck: options.precheck,
+            ctx: options.ctx
+        }).then((response) => {
+            this._changeState(this.STATE_SELECTED);
+
+            if (this._selectedMailbox && this._selectedMailbox !== path) {
+                this.onclosemailbox(this._selectedMailbox);
+            }
+
+            this._selectedMailbox = path;
+
+            var mailboxInfo = this._parseSELECT(response);
+
+            setTimeout(() => {
+                this.onselectmailbox(path, mailboxInfo);
+            }, 0);
+
+            return mailboxInfo;
+        });
+    };
+
+    /**
+     * Runs NAMESPACE command
+     *
+     * NAMESPACE details:
+     *   https://tools.ietf.org/html/rfc2342
+     */
+    BrowserBox.prototype.listNamespaces = function() {
+        if (this._capability.indexOf('NAMESPACE') < 0) {
+            return Promise.resolve(false);
+        }
+
+        return this.exec('NAMESPACE', 'NAMESPACE').then((response) => {
+            // console.log(response);
+            return this._parseNAMESPACE(response);
         });
     };
 
@@ -762,7 +528,7 @@
             add: '\\Deleted'
         }, options).then(() => {
             var cmd;
-            if (options.byUid && this.capability.indexOf('UIDPLUS') >= 0) {
+            if (options.byUid && this._capability.indexOf('UIDPLUS') >= 0) {
                 cmd = {
                     command: 'UID EXPUNGE',
                     attributes: [{
@@ -826,7 +592,7 @@
     BrowserBox.prototype.moveMessages = function(sequence, destination, options) {
         options = options || {};
 
-        if (this.capability.indexOf('MOVE') === -1) {
+        if (this._capability.indexOf('MOVE') === -1) {
             // Fallback to COPY + EXPUNGE
             return this.copyMessages(sequence, destination, options).then(() => {
                 delete options.precheck;
@@ -850,60 +616,253 @@
         });
     };
 
+
+    //
+    //
+    // INTERNALS
+    //
+    //
+
+
+    // State constants
+    BrowserBox.prototype.STATE_CONNECTING = 1;
+    BrowserBox.prototype.STATE_NOT_AUTHENTICATED = 2;
+    BrowserBox.prototype.STATE_AUTHENTICATED = 3;
+    BrowserBox.prototype.STATE_SELECTED = 4;
+    BrowserBox.prototype.STATE_LOGOUT = 5;
+
+    // Timeout constants
+    BrowserBox.prototype.TIMEOUT_CONNECTION = 90 * 1000; // Milliseconds to wait for the IMAP greeting from the server
+    BrowserBox.prototype.TIMEOUT_NOOP = 60 * 1000; // Milliseconds between NOOP commands while idling
+    BrowserBox.prototype.TIMEOUT_IDLE = 60 * 1000; // Milliseconds until IDLE command is cancelled
+
+
     /**
-     * Runs SELECT or EXAMINE to open a mailbox
+     * Runs COMPRESS command
      *
-     * SELECT details:
-     *   http://tools.ietf.org/html/rfc3501#section-6.3.1
-     * EXAMINE details:
-     *   http://tools.ietf.org/html/rfc3501#section-6.3.2
-     *
-     * @param {String} path Full path to mailbox
-     * @param {Object} [options] Options object
-     * @returns {Promise} Promise with information about the selected mailbox
+     * COMPRESS details:
+     *   https://tools.ietf.org/html/rfc4978
      */
-    BrowserBox.prototype.selectMailbox = function(path, options) {
-        options = options || {};
-
-        var query = {
-            command: options.readOnly ? 'EXAMINE' : 'SELECT',
-            attributes: [{
-                type: 'STRING',
-                value: path
-            }]
-        };
-
-        if (options.condstore && this.capability.indexOf('CONDSTORE') >= 0) {
-            query.attributes.push([{
-                type: 'ATOM',
-                value: 'CONDSTORE'
-            }]);
+    BrowserBox.prototype.compressConnection = function() {
+        if (!this.options.enableCompression || this._capability.indexOf('COMPRESS=DEFLATE') < 0 || this.client.compressed) {
+            return Promise.resolve(false);
         }
 
-        return this.exec(query, ['EXISTS', 'FLAGS', 'OK'], {
-            precheck: options.precheck,
-            ctx: options.ctx
-        }).then((response) => {
-            this._changeState(this.STATE_SELECTED);
-
-            if (this.selectedMailbox && this.selectedMailbox !== path) {
-                this.onclosemailbox(this.selectedMailbox);
-            }
-
-            this.selectedMailbox = path;
-
-            var mailboxInfo = this._parseSELECT(response);
-
-            setTimeout(() => {
-                this.onselectmailbox(path, mailboxInfo);
-            }, 0);
-
-            return mailboxInfo;
+        return this.exec({
+            command: 'COMPRESS',
+            attributes: [{
+                type: 'ATOM',
+                value: 'DEFLATE'
+            }]
+        }).then(() => {
+            // console.log(this.options.sessionId + ' compression enabled, all data sent and received is deflated');
+            this.client.enableCompression();
         });
     };
 
+    /**
+     * Runs LOGIN or AUTHENTICATE XOAUTH2 command
+     *
+     * LOGIN details:
+     *   http://tools.ietf.org/html/rfc3501#section-6.2.3
+     * XOAUTH2 details:
+     *   https://developers.google.com/gmail/xoauth2_protocol#imap_protocol_exchange
+     *
+     * @param {String} auth.user
+     * @param {String} auth.pass
+     * @param {String} auth.xoauth2
+     */
+    BrowserBox.prototype.login = function(auth) {
+        var command, options = {};
+
+        if (!auth) {
+            return Promise.reject(new Error('Authentication information not provided'));
+        }
+
+        if (this._capability.indexOf('AUTH=XOAUTH2') >= 0 && auth && auth.xoauth2) {
+            command = {
+                command: 'AUTHENTICATE',
+                attributes: [{
+                    type: 'ATOM',
+                    value: 'XOAUTH2'
+                }, {
+                    type: 'ATOM',
+                    value: this._buildXOAuth2Token(auth.user, auth.xoauth2),
+                    sensitive: true
+                }]
+            };
+
+            options.errorResponseExpectsEmptyLine = true; // + tagged error response expects an empty line in return
+        } else {
+            command = {
+                command: 'login',
+                attributes: [{
+                    type: 'STRING',
+                    value: auth.user || ''
+                }, {
+                    type: 'STRING',
+                    value: auth.pass || '',
+                    sensitive: true
+                }]
+            };
+        }
+
+        return this.exec(command, 'capability', options).then((response) => {
+            /*
+             * update post-auth capabilites
+             * capability list shouldn't contain auth related stuff anymore
+             * but some new extensions might have popped up that do not
+             * make much sense in the non-auth state
+             */
+            if (response.capability && response.capability.length) {
+                // capabilites were listed with the OK [CAPABILITY ...] response
+                this._capability = [].concat(response.capability || []);
+            } else if (response.payload && response.payload.CAPABILITY && response.payload.CAPABILITY.length) {
+                // capabilites were listed with * CAPABILITY ... response
+                this._capability = [].concat(response.payload.CAPABILITY.pop().attributes || []).map((capa) => (capa.value || '').toString().toUpperCase().trim());
+            } else {
+                // capabilities were not automatically listed, reload
+                return this.updateCapability(true);
+            }
+        }).then(() => {
+            this._changeState(this.STATE_AUTHENTICATED);
+            this._authenticated = true;
+            // console.log(this.options.sessionId + ' post-auth capabilites updated: ' + this._capability);
+        });
+    };
+
+    /**
+     * Run an IMAP command.
+     *
+     * @param {Object} request Structured request object
+     * @param {Array} acceptUntagged a list of untagged responses that will be included in 'payload' property
+     */
+    BrowserBox.prototype.exec = function(request, acceptUntagged, options) {
+        return this.breakIdle().then(() => {
+            return this.client.enqueueCommand(request, acceptUntagged, options);
+        }).then((response) => {
+            if (response && response.capability) {
+                this._capability = response.capability;
+            }
+            return response;
+        });
+    };
+
+    /**
+     * Indicates that the connection started idling. Initiates a cycle
+     * of NOOPs or IDLEs to receive notifications about updates in the server
+     */
+    BrowserBox.prototype._onIdle = function() {
+        if (!this._authenticated || this._enteredIdle) {
+            // No need to IDLE when not logged in or already idling
+            return;
+        }
+
+        // console.log(this.options.sessionId + ' client: started idling');
+        this.enterIdle();
+    };
+
+    /**
+     * The connection is idling. Sends a NOOP or IDLE command
+     *
+     * IDLE details:
+     *   https://tools.ietf.org/html/rfc2177
+     */
+    BrowserBox.prototype.enterIdle = function() {
+        if (this._enteredIdle) {
+            return;
+        }
+        this._enteredIdle = this._capability.indexOf('IDLE') >= 0 ? 'IDLE' : 'NOOP';
+        // console.log(this.options.sessionId + ' entering idle with ' + this._enteredIdle);
+
+        if (this._enteredIdle === 'NOOP') {
+            this._idleTimeout = setTimeout(() => this.exec('NOOP'), this.TIMEOUT_NOOP);
+        } else if (this._enteredIdle === 'IDLE') {
+            this.client.enqueueCommand({
+                command: 'IDLE'
+            });
+            this._idleTimeout = setTimeout(() => {
+                // console.log(this.options.sessionId + ' sending idle DONE');
+                this.client.send('DONE\r\n');
+                this._enteredIdle = false;
+            }, this.TIMEOUT_IDLE);
+        }
+    };
+
+    /**
+     * Stops actions related idling, if IDLE is supported, sends DONE to stop it
+     */
+    BrowserBox.prototype.breakIdle = function() {
+        if (!this._enteredIdle) {
+            return Promise.resolve();
+        }
+
+        clearTimeout(this._idleTimeout);
+        if (this._enteredIdle === 'IDLE') {
+            // console.log(this.options.sessionId + ' sending idle DONE');
+            this.client.send('DONE\r\n');
+        }
+        this._enteredIdle = false;
+
+        // console.log(this.options.sessionId + ' idle terminated');
+
+        return Promise.resolve();
+    };
+
+    /**
+     * Runs STARTTLS command if needed
+     *
+     * STARTTLS details:
+     *   http://tools.ietf.org/html/rfc3501#section-6.2.1
+     *
+     * @param {Boolean} [forced] By default the command is not run if capability is already listed. Set to true to skip this validation
+     */
+    BrowserBox.prototype.upgradeConnection = function() {
+        // skip request, if already secured
+        if (this.client.secureMode) {
+            return Promise.resolve(false);
+        }
+
+        // skip if STARTTLS not available or starttls support disabled
+        if ((this._capability.indexOf('STARTTLS') < 0 || this.options.ignoreTLS) && !this.options.requireTLS) {
+            return Promise.resolve(false);
+        }
+
+        return this.exec('STARTTLS').then(() => {
+            this._capability = [];
+            this.client.upgrade();
+            return this.updateCapability();
+        });
+    };
+
+    /**
+     * Runs CAPABILITY command
+     *
+     * CAPABILITY details:
+     *   http://tools.ietf.org/html/rfc3501#section-6.1.1
+     *
+     * Doesn't register untagged CAPABILITY handler as this is already
+     * handled by global handler
+     *
+     * @param {Boolean} [forced] By default the command is not run if capability is already listed. Set to true to skip this validation
+     */
+    BrowserBox.prototype.updateCapability = function(forced) {
+        // skip request, if not forced update and capabilities are already loaded
+        if (!forced && this._capability.length) {
+            return Promise.resolve();
+        }
+
+        // If STARTTLS is required then skip capability listing as we are going to try
+        // STARTTLS anyway and we re-check capabilities after connection is secured
+        if (!this.client.secureMode && this.options.requireTLS) {
+            return Promise.resolve();
+        }
+
+        return this.exec('CAPABILITY');
+    };
+
     BrowserBox.prototype.hasCapability = function(capa) {
-        return this.capability.indexOf((capa || '').toString().toUpperCase().trim()) >= 0;
+        return this._capability.indexOf((capa || '').toString().toUpperCase().trim()) >= 0;
     };
 
     // Default handlers for untagged responses
@@ -916,7 +875,7 @@
      */
     BrowserBox.prototype._untaggedOkHandler = function(response) {
         if (response && response.capability) {
-            this.capability = response.capability;
+            this._capability = response.capability;
         }
     };
 
@@ -927,7 +886,7 @@
      * @param {Function} next Until called, server responses are not processed
      */
     BrowserBox.prototype._untaggedCapabilityHandler = function(response) {
-        this.capability = [].concat(response && response.attributes || []).map((capa) => (capa.value || '').toString().toUpperCase().trim());
+        this._capability = [].concat(response && response.attributes || []).map((capa) => (capa.value || '').toString().toUpperCase().trim());
     };
 
     /**
@@ -1656,19 +1615,19 @@
      * @param {Number} newState The state you want to change to
      */
     BrowserBox.prototype._changeState = function(newState) {
-        if (newState === this.state) {
+        if (newState === this._state) {
             return;
         }
 
-        // console.log(this.options.sessionId + ' entering state: ' + this.state);
+        // console.log(this.options.sessionId + ' entering state: ' + this._state);
 
         // if a mailbox was opened, emit onclosemailbox and clear selectedMailbox value
-        if (this.state === this.STATE_SELECTED && this.selectedMailbox) {
-            this.onclosemailbox(this.selectedMailbox);
-            this.selectedMailbox = false;
+        if (this._state === this.STATE_SELECTED && this._selectedMailbox) {
+            this.onclosemailbox(this._selectedMailbox);
+            this._selectedMailbox = false;
         }
 
-        this.state = newState;
+        this._state = newState;
     };
 
     /**

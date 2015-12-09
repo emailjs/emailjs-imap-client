@@ -25,7 +25,7 @@
             it('should call enterIdle', () => {
                 sinon.stub(br, 'enterIdle');
 
-                br.authenticated = true;
+                br._authenticated = true;
                 br._enteredIdle = false;
                 br._onIdle();
 
@@ -124,7 +124,7 @@
                 sinon.stub(br.client, 'close').returns(Promise.resolve());
 
                 br.close().then(() => {
-                    expect(br.state).to.equal(br.STATE_LOGOUT);
+                    expect(br._state).to.equal(br.STATE_LOGOUT);
                     expect(br.client.close.calledOnce).to.be.true;
                     done();
                 });
@@ -154,7 +154,7 @@
                     expect(res).to.deep.equal({
                         capability: ['A', 'B']
                     });
-                    expect(br.capability).to.deep.equal(['A', 'B']);
+                    expect(br._capability).to.deep.equal(['A', 'B']);
                 }).then(done).catch(done);
             });
         });
@@ -167,7 +167,7 @@
                     done();
                 });
 
-                br.capability = [];
+                br._capability = [];
                 br.TIMEOUT_NOOP = 1;
                 br.enterIdle();
             });
@@ -182,7 +182,7 @@
                     done();
                 });
 
-                br.capability = ['IDLE'];
+                br._capability = ['IDLE'];
                 br.TIMEOUT_IDLE = 1;
                 br.enterIdle();
             });
@@ -202,13 +202,13 @@
         describe('#upgradeConnection', () => {
             it('should do nothing if already secured', (done) => {
                 br.client.secureMode = true;
-                br.capability = ['starttls'];
+                br._capability = ['starttls'];
                 br.upgradeConnection().then(done).catch(done);
             });
 
             it('should do nothing if STARTTLS not available', (done) => {
                 br.client.secureMode = false;
-                br.capability = [];
+                br._capability = [];
                 br.upgradeConnection().then(done).catch(done);
             });
 
@@ -217,11 +217,11 @@
                 sinon.stub(br, 'exec').withArgs('STARTTLS').returns(Promise.resolve());
                 sinon.stub(br, 'updateCapability').returns(Promise.resolve());
 
-                br.capability = ['STARTTLS'];
+                br._capability = ['STARTTLS'];
 
                 br.upgradeConnection().then(() => {
                     expect(br.client.upgrade.callCount).to.equal(1);
-                    expect(br.capability.length).to.equal(0);
+                    expect(br._capability.length).to.equal(0);
                 }).then(done).catch(done);
             });
 
@@ -233,14 +233,14 @@
             });
 
             it('should do nothing if capability is set', (done) => {
-                br.capability = ['abc'];
+                br._capability = ['abc'];
                 br.updateCapability().then(done).catch(done);
             });
 
             it('should run CAPABILITY if capability not set', (done) => {
                 br.exec.returns(Promise.resolve());
 
-                br.capability = [];
+                br._capability = [];
 
                 br.updateCapability().then(() => {
                     expect(br.exec.args[0][0]).to.equal('CAPABILITY');
@@ -249,7 +249,7 @@
 
             it('should force run CAPABILITY', (done) => {
                 br.exec.returns(Promise.resolve());
-                br.capability = ['abc'];
+                br._capability = ['abc'];
 
                 br.updateCapability(true).then(() => {
                     expect(br.exec.args[0][0]).to.equal('CAPABILITY');
@@ -257,7 +257,7 @@
             });
 
             it('should do nothing if connection is not yet upgraded', (done) => {
-                br.capability = [];
+                br._capability = [];
                 br.client.secureMode = false;
                 br.options.requireTLS = true;
 
@@ -288,7 +288,7 @@
                         }]
                     }
                 }));
-                br.capability = ['NAMESPACE'];
+                br._capability = ['NAMESPACE'];
 
                 br.listNamespaces().then((namespaces) => {
                     expect(namespaces).to.deep.equal({
@@ -305,7 +305,7 @@
             });
 
             it('should do nothing if not supported', (done) => {
-                br.capability = [];
+                br._capability = [];
                 br.listNamespaces().then((namespaces) => {
                     expect(namespaces).to.be.false;
                     expect(br.exec.callCount).to.equal(0);
@@ -329,7 +329,7 @@
                 }).returns(Promise.resolve({}));
 
                 br.options.enableCompression = true;
-                br.capability = ['COMPRESS=DEFLATE'];
+                br._capability = ['COMPRESS=DEFLATE'];
                 br.compressConnection().then(() => {
                     expect(br.exec.callCount).to.equal(1);
                     expect(br.client.enableCompression.callCount).to.equal(1);
@@ -337,7 +337,7 @@
             });
 
             it('should do nothing if not supported', (done) => {
-                br.capability = [];
+                br._capability = [];
 
                 br.compressConnection().then(() => {
                     expect(br.exec.callCount).to.equal(0);
@@ -346,7 +346,7 @@
 
             it('should do nothing if not enabled', (done) => {
                 br.options.enableCompression = false;
-                br.capability = ['COMPRESS=DEFLATE'];
+                br._capability = ['COMPRESS=DEFLATE'];
 
                 br.compressConnection().then(() => {
                     expect(br.exec.callCount).to.equal(0);
@@ -385,7 +385,7 @@
                 sinon.stub(br, 'exec').returns(Promise.resolve({}));
                 sinon.stub(br, 'updateCapability').returns(Promise.resolve(true));
 
-                br.capability = ['AUTH=XOAUTH2'];
+                br._capability = ['AUTH=XOAUTH2'];
                 br.login({
                     user: 'u1',
                     xoauth2: 'abc'
@@ -412,7 +412,7 @@
             });
 
             it('should not nothing if not supported', (done) => {
-                br.capability = [];
+                br._capability = [];
 
                 br.updateId({
                     a: 'b',
@@ -437,7 +437,7 @@
                         }]
                     }
                 }));
-                br.capability = ['ID'];
+                br._capability = ['ID'];
 
                 br.updateId(null).then(() => {
                     expect(br.serverId).to.deep.equal({});
@@ -467,7 +467,7 @@
                         }]
                     }
                 }));
-                br.capability = ['ID'];
+                br._capability = ['ID'];
 
                 br.updateId({
                     ckey1: 'cval1',
@@ -721,7 +721,7 @@
                     add: '\\Deleted'
                 }).returns(Promise.resolve());
 
-                br.capability = ['UIDPLUS'];
+                br._capability = ['UIDPLUS'];
                 br.deleteMessages('1:2', {
                     byUid: true
                 }).then(() => {
@@ -735,7 +735,7 @@
                     add: '\\Deleted'
                 }).returns(Promise.resolve());
 
-                br.capability = [];
+                br._capability = [];
                 br.deleteMessages('1:2', {
                     byUid: true
                 }).then(() => {
@@ -791,7 +791,7 @@
                     }]
                 }, ['OK']).returns(Promise.resolve('abc'));
 
-                br.capability = ['MOVE'];
+                br._capability = ['MOVE'];
                 br.moveMessages('1:2', '[Gmail]/Trash', {
                     byUid: true
                 }).then(() => {
@@ -807,7 +807,7 @@
                     byUid: true
                 }).returns(Promise.resolve());
 
-                br.capability = [];
+                br._capability = [];
                 br.moveMessages('1:2', '[Gmail]/Trash', {
                     byUid: true
                 }).then(() => {
@@ -834,7 +834,7 @@
                 br.selectMailbox('[Gmail]/Trash').then(() => {
                     expect(br.exec.callCount).to.equal(1);
                     expect(br._parseSELECT.withArgs('abc').callCount).to.equal(1);
-                    expect(br.state).to.equal(br.STATE_SELECTED);
+                    expect(br._state).to.equal(br.STATE_SELECTED);
                 }).then(done).catch(done);
             });
 
@@ -852,13 +852,13 @@
                     ]
                 }).returns(Promise.resolve('abc'));
 
-                br.capability = ['CONDSTORE'];
+                br._capability = ['CONDSTORE'];
                 br.selectMailbox('[Gmail]/Trash', {
                     condstore: true
                 }).then(() => {
                     expect(br.exec.callCount).to.equal(1);
                     expect(br._parseSELECT.withArgs('abc').callCount).to.equal(1);
-                    expect(br.state).to.equal(br.STATE_SELECTED);
+                    expect(br._state).to.equal(br.STATE_SELECTED);
                 }).then(done).catch(done);
             });
 
@@ -883,7 +883,7 @@
 
                 br.onclosemailbox = (path) => expect(path).to.equal('yyy');
 
-                br.selectedMailbox = 'yyy';
+                br._selectedMailbox = 'yyy';
                 br.selectMailbox('[Gmail]/Trash').then(() => {
                     expect(br._parseSELECT.callCount).to.equal(1);
                 }).then(done).catch(done);
@@ -892,12 +892,12 @@
 
         describe('#hasCapability', () => {
             it('should detect existing capability', () => {
-                br.capability = ['ZZZ'];
+                br._capability = ['ZZZ'];
                 expect(br.hasCapability('zzz')).to.be.true;
             });
 
             it('should detect non existing capability', () => {
-                br.capability = ['ZZZ'];
+                br._capability = ['ZZZ'];
                 expect(br.hasCapability('ooo')).to.be.false;
                 expect(br.hasCapability()).to.be.false;
             });
@@ -908,7 +908,7 @@
                 br._untaggedOkHandler({
                     capability: ['abc']
                 }, () => {});
-                expect(br.capability).to.deep.equal(['abc']);
+                expect(br._capability).to.deep.equal(['abc']);
             });
         });
 
@@ -919,7 +919,7 @@
                         value: 'abc'
                     }]
                 }, () => {});
-                expect(br.capability).to.deep.equal(['ABC']);
+                expect(br._capability).to.deep.equal(['ABC']);
             });
         });
 
@@ -1835,17 +1835,17 @@
             it('should set the state value', () => {
                 br._changeState(12345);
 
-                expect(br.state).to.equal(12345);
+                expect(br._state).to.equal(12345);
             });
 
             it('should emit onclosemailbox if mailbox was closed', () => {
                 sinon.stub(br, 'onclosemailbox');
-                br.state = br.STATE_SELECTED;
-                br.selectedMailbox = 'aaa';
+                br._state = br.STATE_SELECTED;
+                br._selectedMailbox = 'aaa';
 
                 br._changeState(12345);
 
-                expect(br.selectedMailbox).to.be.false;
+                expect(br._selectedMailbox).to.be.false;
                 expect(br.onclosemailbox.withArgs('aaa').callCount).to.equal(1);
             });
         });

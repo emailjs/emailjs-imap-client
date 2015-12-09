@@ -414,16 +414,16 @@
                                         return imap.selectMailbox('[Gmail]/Spam', {
                                             ctx: ctx2
                                         }).then(() => {
-                                            expect(imap.selectedMailbox).to.equal('[Gmail]/Spam');
+                                            expect(imap._selectedMailbox).to.equal('[Gmail]/Spam');
                                         });
                                     }
                                 }).then(() => {
-                                    expect(imap.selectedMailbox).to.equal('inbox');
+                                    expect(imap._selectedMailbox).to.equal('inbox');
                                 });
                             }
                         });
                     }).then((result) => {
-                        expect(imap.selectedMailbox).to.equal('inbox');
+                        expect(imap._selectedMailbox).to.equal('inbox');
                         expect(result).to.deep.equal([{
                             '#': 1,
                             'flags': ['\\Seen', '$MyFlag']
