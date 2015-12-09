@@ -728,11 +728,9 @@
             ]
         };
 
-        return this.exec(command, {
+        return this.exec(command, null, {
             precheck: options.precheck,
             ctx: options.ctx
-        }).then(() => {
-            return true;
         });
     };
 
@@ -804,7 +802,7 @@
                 type: 'atom',
                 value: destination
             }]
-        }, {
+        }, null, {
             precheck: options.precheck,
             ctx: options.ctx
         }).then((response) => (response.humanReadable || 'COPY completed'));
@@ -831,6 +829,7 @@
         if (this.capability.indexOf('MOVE') === -1) {
             // Fallback to COPY + EXPUNGE
             return this.copyMessages(sequence, destination, options).then(() => {
+                delete options.precheck;
                 return this.deleteMessages(sequence, options);
             });
         }
@@ -848,8 +847,6 @@
         }, ['OK'], {
             precheck: options.precheck,
             ctx: options.ctx
-        }).then(() => {
-            return true;
         });
     };
 

@@ -148,7 +148,6 @@
 
         describe('#_parseIncomingCommands', () => {
             it('should process a tagged item from the queue', () => {
-                sinon.stub(client, '_sendRequest');
                 sinon.stub(client, 'onready');
                 sinon.stub(client, '_handleResponse');
 
@@ -156,7 +155,6 @@
 
                 client._parseIncomingCommands(gen());
 
-                expect(client._sendRequest.callCount).to.equal(1);
                 expect(client.onready.callCount).to.equal(1);
                 expect(client._handleResponse.withArgs({
                     tag: 'OK',
@@ -169,14 +167,12 @@
             });
 
             it('should process an untagged item from the queue', () => {
-                sinon.stub(client, '_sendRequest');
                 sinon.stub(client, '_handleResponse');
 
                 function* gen() { yield '* 1 EXISTS'; }
 
                 client._parseIncomingCommands(gen());
 
-                expect(client._sendRequest.callCount).to.equal(1);
                 expect(client._handleResponse.withArgs({
                     tag: '*',
                     command: 'EXISTS',
@@ -216,6 +212,8 @@
         describe('#_handleResponse', () => {
             it('should invoke global handler by default', () => {
                 sinon.stub(client, '_processResponse');
+                sinon.stub(client, '_sendRequest');
+
                 client._globalAcceptUntagged.TEST = () => {};
                 sinon.stub(client._globalAcceptUntagged, 'TEST');
 
@@ -225,6 +223,7 @@
                     command: 'test'
                 });
 
+                expect(client._sendRequest.callCount).to.equal(1);
                 expect(client._globalAcceptUntagged.TEST.withArgs({
                     tag: '*',
                     command: 'test'
@@ -233,6 +232,7 @@
 
             it('should invoke global handler if needed', () => {
                 sinon.stub(client, '_processResponse');
+                sinon.stub(client, '_sendRequest');
                 client._globalAcceptUntagged.TEST = () => {};
                 sinon.stub(client._globalAcceptUntagged, 'TEST');
 
@@ -244,6 +244,7 @@
                     command: 'test'
                 });
 
+                expect(client._sendRequest.callCount).to.equal(1);
                 expect(client._globalAcceptUntagged.TEST.withArgs({
                     tag: '*',
                     command: 'test'
@@ -274,6 +275,7 @@
 
             it('should invoke command callback', () => {
                 sinon.stub(client, '_processResponse');
+                sinon.stub(client, '_sendRequest');
                 client._globalAcceptUntagged.TEST = () => {};
                 sinon.stub(client._globalAcceptUntagged, 'TEST');
 
@@ -298,6 +300,7 @@
                     command: 'test'
                 });
 
+                expect(client._sendRequest.callCount).to.equal(1);
                 expect(client._globalAcceptUntagged.TEST.callCount).to.equal(0);
             });
         });

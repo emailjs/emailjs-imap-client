@@ -435,9 +435,6 @@
                 this._connectionReady = true;
                 this.onready();
             }
-
-            this._canSend = true;
-            this._sendRequest();
         }
     };
 
@@ -453,6 +450,8 @@
             // unsolicited untagged response
             if (response.tag === '*' && command in this._globalAcceptUntagged) {
                 this._globalAcceptUntagged[command](response);
+                this._canSend = true;
+                this._sendRequest();
             }
         } else if (this._currentCommand.payload && response.tag === '*' && command in this._currentCommand.payload) {
             // expected untagged response
@@ -460,12 +459,16 @@
         } else if (response.tag === '*' && command in this._globalAcceptUntagged) {
             // unexpected untagged response
             this._globalAcceptUntagged[command](response);
+            this._canSend = true;
+            this._sendRequest();
         } else if (response.tag === this._currentCommand.tag) {
             // tagged response
             if (this._currentCommand.payload && Object.keys(this._currentCommand.payload).length) {
                 response.payload = this._currentCommand.payload;
             }
             this._currentCommand.callback(response);
+            this._canSend = true;
+            this._sendRequest();
         }
     };
 
