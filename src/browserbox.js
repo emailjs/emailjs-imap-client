@@ -322,18 +322,16 @@
     BrowserBox.prototype.updateCapability = function(forced) {
         // skip request, if not forced update and capabilities are already loaded
         if (!forced && this.capability.length) {
-            return Promise.resolve(false);
+            return Promise.resolve();
         }
 
         // If STARTTLS is required then skip capability listing as we are going to try
         // STARTTLS anyway and we re-check capabilities after connection is secured
         if (!this.client.secureMode && this.options.requireTLS) {
-            return Promise.resolve(false);
+            return Promise.resolve();
         }
 
-        return this.exec('CAPABILITY').then(() => {
-            return true;
-        });
+        return this.exec('CAPABILITY');
     };
 
     /**
@@ -373,7 +371,6 @@
         }).then(() => {
             // console.log(this.options.sessionId + ' compression enabled, all data sent and received is deflated');
             this.client.enableCompression();
-            return true;
         });
     };
 
@@ -425,9 +422,6 @@
         }
 
         return this.exec(command, 'capability', options).then((response) => {
-            this._changeState(this.STATE_AUTHENTICATED);
-            this.authenticated = true;
-
             /*
              * update post-auth capabilites
              * capability list shouldn't contain auth related stuff anymore
@@ -445,8 +439,9 @@
                 return this.updateCapability(true);
             }
         }).then(() => {
+            this._changeState(this.STATE_AUTHENTICATED);
+            this.authenticated = true;
             // console.log(this.options.sessionId + ' post-auth capabilites updated: ' + this.capability);
-            return true;
         });
     };
 
@@ -462,7 +457,7 @@
      */
     BrowserBox.prototype.updateId = function(id) {
         if (this.capability.indexOf('ID') < 0) {
-            return Promise.resolve(false);
+            return Promise.resolve();
         }
 
         var attributes = [
@@ -487,7 +482,7 @@
             attributes: attributes
         }, 'ID').then((response) => {
             if (!response.payload || !response.payload.ID || !response.payload.ID.length) {
-                return false;
+                return;
             }
 
             this.serverId = {};
@@ -500,8 +495,6 @@
                     this.serverId[key] = (val && val.value || '').toString();
                 }
             });
-
-            return this.serverId;
         });
     };
 
@@ -526,7 +519,7 @@
             };
 
             if (!response.payload || !response.payload.LIST || !response.payload.LIST.length) {
-                return false;
+                return;
             }
 
             response.payload.LIST.forEach((item) => {
@@ -583,22 +576,18 @@
      * @param {String} path
      *     The path of the mailbox you would like to create.  This method will
      *     handle utf7 encoding for you.
-     * @returns {Promise<alreadyExists>}
-     *     Promise return a boolean indicating
-     *     whether the folder already existed.  If the mailbox creation
-     *     succeeds, the error argument will be null.  If creation fails, error
-     *     will have an error value.  In the event the server says NO
-     *     [ALREADYEXISTS], we treat that as success and return true.
+     * @returns {Promise}
+     *     Promise return a boolean indicating mailbox was created.
+     *     In the event the server says NO [ALREADYEXISTS], we treat that as success.
+     *     If creation fails, error will have an error value.
      */
     BrowserBox.prototype.createMailbox = function(path) {
         return this.exec({
             command: 'CREATE',
             attributes: [utf7.imap.encode(path)]
-        }).then(() => {
-            return false;
         }).catch((err) => {
             if (err && err.code === 'ALREADYEXISTS') {
-                return true;
+                return;
             }
 
             throw err;
@@ -730,9 +719,7 @@
             ]
         };
 
-        return this.exec(command).then(() => {
-            return true;
-        });
+        return this.exec(command);
     };
 
     /**
@@ -762,15 +749,19 @@
         return this.setFlags(sequence, {
             add: '\\Deleted'
         }, options).then(() => {
-            return this.exec(options.byUid && this.capability.indexOf('UIDPLUS') >= 0 ? {
-                command: 'UID EXPUNGE',
-                attributes: [{
-                    type: 'sequence',
-                    value: sequence
-                }]
-            } : 'EXPUNGE');
-        }).then(() => {
-            return true;
+            var cmd;
+            if (options.byUid && this.capability.indexOf('UIDPLUS') >= 0) {
+                cmd = {
+                    command: 'UID EXPUNGE',
+                    attributes: [{
+                        type: 'sequence',
+                        value: sequence
+                    }]
+                };
+            } else {
+                cmd = 'EXPUNGE';
+            }
+            return this.exec(cmd);
         });
     };
 
@@ -823,7 +814,6 @@
         if (this.capability.indexOf('MOVE') === -1) {
             // Fallback to COPY + EXPUNGE
             return this.copyMessages(sequence, destination, options).then(() => {
-                delete options.precheck;
                 return this.deleteMessages(sequence, options);
             });
         }
@@ -838,9 +828,7 @@
                 type: 'atom',
                 value: destination
             }]
-        }, ['OK']).then(() => {
-            return true;
-        });
+        }, ['OK']);
     };
 
     /**

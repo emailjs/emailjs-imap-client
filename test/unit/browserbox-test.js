@@ -234,9 +234,7 @@
 
             it('should do nothing if capability is set', (done) => {
                 br.capability = ['abc'];
-                br.updateCapability().then((updated) => {
-                    expect(updated).to.be.false;
-                }).then(done).catch(done);
+                br.updateCapability().then(done).catch(done);
             });
 
             it('should run CAPABILITY if capability not set', (done) => {
@@ -263,9 +261,7 @@
                 br.client.secureMode = false;
                 br.options.requireTLS = true;
 
-                br.updateCapability().then((updated) => {
-                    expect(updated).to.be.false;
-                }).then(done).catch(done);
+                br.updateCapability().then(done).catch(done);
             });
         });
 
@@ -334,9 +330,7 @@
 
                 br.options.enableCompression = true;
                 br.capability = ['COMPRESS=DEFLATE'];
-                br.compressConnection().then((result) => {
-                    expect(result).to.be.true;
-
+                br.compressConnection().then(() => {
                     expect(br.exec.callCount).to.equal(1);
                     expect(br.client.enableCompression.callCount).to.equal(1);
                 }).then(done).catch(done);
@@ -345,8 +339,7 @@
             it('should do nothing if not supported', (done) => {
                 br.capability = [];
 
-                br.compressConnection().then((result) => {
-                    expect(result).to.be.false;
+                br.compressConnection().then(() => {
                     expect(br.exec.callCount).to.equal(0);
                 }).then(done).catch(done);
             });
@@ -355,8 +348,7 @@
                 br.options.enableCompression = false;
                 br.capability = ['COMPRESS=DEFLATE'];
 
-                br.compressConnection().then((result) => {
-                    expect(result).to.be.false;
+                br.compressConnection().then(() => {
                     expect(br.exec.callCount).to.equal(0);
                 }).then(done).catch(done);
             });
@@ -425,8 +417,8 @@
                 br.updateId({
                     a: 'b',
                     c: 'd'
-                }).then((id) => {
-                    expect(id).to.be.false;
+                }).then(() => {
+                    expect(br.serverId).to.be.false;
                 }).then(done).catch(done);
             });
 
@@ -447,8 +439,8 @@
                 }));
                 br.capability = ['ID'];
 
-                br.updateId(null).then((id) => {
-                    expect(id).to.deep.equal({});
+                br.updateId(null).then(() => {
+                    expect(br.serverId).to.deep.equal({});
                 }).then(done).catch(done);
             });
 
@@ -480,8 +472,8 @@
                 br.updateId({
                     ckey1: 'cval1',
                     ckey2: 'cval2'
-                }).then((id) => {
-                    expect(id).to.deep.equal({
+                }).then(() => {
+                    expect(br.serverId).to.deep.equal({
                         skey1: 'sval1',
                         skey2: 'sval2'
                     });
@@ -561,8 +553,7 @@
                     attributes: ['mailboxname']
                 }).returns(Promise.resolve());
 
-                br.createMailbox('mailboxname').then((alreadyExists) => {
-                    expect(alreadyExists).to.be.false;
+                br.createMailbox('mailboxname').then(() => {
                     expect(br.exec.callCount).to.equal(1);
                 }).then(done).catch(done);
             });
@@ -574,8 +565,7 @@
                     attributes: ['~peter/mail/&U,BTFw-/&ZeVnLIqe-']
                 }).returns(Promise.resolve());
 
-                br.createMailbox('~peter/mail/\u53f0\u5317/\u65e5\u672c\u8a9e').then((alreadyExists) => {
-                    expect(alreadyExists).to.be.false;
+                br.createMailbox('~peter/mail/\u53f0\u5317/\u65e5\u672c\u8a9e').then(() => {
                     expect(br.exec.callCount).to.equal(1);
                 }).then(done).catch(done);
             });
@@ -589,8 +579,7 @@
                     attributes: ['mailboxname']
                 }).returns(Promise.reject(fakeErr));
 
-                br.createMailbox('mailboxname').then((alreadyExists) => {
-                    expect(alreadyExists).to.be.true;
+                br.createMailbox('mailboxname').then(() => {
                     expect(br.exec.callCount).to.equal(1);
                 }).then(done).catch(done);
             });
@@ -655,8 +644,7 @@
 
                 br.upload('mailbox', 'this is a message', {
                     flags: ['\\$MyFlag']
-                }).then((success) => {
-                    expect(success).to.be.true;
+                }).then(() => {
                     expect(br.exec.callCount).to.equal(1);
                 }).then(done).catch(done);
             });
@@ -664,8 +652,7 @@
             it('should call APPEND w/o flags', (done) => {
                 br.exec.returns(Promise.resolve());
 
-                br.upload('mailbox', 'this is a message').then((success) => {
-                    expect(success).to.be.true;
+                br.upload('mailbox', 'this is a message').then(() => {
                     expect(br.exec.callCount).to.equal(1);
                 }).then(done).catch(done);
             });

@@ -207,8 +207,7 @@
                         return imap.upload('inbox', 'MIME-Version: 1.0\r\nDate: Wed, 9 Jul 2014 15:07:47 +0200\r\nDelivered-To: test@test.com\r\nMessage-ID: <CAHftYYQo=5fqbtnv-DazXhL2j5AxVP1nWarjkztn-N9SV91Z2w@mail.gmail.com>\r\nSubject: test\r\nFrom: Test Test <test@test.com>\r\nTo: Test Test <test@test.com>\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\ntest', {
                             flags: ['\\Seen', '\\Answered', '\\$MyFlag']
                         });
-                    }).then((success) => {
-                        expect(success).to.be.true;
+                    }).then(() => {
                         return imap.listMessages("1:*", ["uid", "flags", "envelope", "bodystructure"]);
                     }).then((messages) => {
                         expect(messages.length).to.equal(msgCount + 1);
@@ -345,8 +344,7 @@
                         return imap.deleteMessages(557, {
                             byUid: true
                         });
-                    }).then((result) => {
-                        expect(result).to.be.true;
+                    }).then(() => {
                         return imap.selectMailbox('inbox');
                     }).then((resultInfo) => {
                         expect(initialInfo.exists !== resultInfo.exists).to.be.true;
@@ -376,8 +374,7 @@
                         return imap.moveMessages(555, '[Gmail]/Spam', {
                             byUid: true
                         });
-                    }).then((result) => {
-                        expect(result).to.be.true;
+                    }).then(() => {
                         return imap.selectMailbox('[Gmail]/Spam');
                     }).then((info) => {
                         expect(info.exists).to.equal(1);
