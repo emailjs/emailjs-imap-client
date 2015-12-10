@@ -226,7 +226,6 @@
         }
 
         return this.exec(query, ['EXISTS', 'FLAGS', 'OK'], {
-            precheck: options.precheck,
             ctx: options.ctx
         }).then((response) => {
             this._changeState(this.STATE_SELECTED);
@@ -373,7 +372,7 @@
      * @param {Object} [options] Query modifiers
      * @returns {Promise} Promise with the fetched message info
      */
-    BrowserBox.prototype.listMessages = function(sequence, items, options) {
+    BrowserBox.prototype.listMessages = function(folder, sequence, items, options) {
         items = items || [{
             fast: true
         }];
@@ -381,8 +380,7 @@
 
         var command = this._buildFETCHCommand(sequence, items, options);
         return this.exec(command, 'FETCH', {
-            precheck: options.precheck,
-            ctx: options.ctx
+            precheck: (ctx) => (this._selectedMailbox === folder) ? Promise.resolve() : this.selectMailbox(folder, { ctx: ctx })
         }).then((response) => this._parseFETCH(response));
     };
 
@@ -396,13 +394,12 @@
      * @param {Object} [options] Query modifiers
      * @returns {Promise} Promise with the array of matching seq. or uid numbers
      */
-    BrowserBox.prototype.search = function(query, options) {
+    BrowserBox.prototype.search = function(folder, query, options) {
         options = options || {};
 
         var command = this._buildSEARCHCommand(query, options);
         return this.exec(command, 'SEARCH', {
-            precheck: options.precheck,
-            ctx: options.ctx
+            precheck: (ctx) => (this._selectedMailbox === folder) ? Promise.resolve() : this.selectMailbox(folder, { ctx: ctx })
         }).then((response) => this._parseSEARCH(response));
     };
 
@@ -417,7 +414,7 @@
      * @param {Object} [options] Query modifiers
      * @returns {Promise} Promise with the array of matching seq. or uid numbers
      */
-    BrowserBox.prototype.setFlags = function(sequence, flags, options) {
+    BrowserBox.prototype.setFlags = function(folder, sequence, flags, options) {
         var key = '';
         var list = [];
 
@@ -435,7 +432,7 @@
             list = [].concat(flags.remove || []);
         }
 
-        return this.store(sequence, key + 'FLAGS', list, options);
+        return this.store(folder, sequence, key + 'FLAGS', list, options);
     };
 
     /**
@@ -450,13 +447,12 @@
      * @param {Object} [options] Query modifiers
      * @returns {Promise} Promise with the array of matching seq. or uid numbers
      */
-    BrowserBox.prototype.store = function(sequence, action, flags, options) {
+    BrowserBox.prototype.store = function(folder, sequence, action, flags, options) {
         options = options || {};
 
         var command = this._buildSTORECommand(sequence, action, flags, options);
         return this.exec(command, 'FETCH', {
-            precheck: options.precheck,
-            ctx: options.ctx
+            precheck: (ctx) => (this._selectedMailbox === folder) ? Promise.resolve() : this.selectMailbox(folder, { ctx: ctx })
         }).then((response) => this._parseFETCH(response));
     };
 
@@ -494,10 +490,7 @@
             ]
         };
 
-        return this.exec(command, null, {
-            precheck: options.precheck,
-            ctx: options.ctx
-        });
+        return this.exec(command);
     };
 
     /**
@@ -520,11 +513,11 @@
      * @param {Object} [options] Query modifiers
      * @returns {Promise} Promise
      */
-    BrowserBox.prototype.deleteMessages = function(sequence, options) {
+    BrowserBox.prototype.deleteMessages = function(folder, sequence, options) {
         options = options || {};
 
         // add \Deleted flag to the messages and run EXPUNGE or UID EXPUNGE
-        return this.setFlags(sequence, {
+        return this.setFlags(folder, sequence, {
             add: '\\Deleted'
         }, options).then(() => {
             var cmd;
@@ -539,7 +532,9 @@
             } else {
                 cmd = 'EXPUNGE';
             }
-            return this.exec(cmd);
+            return this.exec(cmd, null, {
+                precheck: (ctx) => (this._selectedMailbox === folder) ? Promise.resolve() : this.selectMailbox(folder, { ctx: ctx })
+            });
         });
     };
 
@@ -556,7 +551,7 @@
      * @param {Boolean} [options.byUid] If true, uses UID COPY instead of COPY
      * @returns {Promise} Promise
      */
-    BrowserBox.prototype.copyMessages = function(sequence, destination, options) {
+    BrowserBox.prototype.copyMessages = function(folder, sequence, destination, options) {
         options = options || {};
 
         return this.exec({
@@ -569,8 +564,7 @@
                 value: destination
             }]
         }, null, {
-            precheck: options.precheck,
-            ctx: options.ctx
+            precheck: (ctx) => (this._selectedMailbox === folder) ? Promise.resolve() : this.selectMailbox(folder, { ctx: ctx })
         }).then((response) => (response.humanReadable || 'COPY completed'));
     };
 
@@ -589,14 +583,13 @@
      * @param {Object} [options] Query modifiers
      * @returns {Promise} Promise
      */
-    BrowserBox.prototype.moveMessages = function(sequence, destination, options) {
+    BrowserBox.prototype.moveMessages = function(folder, sequence, destination, options) {
         options = options || {};
 
         if (this._capability.indexOf('MOVE') === -1) {
             // Fallback to COPY + EXPUNGE
-            return this.copyMessages(sequence, destination, options).then(() => {
-                delete options.precheck;
-                return this.deleteMessages(sequence, options);
+            return this.copyMessages(folder, sequence, destination, options).then(() => {
+                return this.deleteMessages(folder, sequence, options);
             });
         }
 
@@ -611,8 +604,7 @@
                 value: destination
             }]
         }, ['OK'], {
-            precheck: options.precheck,
-            ctx: options.ctx
+            precheck: (ctx) => (this._selectedMailbox === folder) ? Promise.resolve() : this.selectMailbox(folder, { ctx: ctx })
         });
     };
 

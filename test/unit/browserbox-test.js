@@ -598,7 +598,7 @@
                     byUid: true
                 }]).returns({});
 
-                br.listMessages('1:2', ['uid', 'flags'], {
+                br.listMessages('INBOX', '1:2', ['uid', 'flags'], {
                     byUid: true
                 }).then(() => {
                     expect(br._buildFETCHCommand.callCount).to.equal(1);
@@ -622,7 +622,7 @@
                     byUid: true
                 }).returns({});
 
-                br.search({
+                br.search('INBOX', {
                     uid: 1
                 }, {
                     byUid: true
@@ -671,7 +671,7 @@
                     byUid: true
                 }).returns({});
 
-                br.setFlags('1:2', ['\\Seen', '$MyFlag'], {
+                br.setFlags('INBOX', '1:2', ['\\Seen', '$MyFlag'], {
                     byUid: true
                 }).then(() => {
                     expect(br.exec.callCount).to.equal(1);
@@ -693,7 +693,7 @@
                     byUid: true
                 }).returns({});
 
-                br.store('1:2', '+X-GM-LABELS', ['\\Sent', '\\Junk'], {
+                br.store('INBOX', '1:2', '+X-GM-LABELS', ['\\Sent', '\\Junk'], {
                     byUid: true
                 }).then(() => {
                     expect(br._buildSTORECommand.callCount).to.equal(1);
@@ -717,12 +717,12 @@
                         value: '1:2'
                     }]
                 }).returns(Promise.resolve('abc'));
-                br.setFlags.withArgs('1:2', {
+                br.setFlags.withArgs('INBOX', '1:2', {
                     add: '\\Deleted'
                 }).returns(Promise.resolve());
 
                 br._capability = ['UIDPLUS'];
-                br.deleteMessages('1:2', {
+                br.deleteMessages('INBOX', '1:2', {
                     byUid: true
                 }).then(() => {
                     expect(br.exec.callCount).to.equal(1);
@@ -731,12 +731,12 @@
 
             it('should call EXPUNGE', (done) => {
                 br.exec.withArgs('EXPUNGE').returns(Promise.resolve('abc'));
-                br.setFlags.withArgs('1:2', {
+                br.setFlags.withArgs('INBOX', '1:2', {
                     add: '\\Deleted'
                 }).returns(Promise.resolve());
 
                 br._capability = [];
-                br.deleteMessages('1:2', {
+                br.deleteMessages('INBOX', '1:2', {
                     byUid: true
                 }).then(() => {
                     expect(br.exec.callCount).to.equal(1);
@@ -763,7 +763,7 @@
                     humanReadable: 'abc'
                 }));
 
-                br.copyMessages('1:2', '[Gmail]/Trash', {
+                br.copyMessages('INBOX', '1:2', '[Gmail]/Trash', {
                     byUid: true
                 }).then((response) => {
                     expect(response).to.equal('abc');
@@ -792,7 +792,7 @@
                 }, ['OK']).returns(Promise.resolve('abc'));
 
                 br._capability = ['MOVE'];
-                br.moveMessages('1:2', '[Gmail]/Trash', {
+                br.moveMessages('INBOX', '1:2', '[Gmail]/Trash', {
                     byUid: true
                 }).then(() => {
                     expect(br.exec.callCount).to.equal(1);
@@ -800,7 +800,7 @@
             });
 
             it('should fallback to copy+expunge', (done) => {
-                br.copyMessages.withArgs('1:2', '[Gmail]/Trash', {
+                br.copyMessages.withArgs('INBOX', '1:2', '[Gmail]/Trash', {
                     byUid: true
                 }).returns(Promise.resolve());
                 br.deleteMessages.withArgs('1:2', {
@@ -808,7 +808,7 @@
                 }).returns(Promise.resolve());
 
                 br._capability = [];
-                br.moveMessages('1:2', '[Gmail]/Trash', {
+                br.moveMessages('INBOX', '1:2', '[Gmail]/Trash', {
                     byUid: true
                 }).then(() => {
                     expect(br.deleteMessages.callCount).to.equal(1);

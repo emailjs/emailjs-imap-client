@@ -227,7 +227,7 @@
                     if (this.isError(response)) {
                         return reject(response);
                     } else if (['NO', 'BAD'].indexOf((response && response.command || '').toString().toUpperCase().trim()) >= 0) {
-                        const error = new Error(response.humanReadable || 'Error');
+                        var error = new Error(response.humanReadable || 'Error');
                         if (response.code) {
                             error.code = response.code;
                         }

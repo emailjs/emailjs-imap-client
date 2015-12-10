@@ -162,7 +162,11 @@
                     useSecureTransport: false
                 });
 
-                imap.connect().then(done);
+                imap.connect().then(() => {
+                    return imap.selectMailbox('[Gmail]/Spam');
+                }).then(() => {
+                    done();
+                }).catch(done);
             });
 
             afterEach((done) => {
@@ -178,37 +182,26 @@
             });
 
             describe('#listMessages', () => {
-                beforeEach((done) => {
-                    imap.selectMailbox('inbox').then(() => {
-                        done();
-                    });
-                });
-
                 it('should succeed', (done) => {
-                    imap.listMessages("1:*", ["uid", "flags", "envelope", "bodystructure", "body.peek[]"]).then((messages) => {
+                    imap.listMessages('inbox', "1:*", ["uid", "flags", "envelope", "bodystructure", "body.peek[]"]).then((messages) => {
                         expect(messages).to.not.be.empty;
                     }).then(done).catch(done);
                 });
             });
 
             describe('#upload', () => {
-                beforeEach((done) => {
-                    imap.selectMailbox('inbox').then(() => {
-                        done();
-                    });
-                });
-
                 it('should succeed', (done) => {
                     var msgCount;
 
-                    imap.listMessages("1:*", ["uid", "flags", "envelope", "bodystructure"]).then((messages) => {
+                    imap.listMessages('inbox', "1:*", ["uid", "flags", "envelope", "bodystructure"]).then((messages) => {
                         expect(messages).to.not.be.empty;
                         msgCount = messages.length;
+                    }).then(() => {
                         return imap.upload('inbox', 'MIME-Version: 1.0\r\nDate: Wed, 9 Jul 2014 15:07:47 +0200\r\nDelivered-To: test@test.com\r\nMessage-ID: <CAHftYYQo=5fqbtnv-DazXhL2j5AxVP1nWarjkztn-N9SV91Z2w@mail.gmail.com>\r\nSubject: test\r\nFrom: Test Test <test@test.com>\r\nTo: Test Test <test@test.com>\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\ntest', {
                             flags: ['\\Seen', '\\Answered', '\\$MyFlag']
                         });
                     }).then(() => {
-                        return imap.listMessages("1:*", ["uid", "flags", "envelope", "bodystructure"]);
+                        return imap.listMessages('inbox', "1:*", ["uid", "flags", "envelope", "bodystructure"]);
                     }).then((messages) => {
                         expect(messages.length).to.equal(msgCount + 1);
                     }).then(done).catch(done);
@@ -216,14 +209,8 @@
             });
 
             describe('#search', () => {
-                beforeEach((done) => {
-                    imap.selectMailbox('inbox').then(() => {
-                        done();
-                    });
-                });
-
                 it('should return a sequence number', (done) => {
-                    imap.search({
+                    imap.search('inbox', {
                         header: ['subject', 'hello 3']
                     }).then((result) => {
                         expect(result).to.deep.equal([3]);
@@ -231,7 +218,7 @@
                 });
 
                 it('should return an uid', (done) => {
-                    imap.search({
+                    imap.search('inbox', {
                         header: ['subject', 'hello 3']
                     }, {
                         byUid: true
@@ -241,7 +228,7 @@
                 });
 
                 it('should work with complex queries', (done) => {
-                    imap.search({
+                    imap.search('inbox', {
                         header: ['subject', 'hello'],
                         seen: true
                     }).then((result) => {
@@ -251,14 +238,8 @@
             });
 
             describe('#setFlags', () => {
-                beforeEach((done) => {
-                    imap.selectMailbox('inbox').then(() => {
-                        done();
-                    });
-                });
-
                 it('should set flags for a message', (done) => {
-                    imap.setFlags('1', ['\\Seen', '$MyFlag']).then((result) => {
+                    imap.setFlags('inbox', '1', ['\\Seen', '$MyFlag']).then((result) => {
                         expect(result).to.deep.equal([{
                             '#': 1,
                             'flags': ['\\Seen', '$MyFlag']
@@ -267,7 +248,7 @@
                 });
 
                 it('should add flags to a message', (done) => {
-                    imap.setFlags('2', {
+                    imap.setFlags('inbox', '2', {
                         add: ['$MyFlag']
                     }).then((result) => {
                         expect(result).to.deep.equal([{
@@ -278,7 +259,7 @@
                 });
 
                 it('should remove flags from a message', (done) => {
-                    imap.setFlags('557', {
+                    imap.setFlags('inbox', '557', {
                         remove: ['\\Deleted']
                     }, {
                         byUid: true
@@ -292,7 +273,7 @@
                 });
 
                 it('should not return anything on silent mode', (done) => {
-                    imap.setFlags('1', ['$MyFlag2'], {
+                    imap.setFlags('inbox', '1', ['$MyFlag2'], {
                         silent: true
                     }).then((result) => {
                         expect(result).to.deep.equal([]);
@@ -301,14 +282,8 @@
             });
 
             describe('#store', () => {
-                beforeEach((done) => {
-                    imap.selectMailbox('inbox').then(() => {
-                        done();
-                    });
-                });
-
                 it('should add labels for a message', (done) => {
-                    imap.store('1', '+X-GM-LABELS', ['\\Sent', '\\Junk']).then((result) => {
+                    imap.store('inbox', '1', '+X-GM-LABELS', ['\\Sent', '\\Junk']).then((result) => {
                         expect(result).to.deep.equal([{
                             '#': 1,
                             'x-gm-labels': ['\\Inbox', '\\Sent', '\\Junk']
@@ -317,7 +292,7 @@
                 });
 
                 it('should set labels for a message', (done) => {
-                    imap.store('1', 'X-GM-LABELS', ['\\Sent', '\\Junk']).then((result) => {
+                    imap.store('inbox', '1', 'X-GM-LABELS', ['\\Sent', '\\Junk']).then((result) => {
                         expect(result).to.deep.equal([{
                             '#': 1,
                             'x-gm-labels': ['\\Sent', '\\Junk']
@@ -326,7 +301,7 @@
                 });
 
                 it('should remove labels from a message', (done) => {
-                    imap.store('1', '-X-GM-LABELS', ['\\Sent', '\\Inbox']).then((result) => {
+                    imap.store('inbox', '1', '-X-GM-LABELS', ['\\Sent', '\\Inbox']).then((result) => {
                         expect(result).to.deep.equal([{
                             '#': 1,
                             'x-gm-labels': []
@@ -341,7 +316,7 @@
 
                     imap.selectMailbox('inbox').then((info) => {
                         initialInfo = info;
-                        return imap.deleteMessages(557, {
+                        return imap.deleteMessages('inbox', 557, {
                             byUid: true
                         });
                     }).then(() => {
@@ -354,10 +329,8 @@
 
             describe('#copyMessages', () => {
                 it('should copy a message', (done) => {
-                    imap.selectMailbox('inbox').then(() => {
-                        return imap.copyMessages(555, '[Gmail]/Trash', {
-                            byUid: true
-                        });
+                    imap.copyMessages('inbox', 555, '[Gmail]/Trash', {
+                        byUid: true
                     }).then(() => {
                         return imap.selectMailbox('[Gmail]/Trash');
                     }).then((info) => {
@@ -371,7 +344,7 @@
                     var initialInfo;
                     imap.selectMailbox('inbox').then((info) => {
                         initialInfo = info;
-                        return imap.moveMessages(555, '[Gmail]/Spam', {
+                        return imap.moveMessages('inbox', 555, '[Gmail]/Spam', {
                             byUid: true
                         });
                     }).then(() => {
@@ -382,120 +355,6 @@
                     }).then((resultInfo) => {
                         expect(initialInfo.exists).to.not.equal(resultInfo.exists);
                     }).then(done).catch(done);
-                });
-            });
-
-            describe('precheck', () => {
-                it('should use nested precheck calls to cycle through mailboxes, delete mail, move stuff around etc', (done) => {
-                    /*
-                     * start out in [Gmail]/Drafts
-                     *
-                     * execution path #1:
-                     *   folder? -> [Gmail]/Spam -> inbox
-                     *   set flags on a message (in the inbox)
-                     *
-                     * execution path #2:
-                     *   folder? -> inbox
-                     *   move 600 to [Gmail]/Drafts
-                     *   folder? -> [Gmail]/Drafts
-                     *   list messages, make sure uid 1 is there
-                     *   delete uid 1 from [Gmail]/Drafts
-                     *
-                     * execution path #3:
-                     *   folder? -> inbox
-                     *   search for subject 'hello 3', make sure it's there
-                     */
-                    imap.selectMailbox('[Gmail]/Drafts').then(() => {
-                        return imap.setFlags('1', ['\\Seen', '$MyFlag'], {
-                            precheck: (ctx1) => {
-                                return imap.selectMailbox('inbox', {
-                                    ctx: ctx1,
-                                    precheck: (ctx2) => {
-                                        return imap.selectMailbox('[Gmail]/Spam', {
-                                            ctx: ctx2
-                                        }).then(() => {
-                                            expect(imap._selectedMailbox).to.equal('[Gmail]/Spam');
-                                        });
-                                    }
-                                }).then(() => {
-                                    expect(imap._selectedMailbox).to.equal('inbox');
-                                });
-                            }
-                        });
-                    }).then((result) => {
-                        expect(imap._selectedMailbox).to.equal('inbox');
-                        expect(result).to.deep.equal([{
-                            '#': 1,
-                            'flags': ['\\Seen', '$MyFlag']
-                        }]);
-                    }).then(() => {
-                        return imap.moveMessages(600, '[Gmail]/Drafts', {
-                            byUid: true,
-                            precheck: (ctx) => {
-                                return imap.selectMailbox('inbox', {
-                                    ctx: ctx
-                                });
-                            }
-                        });
-                    }).then(() => {
-                        return imap.deleteMessages(1, {
-                            byUid: true,
-                            precheck: (ctx1) => {
-                                return imap.listMessages("1:*", ["uid", "flags", "envelope", "bodystructure", "body.peek[]"], {
-                                    ctx: ctx1,
-                                    precheck: (ctx2) => {
-                                        return imap.selectMailbox('[Gmail]/Drafts', {
-                                            ctx: ctx2,
-                                            precheck: () => {
-                                                return Promise.resolve();
-                                            }
-                                        });
-                                    }
-                                }).then((messages) => {
-                                    expect(messages[0].uid).to.equal(1);
-                                });
-                            }
-                        });
-                    }).then(() => {
-                        return imap.search({
-                            header: ['subject', 'hello 3']
-                        }, {
-                            precheck: (ctx) => {
-                                return imap.selectMailbox('inbox', {
-                                    ctx: ctx
-                                });
-                            },
-                            byUid: true
-                        }).then((result) => {
-                            expect(result).to.deep.equal([555]);
-                        });
-
-                    }).then(() => {
-                        done();
-                    }).catch(done);
-                });
-
-                it('should error in precheck', (done) => {
-                    /*
-                     * start out in [Gmail]/Drafts
-
-                     * execution path #1:
-                     *   setFlags precheck() should error and never be executed
-                     *
-                     * execution path #2:
-                     *   folder? -> inbox
-                     *   search for subject 'hello 3', make sure it's there
-                     */
-                    imap.selectMailbox('[Gmail]/Drafts').then(() => {
-                        return imap.setFlags('1', ['\\Seen', '$MyFlag'], {
-                            precheck: () => {
-                                return Promise.reject(new Error());
-                            }
-                        });
-                    }).catch((err) => {
-                        expect(err).to.exist;
-                        done();
-                    });
                 });
             });
         });
