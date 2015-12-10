@@ -87,7 +87,9 @@
                         user: "testuser",
                         pass: "testpass"
                     },
-                    useSecureTransport: false
+                    tcpSocket: {
+                        useSecureTransport: false
+                    }
                 });
                 imap.logLevel = imap.LOG_LEVEL_NONE;
 
@@ -108,7 +110,9 @@
                         user: "testuser",
                         pass: "testpass"
                     },
-                    useSecureTransport: false,
+                    tcpSocket: {
+                        useSecureTransport: false
+                    },
                     ignoreTLS: true
                 });
                 imap.logLevel = imap.LOG_LEVEL_NONE;
@@ -126,7 +130,9 @@
                         user: "testuser",
                         pass: "testpass"
                     },
-                    useSecureTransport: false,
+                    tcpSocket: {
+                        useSecureTransport: false
+                    },
                     requireTLS: true
                 });
                 imap.logLevel = imap.LOG_LEVEL_NONE;
@@ -143,7 +149,9 @@
                         user: "testuser",
                         pass: "testpass"
                     },
-                    useSecureTransport: false
+                    tcpSocket: {
+                        useSecureTransport: false
+                    }
                 });
                 imap.logLevel = imap.LOG_LEVEL_NONE;
 
@@ -163,7 +171,9 @@
                         user: "testuser",
                         pass: "testpass"
                     },
-                    useSecureTransport: false
+                    tcpSocket: {
+                        useSecureTransport: false
+                    }
                 });
                 imap.logLevel = imap.LOG_LEVEL_NONE;
 
@@ -372,7 +382,9 @@
                         user: "testuser",
                         pass: "testpass"
                     },
-                    useSecureTransport: false
+                    tcpSocket: {
+                        useSecureTransport: false
+                    }
                 });
                 imap.logLevel = imap.LOG_LEVEL_NONE;
 
