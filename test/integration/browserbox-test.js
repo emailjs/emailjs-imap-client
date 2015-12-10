@@ -87,7 +87,9 @@
                         user: "testuser",
                         pass: "testpass"
                     },
-                    useSecureTransport: false
+                    tcpSocket: {
+                        useSecureTransport: false
+                    }
                 });
 
                 imap.onerror = () => {
@@ -107,7 +109,9 @@
                         user: "testuser",
                         pass: "testpass"
                     },
-                    useSecureTransport: false,
+                    tcpSocket: {
+                        useSecureTransport: false
+                    },
                     ignoreTLS: true
                 });
 
@@ -124,7 +128,9 @@
                         user: "testuser",
                         pass: "testpass"
                     },
-                    useSecureTransport: false,
+                    tcpSocket: {
+                        useSecureTransport: false
+                    },
                     requireTLS: true
                 });
 
@@ -140,7 +146,9 @@
                         user: "testuser",
                         pass: "testpass"
                     },
-                    useSecureTransport: false
+                    tcpSocket: {
+                        useSecureTransport: false
+                    }
                 });
 
                 imap.connect().then(() => {
@@ -159,7 +167,9 @@
                         user: "testuser",
                         pass: "testpass"
                     },
-                    useSecureTransport: false
+                    tcpSocket: {
+                        useSecureTransport: false
+                    }
                 });
 
                 imap.connect().then(() => {
@@ -367,7 +377,9 @@
                         user: "testuser",
                         pass: "testpass"
                     },
-                    useSecureTransport: false
+                    tcpSocket: {
+                        useSecureTransport: false
+                    }
                 });
 
                 imap.connect().then(done);

@@ -34,19 +34,25 @@
      * @param {String} [host='localhost'] Hostname to conenct to
      * @param {Number} [port=143] Port number to connect to
      * @param {Object} [options] Optional options object
-     * @param {Boolean} [options.useSecureTransport] Set to true, to use encrypted connection
      * @param {String} [options.compressionWorkerPath] offloads de-/compression computation to a web worker, this is the path to the browserified browserbox-compressor-worker.js
+     * @params {Object} [options.tcpSocket] Optional options to pass to the TCPsocket connection, see: https://github.com/whiteout-io/tcp-socket for details.
+     * @params {Boolean} [options.tcpSocket.useSecureTransport] Set to true, to use encrypted connection
+     * @params {Boolean} [options.tcpSocket.ca] specify a CA certificate for validating keys.
+     * @params {Boolean} [options.tcpSocket.tlsWorkerPath] Specify a TLS Worker Path to offload TLS processing in the browser to a service worker.
+     * @params {Object} [options.tcpSocket.ws] Optional options to pass to the socket.io connection when TCPSocket is shimmed with a websocket.
      */
     function ImapClient(host, port, options) {
         this._TCPSocket = TCPSocket;
 
         this.options = options || {};
+        this.options.tcpSocket = this.options.tcpSocket || { useSecureTransport: true, binaryType: 'arraybuffer' };
 
-        this.port = port || (this.options.useSecureTransport ? 993 : 143);
+        this.port = port || (this.options.tcpSocket.useSecureTransport ? 993 : 143);
         this.host = host || 'localhost';
 
+
         // Use a TLS connection. Port 993 also forces TLS.
-        this.options.useSecureTransport = 'useSecureTransport' in this.options ? !!this.options.useSecureTransport : this.port === 993;
+        this.options.tcpSocket.useSecureTransport = 'useSecureTransport' in this.options.tcpSocket ? !!this.options.tcpSocket.useSecureTransport : this.port === 993;
 
         this.secureMode = !!this.options.useSecureTransport; // Does the connection use SSL/TLS
 
@@ -111,12 +117,7 @@
      */
     ImapClient.prototype.connect = function() {
         return new Promise((resolve, reject) => {
-            this.socket = this._TCPSocket.open(this.host, this.port, {
-                binaryType: 'arraybuffer',
-                useSecureTransport: this.secureMode,
-                ca: this.options.ca,
-                tlsWorkerPath: this.options.tlsWorkerPath
-            });
+            this.socket = this._TCPSocket.open(this.host, this.port, this.options.tcpSocket);
 
             // allows certificate handling for platform w/o native tls support
             // oncert is non standard so setting it might throw if the socket object is immutable
