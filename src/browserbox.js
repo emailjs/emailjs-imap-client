@@ -46,7 +46,7 @@
         //
 
         this.options = options || {};
-        this.options.sessionId = this.options.sessionId || '[' + (++SESSIONCOUNTER) + ']'; // Session identifier (logging)
+        this.options.sessionId = this.options.sessionId || ++SESSIONCOUNTER; // Session identifier (logging)
         this._state = false; // Current state
         this._authenticated = false; // Is the connection authenticated
         this._capability = []; // List of extensions the server supports
@@ -67,6 +67,10 @@
         this.client.setHandler('exists', (response) => this._untaggedExistsHandler(response)); // message count has changed
         this.client.setHandler('expunge', (response) => this._untaggedExpungeHandler(response)); // message has been deleted
         this.client.setHandler('fetch', (response) => this._untaggedFetchHandler(response)); // message has been updated (eg. flag change)
+
+        // Activate logging
+        this.createLogger();
+        this.logLevel = this.LOG_LEVEL_ALL;
     }
 
     //
@@ -81,11 +85,11 @@
      */
     BrowserBox.prototype.connect = function() {
         return new Promise((resolve, reject) => {
-            var connectionTimeout = setTimeout(() => reject(new Error(this.options.sessionId + ' Timeout connecting to server')), this.TIMEOUT_CONNECTION);
-            // console.log(this.options.sessionId + ' connecting to ' + this.client.host + ':' + this.client.port);
+            var connectionTimeout = setTimeout(() => reject(new Error('Timeout connecting to server')), this.TIMEOUT_CONNECTION);
+            this.logger.debug('Connecting to', this.client.host, ':',  this.client.port);
             this._changeState(this.STATE_CONNECTING);
             this.client.connect().then(() => {
-                // console.log(this.options.sessionId + ' Socket opened, waiting for greeting from the server...');
+                this.logger.debug('Socket opened, waiting for greeting from the server...');
 
                 this.client.onready = () => {
                     clearTimeout(connectionTimeout);
@@ -109,9 +113,10 @@
         }).then(() => {
             return this.compressConnection();
         }).then(() => {
-            // console.log(this.options.sessionId + ' Connection established, ready to roll!');
+            this.logger.debug('Connection established, ready to roll!');
             this.client.onerror = (err) => this.onerror(err); // proxy error events
         }).catch((err) => {
+            this.logger.error('Could not connect to server', err);
             this.close(); // we don't really care whether this works or not
             throw err;
         });
@@ -127,6 +132,7 @@
      */
     BrowserBox.prototype.logout = function() {
         this._changeState(this.STATE_LOGOUT);
+        this.logger.debug('Logging out...');
         return this.client.logout().then(() => {
             clearTimeout(this._idleTimeout);
         });
@@ -138,7 +144,7 @@
     BrowserBox.prototype.close = function() {
         this._changeState(this.STATE_LOGOUT);
         clearTimeout(this._idleTimeout);
-        // console.log(this.options.sessionId + ' closing connection');
+        this.logger.debug('Closing connection...');
         return this.client.close();
     };
 
@@ -174,6 +180,7 @@
             attributes[0] = null;
         }
 
+        this.logger.debug('Updating id...');
         return this.exec({
             command: 'ID',
             attributes: attributes
@@ -192,6 +199,8 @@
                     this.serverId[key] = (val && val.value || '').toString();
                 }
             });
+
+            this.logger.debug('Server id updated!', this.serverId);
         });
     };
 
@@ -225,6 +234,7 @@
             }]);
         }
 
+        this.logger.debug('Opening', path, '...');
         return this.exec(query, ['EXISTS', 'FLAGS', 'OK'], {
             ctx: options.ctx
         }).then((response) => {
@@ -257,8 +267,8 @@
             return Promise.resolve(false);
         }
 
+        this.logger.debug('Listing namespaces...');
         return this.exec('NAMESPACE', 'NAMESPACE').then((response) => {
-            // console.log(response);
             return this._parseNAMESPACE(response);
         });
     };
@@ -274,6 +284,7 @@
     BrowserBox.prototype.listMailboxes = function() {
         var tree;
 
+        this.logger.debug('Listing mailboxes...');
         return this.exec({
             command: 'LIST',
             attributes: ['', '*']
@@ -347,6 +358,7 @@
      *     If creation fails, error will have an error value.
      */
     BrowserBox.prototype.createMailbox = function(path) {
+        this.logger.debug('Creating mailbox', path, '...');
         return this.exec({
             command: 'CREATE',
             attributes: [utf7.imap.encode(path)]
@@ -378,6 +390,7 @@
         }];
         options = options || {};
 
+        this.logger.debug('Fetching messages', sequence, 'from', folder, '...');
         var command = this._buildFETCHCommand(sequence, items, options);
         return this.exec(command, 'FETCH', {
             precheck: (ctx) => (this._selectedMailbox === folder) ? Promise.resolve() : this.selectMailbox(folder, { ctx: ctx })
@@ -397,6 +410,7 @@
     BrowserBox.prototype.search = function(folder, query, options) {
         options = options || {};
 
+        this.logger.debug('Searching in', folder, '...');
         var command = this._buildSEARCHCommand(query, options);
         return this.exec(command, 'SEARCH', {
             precheck: (ctx) => (this._selectedMailbox === folder) ? Promise.resolve() : this.selectMailbox(folder, { ctx: ctx })
@@ -432,6 +446,7 @@
             list = [].concat(flags.remove || []);
         }
 
+        this.logger.debug('Setting flags on', sequence, 'in', folder, '...');
         return this.store(folder, sequence, key + 'FLAGS', list, options);
     };
 
@@ -490,6 +505,7 @@
             ]
         };
 
+        this.logger.debug('Uploading message to', destination, '...');
         return this.exec(command);
     };
 
@@ -517,6 +533,7 @@
         options = options || {};
 
         // add \Deleted flag to the messages and run EXPUNGE or UID EXPUNGE
+        this.logger.debug('Deleting messages', sequence, 'in', folder, '...');
         return this.setFlags(folder, sequence, {
             add: '\\Deleted'
         }, options).then(() => {
@@ -554,6 +571,7 @@
     BrowserBox.prototype.copyMessages = function(folder, sequence, destination, options) {
         options = options || {};
 
+        this.logger.debug('Copying messages', sequence, 'from', folder, 'to', destination, '...');
         return this.exec({
             command: options.byUid ? 'UID COPY' : 'COPY',
             attributes: [{
@@ -585,6 +603,8 @@
      */
     BrowserBox.prototype.moveMessages = function(folder, sequence, destination, options) {
         options = options || {};
+
+        this.logger.debug('Moving messages', sequence, 'from', folder, 'to', destination, '...');
 
         if (this._capability.indexOf('MOVE') === -1) {
             // Fallback to COPY + EXPUNGE
@@ -640,6 +660,7 @@
             return Promise.resolve(false);
         }
 
+        this.logger.debug('Enabling compression...');
         return this.exec({
             command: 'COMPRESS',
             attributes: [{
@@ -647,8 +668,8 @@
                 value: 'DEFLATE'
             }]
         }).then(() => {
-            // console.log(this.options.sessionId + ' compression enabled, all data sent and received is deflated');
             this.client.enableCompression();
+            this.logger.debug('Compression enabled, all data sent and received is deflated!');
         });
     };
 
@@ -699,6 +720,7 @@
             };
         }
 
+        this.logger.debug('Logging in...');
         return this.exec(command, 'capability', options).then((response) => {
             /*
              * update post-auth capabilites
@@ -719,7 +741,7 @@
         }).then(() => {
             this._changeState(this.STATE_AUTHENTICATED);
             this._authenticated = true;
-            // console.log(this.options.sessionId + ' post-auth capabilites updated: ' + this._capability);
+            this.logger.debug('Login successful, post-auth capabilites updated!', this._capability);
         });
     };
 
@@ -750,7 +772,7 @@
             return;
         }
 
-        // console.log(this.options.sessionId + ' client: started idling');
+        this.logger.debug('Client started idling');
         this.enterIdle();
     };
 
@@ -765,18 +787,21 @@
             return;
         }
         this._enteredIdle = this._capability.indexOf('IDLE') >= 0 ? 'IDLE' : 'NOOP';
-        // console.log(this.options.sessionId + ' entering idle with ' + this._enteredIdle);
+        this.logger.debug('Entering idle with ' + this._enteredIdle);
 
         if (this._enteredIdle === 'NOOP') {
-            this._idleTimeout = setTimeout(() => this.exec('NOOP'), this.TIMEOUT_NOOP);
+            this._idleTimeout = setTimeout(() => {
+                this.logger.debug('Sending NOOP');
+                this.exec('NOOP');
+            }, this.TIMEOUT_NOOP);
         } else if (this._enteredIdle === 'IDLE') {
             this.client.enqueueCommand({
                 command: 'IDLE'
             });
             this._idleTimeout = setTimeout(() => {
-                // console.log(this.options.sessionId + ' sending idle DONE');
                 this.client.send('DONE\r\n');
                 this._enteredIdle = false;
+                this.logger.debug('Idle terminated');
             }, this.TIMEOUT_IDLE);
         }
     };
@@ -791,12 +816,11 @@
 
         clearTimeout(this._idleTimeout);
         if (this._enteredIdle === 'IDLE') {
-            // console.log(this.options.sessionId + ' sending idle DONE');
             this.client.send('DONE\r\n');
+            this.logger.debug('Idle terminated');
         }
         this._enteredIdle = false;
 
-        // console.log(this.options.sessionId + ' idle terminated');
 
         return Promise.resolve();
     };
@@ -820,6 +844,7 @@
             return Promise.resolve(false);
         }
 
+        this.logger.debug('Encrypting connection...');
         return this.exec('STARTTLS').then(() => {
             this._capability = [];
             this.client.upgrade();
@@ -850,6 +875,7 @@
             return Promise.resolve();
         }
 
+        this.logger.debug('Updating capability...');
         return this.exec('CAPABILITY');
     };
 
@@ -1611,7 +1637,7 @@
             return;
         }
 
-        // console.log(this.options.sessionId + ' entering state: ' + this._state);
+        this.logger.debug('Entering state: ' + this._state);
 
         // if a mailbox was opened, emit onclosemailbox and clear selectedMailbox value
         if (this._state === this.STATE_SELECTED && this._selectedMailbox) {
@@ -1740,6 +1766,71 @@
             }
         }
         return name;
+    };
+
+    BrowserBox.prototype.LOG_LEVEL_NONE = 1000;
+    BrowserBox.prototype.LOG_LEVEL_ERROR = 40;
+    BrowserBox.prototype.LOG_LEVEL_WARN = 30;
+    BrowserBox.prototype.LOG_LEVEL_INFO = 20;
+    BrowserBox.prototype.LOG_LEVEL_DEBUG = 10;
+    BrowserBox.prototype.LOG_LEVEL_ALL = 0;
+
+    BrowserBox.prototype.createLogger = function() {
+        var createLogger = (tag) => {
+            var log = (level, messages) => {
+                messages.map((message) => {
+                    try {
+                        return typeof message.toString === 'function' ? message.toString() : JSON.stringify(message);
+                    } catch (e) {
+                        return message; // use JS builtin interpolation
+                    }
+                });
+
+                var logMessage = '[' + new Date().toISOString() + '][' + tag + '] ' + messages.join(' ');
+                if (level === this.LOG_LEVEL_DEBUG) {
+                   console.log('[DEBUG]' + logMessage);
+                } else if (level === this.LOG_LEVEL_INFO) {
+                   console.info('[INFO]' + logMessage);
+                } else if (level === this.LOG_LEVEL_WARN) {
+                   console.warn('[WARN]' + logMessage);
+                } else if (level === this.LOG_LEVEL_ERROR) {
+                   console.error('[ERROR]' + logMessage);
+                }
+            };
+
+            return {
+                // this could become way nicer when node supports the rest operator...
+                debug: function(msgs){ log(this.LOG_LEVEL_DEBUG, msgs); }.bind(this),
+                info: function(msgs){ log(this.LOG_LEVEL_INFO, msgs); }.bind(this),
+                warn: function(msgs){ log(this.LOG_LEVEL_WARN, msgs); }.bind(this),
+                error: function(msgs){ log(this.LOG_LEVEL_ERROR, msgs); }.bind(this)
+            };
+        };
+
+        var logger = this.options.logger || createLogger(this.logLevel, "BrowserBox@" + this.options.sessionId);
+        this.logger = this.client.logger = {
+            // this could become way nicer when node supports the rest operator...
+            debug: function() {
+                if (this.LOG_LEVEL_DEBUG >= this.logLevel) {
+                    logger.debug(Array.prototype.slice.call(arguments));
+                }
+            }.bind(this),
+            info: function() {
+                if (this.LOG_LEVEL_INFO >= this.logLevel) {
+                    logger.info(Array.prototype.slice.call(arguments));
+                }
+            }.bind(this),
+            warn: function() {
+                if (this.LOG_LEVEL_WARN >= this.logLevel) {
+                    logger.warn(Array.prototype.slice.call(arguments));
+                }
+            }.bind(this),
+            error: function() {
+                if (this.LOG_LEVEL_ERROR >= this.logLevel) {
+                    logger.error(Array.prototype.slice.call(arguments));
+                }
+            }.bind(this)
+        };
     };
 
     return BrowserBox;

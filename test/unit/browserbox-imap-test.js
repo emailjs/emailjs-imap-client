@@ -22,6 +22,11 @@
             client = new ImapClient(host, port);
             expect(client).to.exist;
 
+            client.logger = {
+                debug: () => {},
+                error: () => {}
+            };
+
             var TCPSocket = client._TCPSocket = function() {};
             TCPSocket.open = () => {};
             TCPSocket.prototype.close = () => {};

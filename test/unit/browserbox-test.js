@@ -15,6 +15,7 @@
 
         beforeEach(() => {
             br = new BrowserBox();
+            br.logLevel = br.LOG_LEVEL_NONE;
             br.client.socket = {
                 send: () => {},
                 upgradeToSecure: () => {}

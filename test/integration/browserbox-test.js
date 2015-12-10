@@ -89,6 +89,7 @@
                     },
                     useSecureTransport: false
                 });
+                imap.logLevel = imap.LOG_LEVEL_NONE;
 
                 imap.onerror = () => {
                     done();
@@ -110,6 +111,7 @@
                     useSecureTransport: false,
                     ignoreTLS: true
                 });
+                imap.logLevel = imap.LOG_LEVEL_NONE;
 
                 imap.connect().then(() => {
                     expect(imap.client.secureMode).to.be.false;
@@ -127,6 +129,7 @@
                     useSecureTransport: false,
                     requireTLS: true
                 });
+                imap.logLevel = imap.LOG_LEVEL_NONE;
 
                 imap.connect().catch((err) => {
                     expect(err).to.exist;
@@ -142,6 +145,7 @@
                     },
                     useSecureTransport: false
                 });
+                imap.logLevel = imap.LOG_LEVEL_NONE;
 
                 imap.connect().then(() => {
                     expect(imap.client.secureMode).to.be.false;
@@ -161,6 +165,7 @@
                     },
                     useSecureTransport: false
                 });
+                imap.logLevel = imap.LOG_LEVEL_NONE;
 
                 imap.connect().then(() => {
                     return imap.selectMailbox('[Gmail]/Spam');
@@ -369,6 +374,7 @@
                     },
                     useSecureTransport: false
                 });
+                imap.logLevel = imap.LOG_LEVEL_NONE;
 
                 imap.connect().then(done);
             });

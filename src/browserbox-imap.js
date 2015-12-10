@@ -302,14 +302,19 @@
      * @param {Event} evt Event object. See evt.data for the error
      */
     ImapClient.prototype._onError = function(evt) {
+        var error;
+        if (this.isError(evt)) {
+            error = evt;
+        } else if (evt && this.isError(evt.data)) {
+            error = evt.data;
+        } else {
+            error = new Error(evt && evt.data && evt.data.message || evt.data || evt || 'Error');
+        }
+
+        this.logger.error(error);
+
         this.close().then(() => {
-            if (this.isError(evt)) {
-                this.onerror(evt);
-            } else if (evt && this.isError(evt.data)) {
-                this.onerror(evt.data);
-            } else {
-                this.onerror(new Error(evt && evt.data && evt.data.message || evt.data || evt || 'Error'));
-            }
+            this.onerror(error);
         });
     };
 
@@ -401,9 +406,9 @@
             var response;
             try {
                 response = imapHandler.parser(command);
-                // console.log(this.options.sessionId + ' S: ' + imapHandler.compiler(response, false, true));
+                this.logger.debug('S:', imapHandler.compiler(response, false, true));
             } catch (e) {
-                console.error(this.options.sessionId + ' error parsing imap response: ' + e + '\n' + e.stack + '\nraw:' + command);
+                this.logger.error('Error parsing imap command!', response);
                 return this._onError(e);
             }
 
@@ -501,17 +506,15 @@
 
         this._canSend = false;
         this._currentCommand = this._clientQueue.shift();
-        var loggedCommand = false;
 
         try {
             this._currentCommand.data = imapHandler.compiler(this._currentCommand.request, true);
-            loggedCommand = imapHandler.compiler(this._currentCommand.request, false, true);
+            this.logger.debug('C:', imapHandler.compiler(this._currentCommand.request, false, true)); // excludes passwords etc.
         } catch (e) {
-            console.error(this.options.sessionId + ' error compiling imap command: ' + e + '\nstack trace: ' + e.stack + '\nraw:' + this._currentCommand.request);
-            return this._onError(e);
+            this.logger.error('Error compiling imap command!', this._currentCommand.request);
+            return this._onError(new Error('Error compiling imap command!'));
         }
 
-        // console.log(this.options.sessionId + ' C: ' + loggedCommand);
         var data = this._currentCommand.data.shift();
 
         this.send(data + (!this._currentCommand.data.length ? EOL : ''));
@@ -645,9 +648,7 @@
             };
 
             this._compressionWorker.onerror = (e) => {
-                var error = new Error('Error handling compression web worker: Line ' + e.lineno + ' in ' + e.filename + ': ' + e.message);
-                console.error(error);
-                this._onError(error);
+                this._onError(new Error('Error handling compression web worker: Line ' + e.lineno + ' in ' + e.filename + ': ' + e.message));
             };
 
             // first message starts the worker
