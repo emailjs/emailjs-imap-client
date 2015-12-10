@@ -1,48 +1,29 @@
-// Copyright (c) 2014 Andris Reinman
-
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
 (function(root, factory) {
     'use strict';
 
     if (typeof define === 'function' && define.amd) {
-        define(['tcp-socket', 'imap-handler', 'mimefuncs', 'browserbox-compression', 'axe'], function(TCPSocket, imapHandler, mimefuncs, compression, axe) {
-            return factory(TCPSocket, imapHandler, mimefuncs, compression, axe);
+        define(['tcp-socket', 'imap-handler', 'mimefuncs', 'browserbox-compression'], function(TCPSocket, imapHandler, mimefuncs, compression) {
+            return factory(TCPSocket, imapHandler, mimefuncs, compression);
         });
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('tcp-socket'), require('wo-imap-handler'), require('mimefuncs'), require('./browserbox-compression'), require('axe-logger'), null);
+        module.exports = factory(require('tcp-socket'), require('wo-imap-handler'), require('mimefuncs'), require('./browserbox-compression'), null);
     } else {
-        root.BrowserboxImapClient = factory(navigator.TCPSocket, root.imapHandler, root.mimefuncs, root.BrowserboxCompressor, root.axe);
+        root.BrowserboxImapClient = factory(navigator.TCPSocket, root.imapHandler, root.mimefuncs, root.BrowserboxCompressor);
     }
-}(this, function(TCPSocket, imapHandler, mimefuncs, Compression, axe) {
+}(this, function(TCPSocket, imapHandler, mimefuncs, Compression) {
     'use strict';
 
-    var DEBUG_TAG = 'browserbox IMAP';
-
-    // 
+    //
     // constants used for communication with the worker
-    // 
+    //
     var MESSAGE_START = 'start';
     var MESSAGE_INFLATE = 'inflate';
     var MESSAGE_INFLATED_DATA_READY = 'inflated_ready';
     var MESSAGE_DEFLATE = 'deflate';
     var MESSAGE_DEFLATED_DATA_READY = 'deflated_ready';
+
+    var COMMAND_REGEX = /(\{(\d+)(\+)?\})?\r?\n/;
+    var EOL = '\r\n';
 
     /**
      * Creates a connection object to an IMAP server. Call `connect` method to inititate
@@ -53,120 +34,59 @@
      * @param {String} [host='localhost'] Hostname to conenct to
      * @param {Number} [port=143] Port number to connect to
      * @param {Object} [options] Optional options object
-     * @param {Boolean} [options.useSecureTransport] Set to true, to use encrypted connection
      * @param {String} [options.compressionWorkerPath] offloads de-/compression computation to a web worker, this is the path to the browserified browserbox-compressor-worker.js
+     * @params {Object} [options.tcpSocket] Optional options to pass to the TCPsocket connection, see: https://github.com/whiteout-io/tcp-socket for details.
+     * @params {Boolean} [options.tcpSocket.useSecureTransport] Set to true, to use encrypted connection
+     * @params {Boolean} [options.tcpSocket.ca] specify a CA certificate for validating keys.
+     * @params {Boolean} [options.tcpSocket.tlsWorkerPath] Specify a TLS Worker Path to offload TLS processing in the browser to a service worker.
+     * @params {Object} [options.tcpSocket.ws] Optional options to pass to the socket.io connection when TCPSocket is shimmed with a websocket.
      */
     function ImapClient(host, port, options) {
         this._TCPSocket = TCPSocket;
 
         this.options = options || {};
+        this.options.tcpSocket = this.options.tcpSocket || { useSecureTransport: true, binaryType: 'arraybuffer' };
 
-        this.port = port || (this.options.useSecureTransport ? 993 : 143);
+        this.port = port || (this.options.tcpSocket.useSecureTransport ? 993 : 143);
         this.host = host || 'localhost';
 
-        /**
-         * If set to true, start an encrypted connection instead of the plaintext one
-         * (recommended if applicable). If useSecureTransport is not set but the port used is 993,
-         * then ecryption is used by default.
-         */
-        this.options.useSecureTransport = 'useSecureTransport' in this.options ? !!this.options.useSecureTransport : this.port === 993;
 
-        /**
-         * Authentication object. If not set, authentication step will be skipped.
-         */
-        this.options.auth = this.options.auth || false;
+        // Use a TLS connection. Port 993 also forces TLS.
+        this.options.tcpSocket.useSecureTransport = 'useSecureTransport' in this.options.tcpSocket ? !!this.options.tcpSocket.useSecureTransport : this.port === 993;
 
-        /**
-         * Downstream TCP socket to the IMAP server, created with TCPSocket
-         */
-        this.socket = false;
+        this.secureMode = !!this.options.useSecureTransport; // Does the connection use SSL/TLS
 
-        /**
-         * Indicates if the connection has been closed and can't be used anymore
-         *
-         */
-        this.destroyed = false;
+        this._connectionReady = false; // Is the conection established and greeting is received from the server
 
-        /**
-         * Keeps track if the downstream socket is currently full and
-         * a drain event should be waited for or not
-         */
-        this.waitDrain = false;
+        this._globalAcceptUntagged = {}; // Global handlers for unrelated responses (EXPUNGE, EXISTS etc.)
 
-        /**
-         * Is the connection compressed and needs inflating/deflating
-         */
-        this.compressed = false;
+        this._clientQueue = []; // Queue of outgoing commands
+        this._canSend = false; // Is it OK to send something to the server
+        this._tagCounter = 0; // Counter to allow uniqueue imap tags
+        this._currentCommand = false; // Current command that is waiting for response from the server
 
-        /**
-         * Does the connection use SSL/TLS
-         */
-        this.secureMode = !!this.options.useSecureTransport;
+        this._idleTimer = false; // Timer waiting to enter idle
+        this._socketTimeoutTimer = false; // Timer waiting to declare the socket dead starting from the last write
 
-        /**
-         * Is the conection established and greeting is received from the server
-         */
-        this._connectionReady = false;
+        this.compressed = false; // Is the connection compressed and needs inflating/deflating
+        this._workerPath = this.options.compressionWorkerPath; // The path for the compressor's worker script
+        this._compression = new Compression();
 
-        /**
-         * As the server sends data in chunks, it needs to be split into
-         * separate lines. These variables help with parsing the input.
-         */
-        this._remainder = '';
+        //
+        // HELPERS
+        //
+
+        // As the server sends data in chunks, it needs to be split into separate lines. Helps parsing the input.
+        this._incomingBuffer = '';
         this._command = '';
         this._literalRemaining = 0;
 
-        /**
-         * Is there something being processed
-         */
-        this._processingServerData = false;
-
-        /**
-         * Queue of received commands
-         */
-        this._serverQueue = [];
-
-        /**
-         * Is it OK to send something to the server
-         */
-        this._canSend = false;
-
-        /**
-         * Queue of outgoing commands
-         */
-        this._clientQueue = [];
-
-        /**
-         * Counter to allow uniqueue imap tags
-         */
-        this._tagCounter = 0;
-
-        /**
-         * Current command that is waiting for response from the server
-         */
-        this._currentCommand = false;
-
-        /**
-         * Global handlers for unrelated responses (EXPUNGE, EXISTS etc.)
-         */
-        this._globalAcceptUntagged = {};
-
-        /**
-         * Timer waiting to enter idle
-         */
-        this._idleTimer = false;
-
-        /**
-         * Timer waiting to declare the socket dead starting from the last write
-         */
-        this._socketTimeoutTimer = false;
-
-        /**
-         * The path for the compressor's worker script
-         */
-        this._workerPath = this.options.compressionWorkerPath;
-
-        this._compression = new Compression();
+        //
+        // Event placeholders, should be overriden
+        //
+        this.onerror = () => {}; // Irrecoverable error occurred. Connection to the server will be closed automatically.
+        this.onready = () => {}; // The connection to the server has been established and greeting is received
+        this.onidle = () => {}; // There are no more commands to process
     }
 
     // Constants
@@ -190,94 +110,87 @@
      */
     ImapClient.prototype.TIMEOUT_SOCKET_MULTIPLIER = 0.1;
 
-    // PUBLIC EVENTS
-    // Event functions should be overriden, these are just placeholders
-
-    /**
-     * Will be run when an error occurs. Connection to the server will be closed automatically,
-     * so wait for an `onclose` event as well.
-     *
-     * @event
-     * @param {Error} err Error object
-     */
-    ImapClient.prototype.onerror = function() {};
-
-    /**
-     * More data can be buffered in the socket. See `waitDrain` property or
-     * check if `send` method returns false to see if you should be waiting
-     * for the drain event.
-     *
-     * @event
-     */
-    ImapClient.prototype.ondrain = function() {};
-
-    /**
-     * The connection to the server has been closed
-     *
-     * @event
-     */
-    ImapClient.prototype.onclose = function() {};
-
-    /**
-     * The connection to the server has been established and greeting is received
-     *
-     * @event
-     */
-    ImapClient.prototype.onready = function() {};
-
-    /**
-     * There are no more commands to process
-     *
-     * @event
-     */
-    ImapClient.prototype.onidle = function() {};
-
     // PUBLIC METHODS
 
     /**
      * Initiate a connection to the server. Wait for onready event
      */
     ImapClient.prototype.connect = function() {
-        this.socket = this._TCPSocket.open(this.host, this.port, {
-            binaryType: 'arraybuffer',
-            useSecureTransport: this.secureMode,
-            ca: this.options.ca,
-            tlsWorkerPath: this.options.tlsWorkerPath
+        return new Promise((resolve, reject) => {
+            this.socket = this._TCPSocket.open(this.host, this.port, this.options.tcpSocket);
+
+            // allows certificate handling for platform w/o native tls support
+            // oncert is non standard so setting it might throw if the socket object is immutable
+            try {
+                this.socket.oncert = this.oncert;
+            } catch (E) {}
+
+            // Connection closing unexpected is an error
+            this.socket.onclose = () => this._onError(new Error('Socket closed unexceptedly!'));
+            this.socket.ondata = (evt) => this._onData(evt);
+
+            // if an error happens during create time, reject the promise
+            this.socket.onerror = (e) => {
+                reject(new Error('Could not open socket: ' + e.data.message));
+            };
+
+            this.socket.onopen = () => {
+                // use proper "irrecoverable error, tear down everything"-handler only after socket is open
+                this.socket.onerror = (e) => this._onError(e);
+                resolve();
+            };
         });
-
-        // allows certificate handling for platform w/o native tls support
-        // oncert is non standard so setting it might throw if the socket object is immutable
-        try {
-            this.socket.oncert = this.oncert;
-        } catch (E) {}
-
-        this.socket.onerror = this._onError.bind(this);
-        this.socket.onopen = this._onOpen.bind(this);
     };
 
     /**
      * Closes the connection to the server
      */
     ImapClient.prototype.close = function() {
-        this._disableCompression();
+        return new Promise((resolve) => {
+            var tearDown = () => {
+                this._clientQueue = [];
+                this._currentCommand = false;
+                clearTimeout(this._idleTimer);
+                clearTimeout(this._socketTimeoutTimer);
 
-        if (this.socket && this.socket.readyState === 'open') {
+                if (this.socket) {
+                    // remove all listeners
+                    this.socket.onclose = () => {};
+                    this.socket.ondata = () => {};
+                    this.socket.ondrain = () => {};
+                    this.socket.onerror = () => {};
+                }
+
+                resolve();
+            };
+
+            this._disableCompression();
+
+            if (!this.socket || this.socket.readyState !== 'open') {
+                return tearDown();
+            }
+
+            this.socket.onclose = this.socket.onerror = tearDown; // we don't really care about the error here
             this.socket.close();
-        } else {
-            this._destroy();
-        }
+        });
+    };
+
+    ImapClient.prototype.logout = function() {
+        return new Promise((resolve, reject) => {
+            this.socket.onclose = this.socket.onerror = () => {
+                this.close().then(resolve).catch(reject);
+            };
+
+            this.enqueueCommand('LOGOUT');
+        });
     };
 
     /**
      * Closes the connection to the server
      */
-    ImapClient.prototype.upgrade = function(callback) {
-        if (this.secureMode) {
-            return callback(null, false);
-        }
+    ImapClient.prototype.upgrade = function() {
         this.secureMode = true;
         this.socket.upgradeToSecure();
-        callback(null, true);
     };
 
     /**
@@ -289,27 +202,64 @@
      * the value for it is 'FETCH' then the reponse includes 'payload.FETCH' property
      * that is an array including all listed * FETCH responses.
      *
-     * Callback function provides 2 arguments, parsed response object and continue callback.
-     *
-     *   function(response, next){
-     *     console.log(response);
-     *     next();
-     *   }
-     *
      * @param {Object} request Structured request object
      * @param {Array} acceptUntagged a list of untagged responses that will be included in 'payload' property
-     * @param {Object} [options] Optional data for the command payload, eg. {onplustagged: function(response, next){next();}}
-     * @param {Function} callback Callback function to run once the command has been processed
+     * @param {Object} [options] Optional data for the command payload
+     * @returns {Promise} Promise that resolves when the request is done
      */
-    ImapClient.prototype.exec = function(request, acceptUntagged, options, callback) {
-
+    ImapClient.prototype.enqueueCommand = function(request, acceptUntagged, options) {
         if (typeof request === 'string') {
             request = {
                 command: request
             };
         }
-        this._addToClientQueue(request, acceptUntagged, options, callback);
-        return this;
+
+        acceptUntagged = [].concat(acceptUntagged || []).map((untagged) => (untagged || '').toString().toUpperCase().trim());
+
+        var tag = 'W' + (++this._tagCounter);
+        request.tag = tag;
+
+        return new Promise((resolve, reject) => {
+            var data = {
+                tag: tag,
+                request: request,
+                payload: acceptUntagged.length ? {} : undefined,
+                callback: (response) => {
+                    if (this.isError(response)) {
+                        return reject(response);
+                    } else if (['NO', 'BAD'].indexOf((response && response.command || '').toString().toUpperCase().trim()) >= 0) {
+                        var error = new Error(response.humanReadable || 'Error');
+                        if (response.code) {
+                            error.code = response.code;
+                        }
+                        return reject(error);
+                    }
+
+                    resolve(response);
+                }
+            };
+
+            // apply any additional options to the command
+            Object.keys(options || {}).forEach((key) => data[key] = options[key]);
+
+            acceptUntagged.forEach((command) => data.payload[command] = []);
+
+            // if we're in priority mode (i.e. we ran commands in a precheck),
+            // queue any commands BEFORE the command that contianed the precheck,
+            // otherwise just queue command as usual
+            var index = data.ctx ? this._clientQueue.indexOf(data.ctx) : -1;
+            if (index >= 0) {
+                data.tag += '.p';
+                data.request.tag += '.p';
+                this._clientQueue.splice(index, 0, data);
+            } else {
+                this._clientQueue.push(data);
+            }
+
+            if (this._canSend) {
+                this._sendRequest();
+            }
+        });
     };
 
     /**
@@ -323,12 +273,12 @@
             timeout = this.TIMEOUT_SOCKET_LOWER_BOUND + Math.floor(buffer.byteLength * this.TIMEOUT_SOCKET_MULTIPLIER);
 
         clearTimeout(this._socketTimeoutTimer); // clear pending timeouts
-        this._socketTimeoutTimer = setTimeout(this._onTimeout.bind(this), timeout); // arm the next timeout
+        this._socketTimeoutTimer = setTimeout(() => this._onError(new Error(this.options.sessionId + ' Socket timed out!')), timeout); // arm the next timeout
 
         if (this.compressed) {
             this._sendCompressed(buffer);
         } else {
-            this.waitDrain = this.socket.send(buffer);
+            this.socket.send(buffer);
         }
     };
 
@@ -341,7 +291,7 @@
      * @param {Function} callback Callback function with response object and continue callback function
      */
     ImapClient.prototype.setHandler = function(command, callback) {
-        this._globalAcceptUntagged[(command || '').toString().toUpperCase().trim()] = callback;
+        this._globalAcceptUntagged[command.toUpperCase().trim()] = callback;
     };
 
     // INTERNAL EVENTS
@@ -353,69 +303,15 @@
      * @param {Event} evt Event object. See evt.data for the error
      */
     ImapClient.prototype._onError = function(evt) {
-        if (this.destroyed) {
-            // ignore errors that happen after we close the connection
-            return;
-        }
-
-        if (this.isError(evt)) {
-            this.onerror(evt);
-        } else if (evt && this.isError(evt.data)) {
-            this.onerror(evt.data);
-        } else {
-            this.onerror(new Error(evt && evt.data && evt.data.message || evt.data || evt || 'Error'));
-        }
-
-        this.close();
-    };
-
-    /**
-     * Ensures that the connection is closed
-     */
-    ImapClient.prototype._destroy = function() {
-        this._serverQueue = [];
-        this._clientQueue = [];
-        this._currentCommand = false;
-
-        clearTimeout(this._idleTimer);
-        clearTimeout(this._socketTimeoutTimer);
-
-        if (!this.destroyed) {
-            this.destroyed = true;
-            this.onclose();
-        }
-    };
-
-    /**
-     * Indicates that the socket has been closed
-     *
-     * @event
-     * @param {Event} evt Event object. Not used
-     */
-    ImapClient.prototype._onClose = function() {
-        this._disableCompression();
-        this._destroy();
-    };
-
-    /**
-     * Indicates that a socket timeout has occurred
-     */
-    ImapClient.prototype._onTimeout = function() {
-        // inform about the timeout, _onError takes case of the rest
-        var error = new Error(this.options.sessionId + ' Socket timed out!');
-        axe.error(DEBUG_TAG, error);
-        this._onError(error);
-    };
-
-    /**
-     * More data can be buffered in the socket, `waitDrain` is reset to false
-     *
-     * @event
-     * @param {Event} evt Event object. Not used
-     */
-    ImapClient.prototype._onDrain = function() {
-        this.waitDrain = false;
-        this.ondrain();
+        this.close().then(() => {
+            if (this.isError(evt)) {
+                this.onerror(evt);
+            } else if (evt && this.isError(evt.data)) {
+                this.onerror(evt.data);
+            } else {
+                this.onerror(new Error(evt && evt.data && evt.data.message || evt.data || evt || 'Error'));
+            }
+        });
     };
 
     /**
@@ -427,265 +323,132 @@
      * @param {Event} evt
      */
     ImapClient.prototype._onData = function(evt) {
-        if (!evt || !evt.data) {
-            return;
-        }
+        clearTimeout(this._socketTimeoutTimer); // clear the timeout, the socket is still up
+        this._incomingBuffer += mimefuncs.fromTypedArray(evt.data); // append to the incoming buffer
+        this._parseIncomingCommands(this._iterateIncomingBuffer());
+    };
 
-        clearTimeout(this._socketTimeoutTimer);
-
-        var match,
-            str = mimefuncs.fromTypedArray(evt.data);
-
-        if (this._literalRemaining) {
-            if (this._literalRemaining > str.length) {
-                this._literalRemaining -= str.length;
-                this._command += str;
+    ImapClient.prototype._iterateIncomingBuffer = function* () {
+        var match;
+        // The input is interesting as long as there are complete lines
+        while ((match = this._incomingBuffer.match(COMMAND_REGEX))) {
+            if (this._literalRemaining && this._literalRemaining > this._incomingBuffer.length) {
+                // we're expecting more incoming literal data than available, wait for the next chunk
                 return;
             }
-            this._command += str.substr(0, this._literalRemaining);
-            str = str.substr(this._literalRemaining);
-            this._literalRemaining = 0;
-        }
-        this._remainder = str = this._remainder + str;
-        while ((match = str.match(/(\{(\d+)(\+)?\})?\r?\n/))) {
 
-            if (!match[2]) {
-                // Now we have a full command line, so lets do something with it
-                this._addToServerQueue(this._command + str.substr(0, match.index));
-
-                this._remainder = str = str.substr(match.index + match[0].length);
-                this._command = '';
+            if (this._literalRemaining) {
+                // we're expecting incoming literal data:
+                // take portion of pending literal data from the chunk, parse the remaining buffer in the next iteration
+                this._command += this._incomingBuffer.substr(0, this._literalRemaining);
+                this._incomingBuffer = this._incomingBuffer.substr(this._literalRemaining);
+                this._literalRemaining = 0;
                 continue;
             }
 
-            this._remainder = '';
-
-            this._command += str.substr(0, match.index + match[0].length);
-
-            this._literalRemaining = Number(match[2]);
-
-            str = str.substr(match.index + match[0].length);
-
-            if (this._literalRemaining > str.length) {
-                this._command += str;
-                this._literalRemaining -= str.length;
-                return;
-            } else {
-                this._command += str.substr(0, this._literalRemaining);
-                this._remainder = str = str.substr(this._literalRemaining);
-                this._literalRemaining = 0;
+            if (match[2]) {
+                // we have a literal data command:
+                // take command portion (match.index) including the literal data octet count (match[0].length)
+                // from the chunk, parse the literal data in the next iteration
+                this._literalRemaining = Number(match[2]);
+                this._command += this._incomingBuffer.substr(0, match.index + match[0].length);
+                this._incomingBuffer = this._incomingBuffer.substr(match.index + match[0].length);
+                continue;
             }
+
+            // we have a complete command, pass on to processing
+            this._command += this._incomingBuffer.substr(0, match.index);
+            this._incomingBuffer = this._incomingBuffer.substr(match.index + match[0].length);
+            yield this._command;
+
+            this._command = ''; // clear for next iteration
         }
     };
 
-    /**
-     * Connection listener that is run when the connection to the server is opened.
-     * Sets up different event handlers for the opened socket
-     *
-     * @event
-     */
-    ImapClient.prototype._onOpen = function() {
-        axe.debug(DEBUG_TAG, this.options.sessionId + ' tcp socket opened');
-        this.socket.ondata = this._onData.bind(this);
-        this.socket.onclose = this._onClose.bind(this);
-        this.socket.ondrain = this._onDrain.bind(this);
-    };
+
 
     // PRIVATE METHODS
 
     /**
-     * Pushes command line from the server to the server processing queue. If the
-     * processor is idle, start processing.
-     *
-     * @param {String} cmd Command line
-     */
-    ImapClient.prototype._addToServerQueue = function(cmd) {
-        this._serverQueue.push(cmd);
-
-        if (this._processingServerData) {
-            return;
-        }
-
-        this._processingServerData = true;
-        this._processServerQueue();
-    };
-
-    /**
      * Process a command from the queue. The command is parsed and feeded to a handler
      */
-    ImapClient.prototype._processServerQueue = function() {
-        if (!this._serverQueue.length) {
-            this._processingServerData = false;
-            return;
-        } else {
-            this._clearIdle();
-        }
+    ImapClient.prototype._parseIncomingCommands = function(commands) {
+        for (var command of commands) {
+            this._clearIdle(); // TODO the way idle is handled is highly questionable
 
-        var data = this._serverQueue.shift(),
-            response;
-
-        try {
-            // + tagged response is a special case, do not try to parse it
-            if (/^\+/.test(data)) {
-                response = {
-                    tag: '+',
-                    payload: data.substr(2) || ''
-                };
-            } else {
-                response = imapHandler.parser(data);
-                axe.debug(DEBUG_TAG, this.options.sessionId + ' S: ' + imapHandler.compiler(response, false, true));
+            /*
+             * The "+"-tagged response is a special case:
+             * Either the server can asks for the next chunk of data, e.g. for the AUTHENTICATE command.
+             *
+             * Or there was an error in the XOAUTH2 authentication, for which SASL initial client response extension
+             * dictates the client sends an empty EOL response to the challenge containing the error message.
+             *
+             * Details on "+"-tagged response:
+             *   https://tools.ietf.org/html/rfc3501#section-2.2.1
+             */
+            //
+            if (/^\+/.test(command)) {
+                if (this._currentCommand.data.length) {
+                    // feed the next chunk of data
+                    var chunk = this._currentCommand.data.shift();
+                    chunk += (!this._currentCommand.data.length ? EOL : ''); // EOL if there's nothing more to send
+                    this.send(chunk);
+                } else if (typeof this._currentCommand.errorResponseExpectsEmptyLine) {
+                    this.send(EOL); // XOAUTH2 empty response, error will be reported when server continues with NO response
+                }
+                continue;
             }
-        } catch (e) {
-            axe.error(DEBUG_TAG, this.options.sessionId + ' error parsing imap response: ' + e + '\n' + e.stack + '\nraw:' + data);
-            return this._onError(e);
-        }
 
-        if (response.tag === '*' &&
-            /^\d+$/.test(response.command) &&
-            response.attributes && response.attributes.length && response.attributes[0].type === 'ATOM') {
-            response.nr = Number(response.command);
-            response.command = (response.attributes.shift().value || '').toString().toUpperCase().trim();
-        }
-
-        // feed the next chunk to the server if a + tagged response was received
-        if (response.tag === '+') {
-            if (this._currentCommand.data.length) {
-                data = this._currentCommand.data.shift();
-                this.send(data + (!this._currentCommand.data.length ? '\r\n' : ''));
-            } else if (typeof this._currentCommand.onplustagged === 'function') {
-                this._currentCommand.onplustagged(response, this._processServerQueue.bind(this));
-                return;
+            var response;
+            try {
+                response = imapHandler.parser(command);
+                // console.log(this.options.sessionId + ' S: ' + imapHandler.compiler(response, false, true));
+            } catch (e) {
+                console.error(this.options.sessionId + ' error parsing imap response: ' + e + '\n' + e.stack + '\nraw:' + command);
+                return this._onError(e);
             }
-            setTimeout(this._processServerQueue.bind(this), 0);
-            return;
-        }
 
-        this._processServerResponse(response, function(err) {
-            if (err) {
-                return this._onError(err);
-            }
+            this._processResponse(response);
+            this._handleResponse(response);
 
             // first response from the server, connection is now usable
             if (!this._connectionReady) {
                 this._connectionReady = true;
                 this.onready();
-                this._canSend = true;
-                this._sendRequest();
-            } else if (response.tag !== '*') {
-                // allow sending next command after full response
-                this._canSend = true;
-                this._sendRequest();
             }
-
-            setTimeout(this._processServerQueue.bind(this), 0);
-        }.bind(this));
+        }
     };
 
     /**
      * Feeds a parsed response object to an appropriate handler
      *
      * @param {Object} response Parsed command object
-     * @param {Function} callback Continue callback function
      */
-    ImapClient.prototype._processServerResponse = function(response, callback) {
+    ImapClient.prototype._handleResponse = function(response) {
         var command = (response && response.command || '').toUpperCase().trim();
 
-        this._processResponse(response);
-
         if (!this._currentCommand) {
+            // unsolicited untagged response
             if (response.tag === '*' && command in this._globalAcceptUntagged) {
-                return this._globalAcceptUntagged[command](response, callback);
-            } else {
-                return callback();
+                this._globalAcceptUntagged[command](response);
+                this._canSend = true;
+                this._sendRequest();
             }
-        }
-
-        if (this._currentCommand.payload && response.tag === '*' && command in this._currentCommand.payload) {
-
+        } else if (this._currentCommand.payload && response.tag === '*' && command in this._currentCommand.payload) {
+            // expected untagged response
             this._currentCommand.payload[command].push(response);
-            return callback();
-
         } else if (response.tag === '*' && command in this._globalAcceptUntagged) {
-
-            this._globalAcceptUntagged[command](response, callback);
-
+            // unexpected untagged response
+            this._globalAcceptUntagged[command](response);
+            this._canSend = true;
+            this._sendRequest();
         } else if (response.tag === this._currentCommand.tag) {
-
-            if (typeof this._currentCommand.callback === 'function') {
-
-                if (this._currentCommand.payload && Object.keys(this._currentCommand.payload).length) {
-                    response.payload = this._currentCommand.payload;
-                }
-
-                return this._currentCommand.callback(response, callback);
-            } else {
-                return callback();
+            // tagged response
+            if (this._currentCommand.payload && Object.keys(this._currentCommand.payload).length) {
+                response.payload = this._currentCommand.payload;
             }
-
-        } else {
-            // Unexpected response
-            return callback();
-        }
-    };
-
-    /**
-     * Adds a request object to outgoing queue. And if data can be sent to the server,
-     * the command is executed
-     *
-     * @param {Object} request Structured request object
-     * @param {Array} [acceptUntagged] a list of untagged responses that will be included in 'payload' property
-     * @param {Object} [options] Optional data for the command payload, eg. {onplustagged: function(response, next){next();}}
-     * @param {Function} callback Callback function to run once the command has been processed
-     */
-    ImapClient.prototype._addToClientQueue = function(request, acceptUntagged, options, callback) {
-        var tag = 'W' + (++this._tagCounter),
-            data;
-
-        if (!callback && typeof options === 'function') {
-            callback = options;
-            options = undefined;
-        }
-
-        if (!callback && typeof acceptUntagged === 'function') {
-            callback = acceptUntagged;
-            acceptUntagged = undefined;
-        }
-
-        acceptUntagged = [].concat(acceptUntagged || []).map(function(untagged) {
-            return (untagged || '').toString().toUpperCase().trim();
-        });
-
-        request.tag = tag;
-
-        data = {
-            tag: tag,
-            request: request,
-            payload: acceptUntagged.length ? {} : undefined,
-            callback: callback
-        };
-
-        // apply any additional options to the command
-        Object.keys(options || {}).forEach(function(key) {
-            data[key] = options[key];
-        });
-
-        acceptUntagged.forEach(function(command) {
-            data.payload[command] = [];
-        });
-
-        // if we're in priority mode (i.e. we ran commands in a precheck),
-        // queue any commands BEFORE the command that contianed the precheck,
-        // otherwise just queue command as usual
-        var index = data.ctx ? this._clientQueue.indexOf(data.ctx) : -1;
-        if (index >= 0) {
-            data.tag += '.p';
-            data.request.tag += '.p';
-            this._clientQueue.splice(index, 0, data);
-        } else {
-            this._clientQueue.push(data);
-        }
-
-        if (this._canSend) {
+            this._currentCommand.callback(response);
+            this._canSend = true;
             this._sendRequest();
         }
     };
@@ -712,18 +475,14 @@
             // we need to restart the queue handling if no operation was made in the precheck
             this._restartQueue = true;
 
-            // invoke the precheck command with a callback to signal that you're
-            // done with precheck and ready to resume normal operation
-            precheck(context, function(err) {
+            // invoke the precheck command and resume normal operation after the promise resolves
+            precheck(context).then(() => {
                 // we're done with the precheck
-                if (!err) {
-                    if (this._restartQueue) {
-                        // we need to restart the queue handling
-                        this._sendRequest();
-                    }
-                    return;
+                if (this._restartQueue) {
+                    // we need to restart the queue handling
+                    this._sendRequest();
                 }
-
+            }).catch((err) => {
                 // precheck callback failed, so we remove the initial command
                 // from the queue, invoke its callback and resume normal operation
                 var cmd, index = this._clientQueue.indexOf(context);
@@ -731,13 +490,13 @@
                     cmd = this._clientQueue.splice(index, 1)[0];
                 }
                 if (cmd && cmd.callback) {
-                    cmd.callback(err, function() {
+                    cmd.callback(err, () => {
                         this._canSend = true;
                         this._sendRequest();
-                        setTimeout(this._processServerQueue.bind(this), 0);
-                    }.bind(this));
+                        setTimeout(() => this._processServerQueue(), 0);
+                    });
                 }
-            }.bind(this));
+            });
             return;
         }
 
@@ -749,14 +508,14 @@
             this._currentCommand.data = imapHandler.compiler(this._currentCommand.request, true);
             loggedCommand = imapHandler.compiler(this._currentCommand.request, false, true);
         } catch (e) {
-            axe.error(DEBUG_TAG, this.options.sessionId + ' error compiling imap command: ' + e + '\nstack trace: ' + e.stack + '\nraw:' + this._currentCommand.request);
+            console.error(this.options.sessionId + ' error compiling imap command: ' + e + '\nstack trace: ' + e.stack + '\nraw:' + this._currentCommand.request);
             return this._onError(e);
         }
 
-        axe.debug(DEBUG_TAG, this.options.sessionId + ' C: ' + loggedCommand);
+        // console.log(this.options.sessionId + ' C: ' + loggedCommand);
         var data = this._currentCommand.data.shift();
 
-        this.send(data + (!this._currentCommand.data.length ? '\r\n' : ''));
+        this.send(data + (!this._currentCommand.data.length ? EOL : ''));
         return this.waitDrain;
     };
 
@@ -765,9 +524,7 @@
      */
     ImapClient.prototype._enterIdle = function() {
         clearTimeout(this._idleTimer);
-        this._idleTimer = setTimeout(function() {
-            this.onidle();
-        }.bind(this), this.TIMEOUT_ENTER_IDLE);
+        this._idleTimer = setTimeout(() => this.onidle(), this.TIMEOUT_ENTER_IDLE);
     };
 
     /**
@@ -777,10 +534,10 @@
         clearTimeout(this._idleTimer);
     };
 
-    // HELPER FUNCTIONS
-
     /**
-     * Method checks if a response includes optional response codes
+     * Method processes a response into an easier to handle format.
+     * Add untagged numbered responses (e.g. FETCH) into a nicely feasible form
+     * Checks if a response includes optional response codes
      * and copies these into separate properties. For example the
      * following response includes a capability listing and a human
      * readable message:
@@ -799,39 +556,47 @@
             option,
             key;
 
-        if (['OK', 'NO', 'BAD', 'BYE', 'PREAUTH'].indexOf(command) >= 0) {
-            // Check if the response includes an optional response code
-            if (
-                (option = response && response.attributes &&
-                    response.attributes.length && response.attributes[0].type === 'ATOM' &&
-                    response.attributes[0].section && response.attributes[0].section.map(function(key) {
-                        if (!key) {
-                            return;
-                        }
-                        if (Array.isArray(key)) {
-                            return key.map(function(key) {
-                                return (key.value || '').toString().trim();
-                            });
-                        } else {
-                            return (key.value || '').toString().toUpperCase().trim();
-                        }
-                    }))) {
+        // no attributes
+        if (!response || !response.attributes || !response.attributes.length) {
+            return;
+        }
 
-                key = option && option.shift();
+        // untagged responses w/ sequence numbers
+        if (response.tag === '*' && /^\d+$/.test(response.command) && response.attributes[0].type === 'ATOM') {
+            response.nr = Number(response.command);
+            response.command = (response.attributes.shift().value || '').toString().toUpperCase().trim();
+        }
 
-                response.code = key;
+        // no optional response code
+        if (['OK', 'NO', 'BAD', 'BYE', 'PREAUTH'].indexOf(command) < 0) {
+            return;
+        }
 
-                if (option.length) {
-                    option = [].concat(option || []);
-                    response[key.toLowerCase()] = option.length === 1 ? option[0] : option;
+        // If last element of the response is TEXT then this is for humans
+        if (response.attributes[response.attributes.length - 1].type === 'TEXT') {
+            response.humanReadable = response.attributes[response.attributes.length - 1].value;
+        }
+
+        // Parse and format ATOM values
+        if (response.attributes[0].type === 'ATOM' && response.attributes[0].section) {
+            option = response.attributes[0].section.map((key) => {
+                if (!key) {
+                    return;
                 }
-            }
+                if (Array.isArray(key)) {
+                    return key.map((key) => (key.value || '').toString().trim());
+                } else {
+                    return (key.value || '').toString().toUpperCase().trim();
+                }
+            });
 
-            // If last element of the response is TEXT then this is for humans
-            if (response && response.attributes && response.attributes.length &&
-                response.attributes[response.attributes.length - 1].type === 'TEXT') {
+            key = option.shift();
+            response.code = key;
 
-                response.humanReadable = response.attributes[response.attributes.length - 1].value;
+            if (option.length === 1) {
+                response[key.toLowerCase()] = option[0];
+            } else if (option.length > 1) {
+                response[key.toLowerCase()] = option;
             }
         }
     };
@@ -859,10 +624,10 @@
 
             //
             // web worker support
-            // 
+            //
 
             this._compressionWorker = new Worker(this._workerPath);
-            this._compressionWorker.onmessage = function(e) {
+            this._compressionWorker.onmessage = (e) => {
                 var message = e.data.message,
                     buffer = e.data.buffer;
 
@@ -878,13 +643,13 @@
                         break;
 
                 }
-            }.bind(this);
+            };
 
-            this._compressionWorker.onerror = function(e) {
+            this._compressionWorker.onerror = (e) => {
                 var error = new Error('Error handling compression web worker: Line ' + e.lineno + ' in ' + e.filename + ': ' + e.message);
-                axe.error(DEBUG_TAG, error);
+                console.error(error);
                 this._onError(error);
-            }.bind(this);
+            };
 
             // first message starts the worker
             this._compressionWorker.postMessage(this._createMessage(MESSAGE_START));
@@ -893,27 +658,27 @@
 
             //
             // without web worker support
-            // 
+            //
 
-            this._compression.inflatedReady = function(buffer) {
+            this._compression.inflatedReady = (buffer) => {
                 // emit inflated data
                 this._socketOnData({
                     data: buffer
                 });
-            }.bind(this);
+            };
 
-            this._compression.deflatedReady = function(buffer) {
+            this._compression.deflatedReady = (buffer) => {
                 // write deflated data to socket
                 if (!this.compressed) {
                     return;
                 }
 
                 this.waitDrain = this.socket.send(buffer);
-            }.bind(this);
+            };
         }
 
         // override data handler, decompress incoming data
-        this.socket.ondata = function(evt) {
+        this.socket.ondata = (evt) => {
             if (!this.compressed) {
                 return;
             }
@@ -924,7 +689,7 @@
             } else {
                 this._compression.inflate(evt.data);
             }
-        }.bind(this);
+        };
     };
 
 
@@ -936,6 +701,7 @@
         if (!this.compressed) {
             return;
         }
+
         this.compressed = false;
         this.socket.ondata = this._socketOnData;
         this._socketOnData = null;

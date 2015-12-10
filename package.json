@@ -1,15 +1,14 @@
 {
   "name": "browserbox",
-  "version": "0.9.1",
+  "version": "2.0.0",
   "homepage": "https://github.com/whiteout-io/browserbox",
-  "description": "IMAP client for browsers.",
+  "description": "JavaScript IMAP client",
   "author": "Andris Reinman <andris@kreata.ee>",
   "keywords": [
     "IMAP"
   ],
   "license": "MIT",
   "scripts": {
-    "pretest": "cd node_modules/node-forge/ && npm install && npm run minify && cd ../..",
     "test": "grunt"
   },
   "repository": {
@@ -18,30 +17,19 @@
   },
   "main": "src/browserbox",
   "dependencies": {
-    "axe-logger": "~0.0.2",
-    "mimefuncs": "~0.3.4",
-    "tcp-socket": "~0.5.0",
+    "mimefuncs": "^0.3.9",
+    "tcp-socket": "^0.5.5",
     "wo-addressparser": "^0.1.3",
-    "wo-imap-handler": "~0.1.14",
-    "wo-utf7": "~2.0.2"
+    "wo-imap-handler": "^0.1.14",
+    "wo-utf7": "^2.0.2"
   },
   "devDependencies": {
-    "chai": "~3.2.0",
-    "grunt": "~0.4.1",
-    "grunt-mocha-phantomjs": "~1.0.0",
-    "grunt-contrib-connect": "~0.11.0",
-    "grunt-contrib-jshint": "~0.11.2",
-    "grunt-contrib-copy": "^0.8.0",
-    "grunt-contrib-clean": "^0.6.0",
-    "grunt-contrib-watch": "^0.6.1",
-    "mocha": "~2.2.5",
-    "phantomjs": "~1.9.7-1",
-    "requirejs": "~2.1.10",
-    "sinon": "^1.11.0",
-    "hoodiecrow": "^1.1.21",
-    "node-forge": "~0.6.11",
-    "wo-stringencoding": "~0.1.1",
+    "chai": "^3.4.1",
+    "grunt": "^0.4.5",
+    "grunt-contrib-jshint": "^0.11.3",
     "grunt-mocha-test": "^0.12.7",
-    "es6-promise": "^2.0.1"
+    "mocha": "^2.3.3",
+    "sinon": "^1.17.2",
+    "hoodiecrow": "^1.2.0"
   }
 }
