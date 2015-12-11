@@ -22,7 +22,7 @@
     var SESSIONCOUNTER = 0;
 
     /**
-     * High level IMAP client
+     * Browserbox IMAP client
      *
      * @constructor
      *
@@ -80,6 +80,8 @@
 
     /**
      * Initiate connection to the IMAP server
+     *
+     * @returns {Promise} Promise when login procedure is complete
      */
     BrowserBox.prototype.connect = function() {
         return new Promise((resolve, reject) => {
@@ -123,10 +125,14 @@
     /**
      * Logout
      *
-     * Use is discouraged if network status is unclear!
+     * Send LOGOUT, to which the server responds by closing the connection.
+     * Use is discouraged if network status is unclear! If networks status is
+     * unclear, please use #close instead!
      *
      * LOGOUT details:
      *   https://tools.ietf.org/html/rfc3501#section-6.1.3
+     *
+     * @returns {Promise} Resolves when server has closed the connection
      */
     BrowserBox.prototype.logout = function() {
         this._changeState(this.STATE_LOGOUT);
@@ -137,7 +143,9 @@
     };
 
     /**
-     * Force-closes the current connection
+     * Force-closes the current connection by closing the TCP socket.
+     *
+     * @returns {Promise} Resolves when socket is closed
      */
     BrowserBox.prototype.close = function() {
         this._changeState(this.STATE_LOGOUT);
@@ -147,14 +155,13 @@
     };
 
     /**
-     * Runs ID command. Retrieves server ID
+     * Runs ID command, parses ID response, sets this.serverId
      *
      * ID details:
      *   http://tools.ietf.org/html/rfc2971
      *
-     * Sets this.serverId value
-     *
      * @param {Object} id ID as key value pairs. See http://tools.ietf.org/html/rfc2971#section-3.3 for possible values
+     * @returns {Promise} Resolves when response has been parsed
      */
     BrowserBox.prototype.updateId = function(id) {
         if (this._capability.indexOf('ID') < 0) {
@@ -259,6 +266,8 @@
      *
      * NAMESPACE details:
      *   https://tools.ietf.org/html/rfc2342
+     *
+     * @returns {Promise} Promise with namespace object
      */
     BrowserBox.prototype.listNamespaces = function() {
         if (this._capability.indexOf('NAMESPACE') < 0) {
@@ -278,6 +287,8 @@
      *   http://tools.ietf.org/html/rfc3501#section-6.3.8
      * LSUB details:
      *   http://tools.ietf.org/html/rfc3501#section-6.3.9
+     *
+     * @returns {Promise} Promise with list of mailboxes
      */
     BrowserBox.prototype.listMailboxes = function() {
         var tree;
@@ -351,9 +362,8 @@
      *     The path of the mailbox you would like to create.  This method will
      *     handle utf7 encoding for you.
      * @returns {Promise}
-     *     Promise return a boolean indicating mailbox was created.
+     *     Promise resolves if mailbox was created.
      *     In the event the server says NO [ALREADYEXISTS], we treat that as success.
-     *     If creation fails, error will have an error value.
      */
     BrowserBox.prototype.createMailbox = function(path) {
         this.logger.debug('Creating mailbox', path, '...');
@@ -377,21 +387,22 @@
      * CHANGEDSINCE details:
      *   https://tools.ietf.org/html/rfc4551#section-3.3
      *
+     * @param {String} path The path for the mailbox which should be selected for the command. Selects mailbox if necessary
      * @param {String} sequence Sequence set, eg 1:* for all messages
      * @param {Object} [items] Message data item names or macro
      * @param {Object} [options] Query modifiers
      * @returns {Promise} Promise with the fetched message info
      */
-    BrowserBox.prototype.listMessages = function(folder, sequence, items, options) {
+    BrowserBox.prototype.listMessages = function(path, sequence, items, options) {
         items = items || [{
             fast: true
         }];
         options = options || {};
 
-        this.logger.debug('Fetching messages', sequence, 'from', folder, '...');
+        this.logger.debug('Fetching messages', sequence, 'from', path, '...');
         var command = this._buildFETCHCommand(sequence, items, options);
         return this.exec(command, 'FETCH', {
-            precheck: (ctx) => (this._selectedMailbox === folder) ? Promise.resolve() : this.selectMailbox(folder, { ctx: ctx })
+            precheck: (ctx) => (this._selectedMailbox === path) ? Promise.resolve() : this.selectMailbox(path, { ctx: ctx })
         }).then((response) => this._parseFETCH(response));
     };
 
@@ -401,17 +412,18 @@
      * SEARCH details:
      *   http://tools.ietf.org/html/rfc3501#section-6.4.4
      *
+     * @param {String} path The path for the mailbox which should be selected for the command. Selects mailbox if necessary
      * @param {Object} query Search terms
      * @param {Object} [options] Query modifiers
      * @returns {Promise} Promise with the array of matching seq. or uid numbers
      */
-    BrowserBox.prototype.search = function(folder, query, options) {
+    BrowserBox.prototype.search = function(path, query, options) {
         options = options || {};
 
-        this.logger.debug('Searching in', folder, '...');
+        this.logger.debug('Searching in', path, '...');
         var command = this._buildSEARCHCommand(query, options);
         return this.exec(command, 'SEARCH', {
-            precheck: (ctx) => (this._selectedMailbox === folder) ? Promise.resolve() : this.selectMailbox(folder, { ctx: ctx })
+            precheck: (ctx) => (this._selectedMailbox === path) ? Promise.resolve() : this.selectMailbox(path, { ctx: ctx })
         }).then((response) => this._parseSEARCH(response));
     };
 
@@ -421,12 +433,13 @@
      * STORE details:
      *   http://tools.ietf.org/html/rfc3501#section-6.4.6
      *
+     * @param {String} path The path for the mailbox which should be selected for the command. Selects mailbox if necessary
      * @param {String} sequence Message selector which the flag change is applied to
      * @param {Array} flags
      * @param {Object} [options] Query modifiers
      * @returns {Promise} Promise with the array of matching seq. or uid numbers
      */
-    BrowserBox.prototype.setFlags = function(folder, sequence, flags, options) {
+    BrowserBox.prototype.setFlags = function(path, sequence, flags, options) {
         var key = '';
         var list = [];
 
@@ -444,8 +457,8 @@
             list = [].concat(flags.remove || []);
         }
 
-        this.logger.debug('Setting flags on', sequence, 'in', folder, '...');
-        return this.store(folder, sequence, key + 'FLAGS', list, options);
+        this.logger.debug('Setting flags on', sequence, 'in', path, '...');
+        return this.store(path, sequence, key + 'FLAGS', list, options);
     };
 
     /**
@@ -454,18 +467,19 @@
      * STORE details:
      *   http://tools.ietf.org/html/rfc3501#section-6.4.6
      *
+     * @param {String} path The path for the mailbox which should be selected for the command. Selects mailbox if necessary
      * @param {String} sequence Message selector which the flag change is applied to
      * @param {String} action STORE method to call, eg "+FLAGS"
      * @param {Array} flags
      * @param {Object} [options] Query modifiers
      * @returns {Promise} Promise with the array of matching seq. or uid numbers
      */
-    BrowserBox.prototype.store = function(folder, sequence, action, flags, options) {
+    BrowserBox.prototype.store = function(path, sequence, action, flags, options) {
         options = options || {};
 
         var command = this._buildSTORECommand(sequence, action, flags, options);
         return this.exec(command, 'FETCH', {
-            precheck: (ctx) => (this._selectedMailbox === folder) ? Promise.resolve() : this.selectMailbox(folder, { ctx: ctx })
+            precheck: (ctx) => (this._selectedMailbox === path) ? Promise.resolve() : this.selectMailbox(path, { ctx: ctx })
         }).then((response) => this._parseFETCH(response));
     };
 
@@ -521,18 +535,17 @@
      * NB! This method might be destructive - if EXPUNGE is used, then any messages
      * with \Deleted flag set are deleted
      *
-     * Callback returns an error if the operation failed
-     *
+     * @param {String} path The path for the mailbox which should be selected for the command. Selects mailbox if necessary
      * @param {String} sequence Message range to be deleted
      * @param {Object} [options] Query modifiers
      * @returns {Promise} Promise
      */
-    BrowserBox.prototype.deleteMessages = function(folder, sequence, options) {
+    BrowserBox.prototype.deleteMessages = function(path, sequence, options) {
         options = options || {};
 
         // add \Deleted flag to the messages and run EXPUNGE or UID EXPUNGE
-        this.logger.debug('Deleting messages', sequence, 'in', folder, '...');
-        return this.setFlags(folder, sequence, {
+        this.logger.debug('Deleting messages', sequence, 'in', path, '...');
+        return this.setFlags(path, sequence, {
             add: '\\Deleted'
         }, options).then(() => {
             var cmd;
@@ -548,7 +561,7 @@
                 cmd = 'EXPUNGE';
             }
             return this.exec(cmd, null, {
-                precheck: (ctx) => (this._selectedMailbox === folder) ? Promise.resolve() : this.selectMailbox(folder, { ctx: ctx })
+                precheck: (ctx) => (this._selectedMailbox === path) ? Promise.resolve() : this.selectMailbox(path, { ctx: ctx })
             });
         });
     };
@@ -560,16 +573,17 @@
      * COPY details:
      *   http://tools.ietf.org/html/rfc3501#section-6.4.7
      *
+     * @param {String} path The path for the mailbox which should be selected for the command. Selects mailbox if necessary
      * @param {String} sequence Message range to be copied
      * @param {String} destination Destination mailbox path
      * @param {Object} [options] Query modifiers
      * @param {Boolean} [options.byUid] If true, uses UID COPY instead of COPY
      * @returns {Promise} Promise
      */
-    BrowserBox.prototype.copyMessages = function(folder, sequence, destination, options) {
+    BrowserBox.prototype.copyMessages = function(path, sequence, destination, options) {
         options = options || {};
 
-        this.logger.debug('Copying messages', sequence, 'from', folder, 'to', destination, '...');
+        this.logger.debug('Copying messages', sequence, 'from', path, 'to', destination, '...');
         return this.exec({
             command: options.byUid ? 'UID COPY' : 'COPY',
             attributes: [{
@@ -580,7 +594,7 @@
                 value: destination
             }]
         }, null, {
-            precheck: (ctx) => (this._selectedMailbox === folder) ? Promise.resolve() : this.selectMailbox(folder, { ctx: ctx })
+            precheck: (ctx) => (this._selectedMailbox === path) ? Promise.resolve() : this.selectMailbox(path, { ctx: ctx })
         }).then((response) => (response.humanReadable || 'COPY completed'));
     };
 
@@ -592,22 +606,21 @@
      * MOVE details:
      *   http://tools.ietf.org/html/rfc6851
      *
-     * Callback returns an error if the operation failed
-     *
+     * @param {String} path The path for the mailbox which should be selected for the command. Selects mailbox if necessary
      * @param {String} sequence Message range to be moved
      * @param {String} destination Destination mailbox path
      * @param {Object} [options] Query modifiers
      * @returns {Promise} Promise
      */
-    BrowserBox.prototype.moveMessages = function(folder, sequence, destination, options) {
+    BrowserBox.prototype.moveMessages = function(path, sequence, destination, options) {
         options = options || {};
 
-        this.logger.debug('Moving messages', sequence, 'from', folder, 'to', destination, '...');
+        this.logger.debug('Moving messages', sequence, 'from', path, 'to', destination, '...');
 
         if (this._capability.indexOf('MOVE') === -1) {
             // Fallback to COPY + EXPUNGE
-            return this.copyMessages(folder, sequence, destination, options).then(() => {
-                return this.deleteMessages(folder, sequence, options);
+            return this.copyMessages(path, sequence, destination, options).then(() => {
+                return this.deleteMessages(path, sequence, options);
             });
         }
 
@@ -622,7 +635,7 @@
                 value: destination
             }]
         }, ['OK'], {
-            precheck: (ctx) => (this._selectedMailbox === folder) ? Promise.resolve() : this.selectMailbox(folder, { ctx: ctx })
+            precheck: (ctx) => (this._selectedMailbox === path) ? Promise.resolve() : this.selectMailbox(path, { ctx: ctx })
         });
     };
 

@@ -36,8 +36,6 @@
      * @param {String} [options.compressionWorkerPath] offloads de-/compression computation to a web worker, this is the path to the browserified browserbox-compressor-worker.js
      */
     function ImapClient(host, port, options) {
-        this._TCPSocket = TCPSocket;
-
         this.options = options || {};
 
         this.port = port || (this.options.useSecureTransport ? 993 : 143);
@@ -106,10 +104,17 @@
 
     /**
      * Initiate a connection to the server. Wait for onready event
+     *
+     * @param {Object} Socket
+     *     TESTING ONLY! The TCPSocket has a pretty nonsensical convenience constructor,
+     *     which makes it hard to mock. For dependency-injection purposes, we use the
+     *     Socket parameter to pass in a mock Socket implementation. Should be left blank
+     *     in production use!
+     * @returns {Promise} Resolves when socket is opened
      */
-    ImapClient.prototype.connect = function() {
+    ImapClient.prototype.connect = function(Socket) {
         return new Promise((resolve, reject) => {
-            this.socket = this._TCPSocket.open(this.host, this.port, {
+            this.socket = (Socket || TCPSocket).open(this.host, this.port, {
                 binaryType: 'arraybuffer',
                 useSecureTransport: this.secureMode,
                 ca: this.options.ca,
@@ -141,6 +146,8 @@
 
     /**
      * Closes the connection to the server
+     *
+     * @returns {Promise} Resolves when the socket is closed
      */
     ImapClient.prototype.close = function() {
         return new Promise((resolve) => {
@@ -172,6 +179,13 @@
         });
     };
 
+    /**
+     * Send LOGOUT to the server.
+     *
+     * Use is discouraged!
+     *
+     * @returns {Promise} Resolves when connection is closed by server.
+     */
     ImapClient.prototype.logout = function() {
         return new Promise((resolve, reject) => {
             this.socket.onclose = this.socket.onerror = () => {
@@ -183,7 +197,7 @@
     };
 
     /**
-     * Closes the connection to the server
+     * Initiates TLS handshake
      */
     ImapClient.prototype.upgrade = function() {
         this.secureMode = true;
@@ -191,9 +205,9 @@
     };
 
     /**
-     * Schedules a command to be sent to the server. This method is chainable.
+     * Schedules a command to be sent to the server.
      * See https://github.com/Kreata/imapHandler for request structure.
-     * Do not provide a tag property, it will be set byt the queue manager.
+     * Do not provide a tag property, it will be set by the queue manager.
      *
      * To catch untagged responses use acceptUntagged property. For example, if
      * the value for it is 'FETCH' then the reponse includes 'payload.FETCH' property
@@ -202,7 +216,7 @@
      * @param {Object} request Structured request object
      * @param {Array} acceptUntagged a list of untagged responses that will be included in 'payload' property
      * @param {Object} [options] Optional data for the command payload
-     * @returns {Promise} Promise that resolves when the request is done
+     * @returns {Promise} Promise that resolves when the corresponding response was received
      */
     ImapClient.prototype.enqueueCommand = function(request, acceptUntagged, options) {
         if (typeof request === 'string') {
@@ -327,7 +341,7 @@
     ImapClient.prototype._onData = function(evt) {
         clearTimeout(this._socketTimeoutTimer); // clear the timeout, the socket is still up
         this._incomingBuffer += mimefuncs.fromTypedArray(evt.data); // append to the incoming buffer
-        this._parseIncomingCommands(this._iterateIncomingBuffer());
+        this._parseIncomingCommands(this._iterateIncomingBuffer()); // Consume the incoming buffer
     };
 
     ImapClient.prototype._iterateIncomingBuffer = function* () {
@@ -372,11 +386,11 @@
     // PRIVATE METHODS
 
     /**
-     * Process a command from the queue. The command is parsed and feeded to a handler
+     * Processes a command from the queue. The command is parsed and feeded to a handler
      */
     ImapClient.prototype._parseIncomingCommands = function(commands) {
         for (var command of commands) {
-            this._clearIdle(); // TODO the way idle is handled is highly questionable
+            this._clearIdle();
 
             /*
              * The "+"-tagged response is a special case:
@@ -485,7 +499,7 @@
                     this._sendRequest();
                 }
             }).catch((err) => {
-                // precheck callback failed, so we remove the initial command
+                // precheck failed, so we remove the initial command
                 // from the queue, invoke its callback and resume normal operation
                 var cmd, index = this._clientQueue.indexOf(context);
                 if (index >= 0) {

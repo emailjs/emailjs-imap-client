@@ -27,7 +27,7 @@
                 error: () => {}
             };
 
-            var TCPSocket = client._TCPSocket = function() {};
+            var TCPSocket = function() {};
             TCPSocket.open = () => {};
             TCPSocket.prototype.close = () => {};
             TCPSocket.prototype.send = () => {};
@@ -38,7 +38,7 @@
             socketStub = sinon.createStubInstance(TCPSocket);
             sinon.stub(TCPSocket, 'open').withArgs(host, port).returns(socketStub);
 
-            client.connect().then(() => {
+            client.connect(TCPSocket).then(() => {
                 expect(TCPSocket.open.callCount).to.equal(1);
 
                 expect(socketStub.onerror).to.exist;
