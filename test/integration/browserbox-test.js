@@ -362,7 +362,31 @@
                     }).then(done).catch(done);
                 });
             });
+
+            describe('precheck', () => {
+                it('should handle precheck error correctly', (done) => {
+                    // simulates a broken search command
+                    var search = (query, options) => {
+                        var command = imap._buildSEARCHCommand(query, options);
+                        return imap.exec(command, 'SEARCH', {
+                            precheck: () => Promise.reject(new Error('FOO'))
+                        }).then((response) => imap._parseSEARCH(response));
+                    };
+
+                    imap.selectMailbox('inbox').then(() => {
+                        return search({
+                            header: ['subject', 'hello 3']
+                        }, {});
+                    }).catch((err) => {
+                        expect(err.message).to.equal('FOO');
+                        return imap.selectMailbox('[Gmail]/Spam').then(() => {
+                            done();
+                        }).catch(done);
+                    });
+                });
+            });
         });
+
 
         describe('Timeout', () => {
 

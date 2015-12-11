@@ -506,11 +506,10 @@
                     cmd = this._clientQueue.splice(index, 1)[0];
                 }
                 if (cmd && cmd.callback) {
-                    cmd.callback(err, () => {
-                        this._canSend = true;
-                        this._sendRequest();
-                        setTimeout(() => this._processServerQueue(), 0);
-                    });
+                    cmd.callback(err);
+                    this._canSend = true;
+                    this._parseIncomingCommands(this._iterateIncomingBuffer()); // Consume the rest of the incoming buffer
+                    this._sendRequest(); // continue sending
                 }
             });
             return;
