@@ -84,6 +84,24 @@ Call `client.connect()` to establish an IMAP connection:
 client.connect().then(() => { /* ready to roll */ });
 ```
 
+## Close connection
+
+There are two ways to close the connection.
+
+The IMAP way is to send the LOGOUT command with `logout()`.
+
+```javascript
+client.logout().then(() => { /* connection terminated */ });
+```
+
+This method doesn't actually terminate the connection, it sends LOGOUT command to the server, to which the server responds by closing the connection.
+
+**The better way** is to force-close the connection with `close()`. This closes the TCP socket and is independent of the network status.
+
+```javascript
+client.close().then(() => { /* connection terminated */ });
+```
+
 ## List mailboxes
 
 List all mailboxes with `listMailboxes()` method
@@ -608,13 +626,17 @@ Command: [MOVE](http://tools.ietf.org/html/rfc6851)
 client.moveMessages('INBOX', '1:5', '[Gmail]/Trash').then(() => { ... });
 ```
 
-## Keeping synchronization with your IMAP server
+## Events
 
-It is recommended to set up some sort of local caching for the messages. IMAP relies on a mixture of mailbox-unique identifiers (UID) and sequence numbers.
+### Keeping synchronization with your IMAP server
 
-### Updates when you have selected a mailbox
+It is recommended to set up some sort of local caching for the messages. Please note that IMAP relies on a mixture of mailbox-unique identifiers (UID) and sequence numbers, so a mapping between both is definitely recommended.
 
-Your IMAP server sends you updates when something happens in the mailbox you have currently open. Message updates can be listened for by setting the `onupdate` handler. First argument for the callback defines the update type, and the second one is the new value.
+There are two kinds of updates: 1) When something happens in the currently selected mailbox, and 2) when you select a mailbox
+
+#### Updates for the selected mailbox
+
+Your IMAP server sends you updates when something happens in the mailbox you have currently selected. Message updates can be listened for by setting the `onupdate` handler. First argument for the callback is the path, the second is the update type, and the third one is the new value.
 
 **Example**
 
@@ -635,12 +657,9 @@ client.onupdate = function(path, type, value){
 }
 ```
 
-  * **expunge** is emitted on untagged `EXPUNGE` response, `value` is the sequence number of the deleted message
-  * **fetch** is emitted on flag change. `value` includes the parsed message object ()
+#### Mailbox change notifications
 
-## Mailbox change notifications
-
-Listening mailbox select notification is done by setting the `onselectmailbox` and `onclosemailbox` handlers.
+For your everyday tasks, this client doesn't really require you to explicitly select a mailbox, even though having an eye on which mailbox is selected is useful to receive untagged updates. When a mailbox is opened or closed, the `onselectmailbox` and `onclosemailbox` handlers are called.
 
 For `onselectmailbox` handler the first argument is the path of the selected mailbox and the second argument
 is the mailbox information object (see [selectMailbox](#select-mailbox)).
@@ -659,61 +678,47 @@ client.onclosemailbox = function(path){
 }
 ```
 
-## Close connection
-
-You can close the connection with `close()`. This method doesn't actually terminate the connection, it sends LOGOUT command to the server.
-
-```javascript
-client.close();
-```
-
-Once the connection is actually closed `onclose` event is fired.
-
-## Events
-
 The IMAP client has several events you can attach to by setting a listener
 
-### onerror
+### Handling fatal error event
 
-Indicates an irrecoverable error. When `onerror` is fired, the connection is already closed, hence there's no need for further cleanup.
+The invocation of `onerror` indicates an irrecoverable error. When `onerror` is fired, the connection is already closed, hence there's no need for further cleanup.
 
 **NB! This handler is mandatory!**
 
-TODO
-this.oncert = () => {};
-this.onupdate = () => {};
-this.onselectmailbox = () => {};
-this.onclosemailbox = () => {};
+### TCP-Socket related events
+
+Should you be using the TCP-Socket shim on a platform that has no native support for TLS, the certificate of the remote host is propagated via the `oncert` event. The only argument is the PEM-encoded X.501 TLS certificate, however this doesn't include the whole certificate chain.
 
 ## Get your hands dirty
 
-    git clone git@github.com:whiteout-io/browserbox.git
-    cd browserbox
-    npm install && npm test
-
-To run the integration tests against a local smtp server
-
-    grunt imap
-    add the test folder as a chrome app (chrome settings -> extensions -> check 'developer mode' -> load unpacked extension)
+```
+$ git clone git@github.com:whiteout-io/browserbox.git
+$ cd browserbox
+$ npm install
+$ npm test
+```
 
 ## License
 
-    Copyright (c) 2014 Andris Reinman
+```
+Copyright (c) 2014 Andris Reinman
 
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
