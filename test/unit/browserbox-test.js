@@ -927,22 +927,24 @@
         describe('#_untaggedExistsHandler', () => {
             it('should emit onupdate', () => {
                 sinon.stub(br, 'onupdate');
+                br.selectedMailbox = 'FOO';
 
                 br._untaggedExistsHandler({
                     nr: 123
                 }, () => {});
-                expect(br.onupdate.withArgs('exists', 123).callCount).to.equal(1);
+                expect(br.onupdate.withArgs('FOO', 'exists', 123).callCount).to.equal(1);
             });
         });
 
         describe('#_untaggedExpungeHandler', () => {
             it('should emit onupdate', () => {
                 sinon.stub(br, 'onupdate');
+                br.selectedMailbox = 'FOO';
 
                 br._untaggedExpungeHandler({
                     nr: 123
                 }, () => {});
-                expect(br.onupdate.withArgs('expunge', 123).callCount).to.equal(1);
+                expect(br.onupdate.withArgs('FOO', 'expunge', 123).callCount).to.equal(1);
             });
         });
 
@@ -950,11 +952,12 @@
             it('should emit onupdate', () => {
                 sinon.stub(br, 'onupdate');
                 sinon.stub(br, '_parseFETCH').returns('abc');
+                br.selectedMailbox = 'FOO';
 
                 br._untaggedFetchHandler({
                     nr: 123
                 }, () => {});
-                expect(br.onupdate.withArgs('fetch', 'abc').callCount).to.equal(1);
+                expect(br.onupdate.withArgs('FOO', 'fetch', 'abc').callCount).to.equal(1);
                 expect(br._parseFETCH.args[0][0]).to.deep.equal({
                     payload: {
                         FETCH: [{
@@ -1976,7 +1979,9 @@
         describe('untagged updates', () => {
             it('should receive information about untagged exists', (done) => {
                 br.client._connectionReady = true;
-                br.onupdate = (type, value) => {
+                br.selectedMailbox = 'FOO';
+                br.onupdate = (path, type, value) => {
+                    expect(path).to.equal('FOO');
                     expect(type).to.equal('exists');
                     expect(value).to.equal(123);
                     done();
@@ -1989,7 +1994,9 @@
 
             it('should receive information about untagged expunge', (done) => {
                 br.client._connectionReady = true;
-                br.onupdate = (type, value) => {
+                br.selectedMailbox = 'FOO';
+                br.onupdate = (path, type, value) => {
+                    expect(path).to.equal('FOO');
                     expect(type).to.equal('expunge');
                     expect(value).to.equal(456);
                     done();
@@ -2002,7 +2009,9 @@
 
             it('should receive information about untagged fetch', (done) => {
                 br.client._connectionReady = true;
-                br.onupdate = (type, value) => {
+                br.selectedMailbox = 'FOO';
+                br.onupdate = (path, type, value) => {
+                    expect(path).to.equal('FOO');
                     expect(type).to.equal('fetch');
                     expect(value).to.deep.equal({
                         '#': 123,

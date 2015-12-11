@@ -1,6 +1,6 @@
 # browserbox
 
-IMAP client for browsers
+IMAP client written with ES2015 (ES6).
 
 [![Build Status](https://travis-ci.org/whiteout-io/browserbox.png?branch=master)](https://travis-ci.org/whiteout-io/browserbox)
 
@@ -18,13 +18,6 @@ If forge is used to handle TLS traffic, you may choose to handle the TLS-related
 
 Please take a look at the [tcp-socket documentation](https://github.com/whiteout-io/tcp-socket) for more information!
 
-## Promises
-
-This module uses the Promises API, so make sure your platform either supports `Promise` constructor natively, or use the [es6-promise](https://www.npmjs.com/package/es6-promise) polyfill.
-
-    var ES6Promise = require('es6-promises');
-    ES6Promise.polyfill();
-
 ## Installation
 
 ### [npm](https://www.npmjs.org/):
@@ -37,26 +30,14 @@ This module uses the Promises API, so make sure your platform either supports `P
 
 Require [browserbox.js](src/browserbox.js) as `browserbox`
 
-### Global context
-
-Include following files on the page.
-
-```html
-<script src="browserbox.js"></script>
-<script src="browserbox-imap.js"></script>
-```
-
-This exposes the constructor `BrowserBox` as a global variable
-
 ## API
 
-    var BrowserBox = require('browserbox')
-
-## Create connection to an IMAP server
-
 ```
-new BrowserBox(host[, port][, options]) → IMAP client object
+var BrowserBox = require('browserbox')
+var client = new BrowserBox(host[, port][, options])
 ```
+
+Please note that **instances cannot be reused**! After terminating a connection or encountering an error, please create a new BrowserBox instance!
 
 Where
 
@@ -69,11 +50,11 @@ Where
       * **xoauth2** is the OAuth2 access token to be used instead of password
     * **id** (optional) is the identification object for [RFC2971](http://tools.ietf.org/html/rfc2971#section-3.3) (ex. `{name: 'myclient', version: '1'}`)
     * **useSecureTransport** (optional) enables TLS
-    * **ca** (optional) (only in conjunction with the [TCPSocket shim](https://github.com/whiteout-io/tcp-socket)) if you use TLS with forge, pin a PEM-encoded certificate as a string. Please refer to the [tcp-socket documentation](https://github.com/whiteout-io/tcp-socket) for more information!
-    * **tlsWorkerPath** (optional) (only in conjunction with the [TCPSocket shim](https://github.com/whiteout-io/tcp-socket)) if you use TLS with forge, this path indicates where the file for the TLS Web Worker is located. Please refer to the [tcp-socket documentation](https://github.com/whiteout-io/tcp-socket) for more information!
     * **ignoreTLS** – if set to true, do not call STARTTLS before authentication even if the host advertises support for it
     * **requireTLS** – if set to true, always use STARTTLS before authentication even if the host does not advertise it. If STARTTLS fails, do not try to authenticate the user
     * **enableCompression** - if set to true then use IMAP COMPRESS extension (rfc4978) if the server supports it (Gmail does). All data sent and received in this case is compressed with *deflate*
+    * **ca** (optional) (only in conjunction with the [TCPSocket shim](https://github.com/whiteout-io/tcp-socket)) if you use TLS with forge, pin a PEM-encoded certificate as a string. Please refer to the [tcp-socket documentation](https://github.com/whiteout-io/tcp-socket) for more information!
+    * **tlsWorkerPath** (optional) (only in conjunction with the [TCPSocket shim](https://github.com/whiteout-io/tcp-socket)) if you use TLS with forge, this path indicates where the file for the TLS Web Worker is located. Please refer to the [tcp-socket documentation](https://github.com/whiteout-io/tcp-socket) for more information!
     * **compressionWorkerPath** (optional) offloads de-/compression computation to a web worker, this is the path to the browserified browserbox-compressor-worker.js
 
 Default STARTTLS support is opportunistic – if the server advertises STARTTLS capability, the client tries to use it. If STARTTLS is not advertised, the clients sends passwords in the plain. You can use `ignoreTLS` and `requireTLS` to change this behavior by explicitly enabling or disabling STARTTLS usage.
@@ -85,67 +66,32 @@ var client = new BrowserBox('localhost', 143, {
     auth: {
         user: 'testuser',
         pass: 'testpass'
-    },
-    id: {
-        name: 'My Client',
-        version: '0.1'
     }
 });
 ```
 
 **Use of web workers with compression**: If you use compression, we can spin up a Web Worker to handle the TLS-related computation off the main thread. To do this, you need to **browserify** `browserbox-compressor-worker.js`, specify the path via `options.compressionWorkerPath`
 
+```
+client.onerror = function(error){}
+```
+
 ## Initiate connection
 
-BrowserBox object by default does not initiate the connection, you need to call `client.connect()` to establish it
+Call `client.connect()` to establish an IMAP connection:
 
-    client.connect();
-
-This function does not take any arguments and does not return anything. See the events section to handle connection issues.
-
-## Events
-
-The IMAP client has several events you can attach to by setting a listener
-
-### onerror
-
-Is fired when something unexpected happened.
-
+```javascript
+client.connect().then(() => { /* ready to roll */ });
 ```
-client.onerror = function(err){}
-```
-
-Where
-
-  * **err** is an error object
-
-### onclose
-
-Is fired when the connection to the IMAP server is closed.
-
-```
-client.onclose = function(){}
-```
-
-### onauth
-
-Is fired when the user is successfully authenticated
 
 ## List mailboxes
 
 List all mailboxes with `listMailboxes()` method
 
+```javascript
+client.listMailboxes().then((mailboxes) => { ... })
 ```
-client.listMailboxes(callback)
-```
 
-Where
-
-  * **callback** is the callback function with the following arguments
-    * **err** is an error object, only set if the request failed
-    * **mailboxes** is an object with the mailbox structure
-
-If callback is not specified, the method returns a Promise.
 
 Mailbox object is with the following structure
 
@@ -160,13 +106,7 @@ Mailbox object is with the following structure
   * **flags** (array) a list of flags
   * **children** (array) a list of child mailboxes
 
-Example
-
-```javascript
-client.listMailboxes(function(err, mailboxes){
-    console.log(err || mailboxes);
-});
-```
+Example `mailboxes` object:
 
 ```json
 {
@@ -206,8 +146,6 @@ client.listMailboxes(function(err, mailboxes){
 }
 ```
 
-### Notes
-
 Root level `INBOX` is case insensitive, so all subfolders of INBOX, Inbox etc. are mapped together. The first occurence of `INBOX` defines the `name` property for the parent element. `path` values remain as listed.
 
 For example the following IMAP response lists different INBOX names:
@@ -241,19 +179,7 @@ These different INBOX names are mapped to the following object:
 
 ## List namespaces
 
-List available namespaces with `listNamespaces()`. If [NAMESPACE](https://tools.ietf.org/html/rfc2342) extension is not supported, the method returns `false`.
-
-```javascript
-client.listNamespaces(callback)
-```
-
-Where
-
-  * **callback** is the callback function with the following arguments
-    * **err** is an error object, only set if the request failed
-    * **namespaces** is an object with the namespace values or `false` if NAMESPACE is not supported
-
-If callback is not specified, the method returns a Promise.
+List available namespaces with `listNamespaces()`. If [NAMESPACE](https://tools.ietf.org/html/rfc2342) extension is not supported, the method is a no-op.
 
 Namespace object is with the following structure
 
@@ -270,12 +196,10 @@ Namespace element object has the following structure
 
 Namespaces should be checked before attempting to create new mailboxes - most probably creating mailboxes outside personal namespace fails. For example when the personal namespace is prefixed with 'INBOX.' you can create 'INBOX.Sent Mail' but you can't create 'Sent Mail'.
 
-Example
+Example:
 
 ```javascript
-client.listNamespaces(function(err, namespaces){
-    console.log(err || namespaces);
-});
+client.listNamespaces().then((namespaces) => { ... })
 ```
 
 ```json
@@ -293,12 +217,11 @@ client.listNamespaces(function(err, namespaces){
 
 ## Create mailbox
 
-Create a folder with the given path, automatically handling utf-7 encoding.  You
-currently need to manually build the path string yourself.  (There is potential
-for future enhancement to provide assistance.)
+Create a folder with the given path with `createMailbox(path)`, automatically handling utf-7 encoding. You currently need to manually build the path string yourself.
 
-If the server indicates a failure but that the folder already exists with the
-ALREADYEXISTS response code, the request will be treated as a success.
+If the server indicates a failure that the folder already exists, but responds with the ALREADYEXISTS response code, the request will be treated as a success.
+
+Command: [CREATE](http://tools.ietf.org/html/rfc3501#section-6.3.3)
 
 Example
 
@@ -306,20 +229,15 @@ Example
 // On a server with a personal namesapce of INBOX and a delimiter of '/',
 // create folder Foo.  Note that folders using a non-empty personal namespace
 // may automatically assume the personal namespace.
-client.createMailbox('INBOX/Foo', function callback(err, alreadyExists) {});
-// Do the same on a server where the personal namespace is ''
-client.createMailbox('Foo', function callback(err, alreadyExists) {});
-```
+client.createMailbox('INBOX/Foo').then(() => { ... });
 
-If callback is not specified, the method returns a Promise.
+// Do the same on a server where the personal namespace is ''
+client.createMailbox('Foo').then(() => { ... });
+```
 
 ## Select mailbox
 
-Select specific mailbox by path with `selectMailbox()`
-
-```javascript
-client.selectMailbox(path[, options], callback)
-```
+Select specific mailbox by path with `selectMailbox(path, options)`
 
 Where
 
@@ -327,25 +245,23 @@ Where
   * **options** *optional* options object with the following properties
     * **condstore** if set to `true` adds (CONDSTORE) option when selecting
     * **readOnly** if set to `true` uses `EXAMINE` instead of `SELECT`
-  * **callback** is the callback function with the following arguments
-    * **err** is an error object, only set if the request failed
-    * **mailboxInfo** is an object with mailbox properties
-      * **exists** (number) the count of messages in the selected mailbox
-      * **flags** (array) an array of flags used in the selected mailbox
-      * **permanentFlags** (array) an array of permanent flags available to use in the selected mailbox
-      * **readOnly** (boolean) `true` if the mailbox is in read only mode
-      * **uidValidity** (number) UIDValidity value
-      * **uidNext** (number) predicted next UID value
-      * **highestModseq** (string) (with CONDSTORE only) highest modseq value (javascript can't handle 64bit uints so this is a string)
 
-If callback is not specified, the method returns a Promise.
+Resolves with
+
+  * **mailboxInfo** is an object with mailbox properties
+    * **exists** (number) the count of messages in the selected mailbox
+    * **flags** (array) an array of flags used in the selected mailbox
+    * **permanentFlags** (array) an array of permanent flags available to use in the selected mailbox
+    * **readOnly** (boolean) `true` if the mailbox is in read only mode
+    * **uidValidity** (number) UIDValidity value
+    * **uidNext** (number) predicted next UID value
+    * **highestModseq** (string) (with CONDSTORE only) highest modseq value (javascript can't handle 64bit uints so this is a string)
+
 
 Example
 
 ```javascript
-client.selectMailbox('INBOX', function(err, mailbox){
-    console.log(err || mailbox);
-});
+client.selectMailbox('INBOX').then((mailbox) => { ... });
 ```
 
 ```json
@@ -366,47 +282,35 @@ client.selectMailbox('INBOX', function(err, mailbox){
 }
 ```
 
-You can check the currently selected mailbox path from `client.selectedMailbox`.
-If no mailbox is currently selected, the value is `false`.
-
-```
-console.log('Current mailbox: %s', client.selectedMailbox);
-```
-
 ## List messages
 
-List messages with `listMessages()`
-
-```javascript
-client.listMessages(sequence, query[, options], callback)
-```
+List messages with `listMessages(path, sequence, query[, options])`
 
 Where
 
+  * **path** is the path for the mailbox which should be selected for the command. Selects mailbox prior to executing FETCH if not already selected.
   * **sequence** defines the range of sequence numbers or UID values (if `byUid` option is set to true). Example: '1', '1:*', '1,2:3,4' etc.
   * **query** is an array of keys that need to be fetched. Example: ['uid', 'flags', 'body.peek[headers (date)]']
   * **options** is an optional options object
     * **byUid** if `true` executes `UID FETCH` instead of `FETCH`
     * **changedSince** is the modseq filter. Only messages with higher modseq value will be returned
-  * **callback** is the callback function to run once all me messages are processed with the following arguments
-    * **err** is an error object, only set if the request failed
-    * **messages** is an array of messages from the provided sequence range
 
-If callback is not specified, the method returns a Promise.
+Resolves with
 
-> **A note about sequence ranges** – using `*` as a range selector might be a really bad idea. If the mailbox contains thousands of messages and you are running a `1:*` query, it might choke your application. Additionally, remember that `*` stands for the sequence number of _the last message_ in the mailbox. This means that if you have 10 messages in a mailbox and you run a query for a range of `5000:*` you still get a match as the query is treated as `10:5000` by the server
+  * **messages** is an array of messages from the provided sequence range
+
+> **A note about sequence ranges:** This method does not stream the values, so using `*` as a range selector might be a really bad idea. If the mailbox contains thousands of messages and you are running a `1:*` query, it might choke your application. Additionally, remember that `*` stands for the sequence number of _the last message_ in the mailbox. This means that if you have 10 messages in a mailbox and you run a query for a range of `5000:*` you still get a match as the query is treated as `10:5000` by the server
+
+
+IMAP Commands: [FETCH](http://tools.ietf.org/html/rfc3501#section-6.4.5), [CHANGEDSINCE](https://tools.ietf.org/html/rfc4551#section-3.3)
 
 Example
 
 ```javascript
-client.listMessages('1:10', ['uid', 'flags', 'body[]'], function(err, messages){
-    messages.forEach(function(message){
-        console.log('Flags for ' + message.uid + ': ' + message.flags.join(', '));
-    });
+client.listMessages('1:10', ['uid', 'flags', 'body[]']).then((messages) => {
+    messages.forEach((message) => console.log('Flags for ' + message.uid + ': ' + message.flags.join(', ')));
 });
 ```
-
-**NB!** this method does not stream the values, you need to handle this by yourself by using reasonable sized sequence ranges
 
 ### Message item
 
@@ -449,12 +353,10 @@ An envelope includes the following fields (a value is only included in the respo
 All address fields are in the following format:
 
 ```json
-[
-    {
-        "name": "MIME decoded name",
-        "address": "email@address"
-    }
-]
+[{
+    "name": "MIME decoded name",
+    "address": "email@address"
+}]
 ```
 
 ### Bodystructure object
@@ -518,28 +420,26 @@ multipart/mixed
 
 ## Searching
 
-Search for messages with `search()`
-
-```javascript
-client.search(query[, options], callback)
-```
+Search for messages with `search(path, query[, options])`
 
 Where
 
+  * **path** is the path for the mailbox which should be selected for the command. Selects mailbox prior to executing SEARCH if not already selected.
   * **query** defines the search terms, see below
   * **options** is an optional options object
     * **byUid** if `true` executes `UID SEARCH` instead of `SEARCH`
-  * **callback** is the callback function to run once all me messages are processed with the following arguments
-    * **err** is an error object, only set if the request failed
-    * **results** is an array of sorted and unique message sequence numbers or UID numbers that match the specified search query
 
-If callback is not specified, the method returns a Promise.
+Resolves with
+
+    * **results** is an array of sorted and unique message sequence numbers or UID numbers that match the specified search query
 
 Queries are composed as objects where keys are search terms and values are term arguments.
 Only strings, numbers and Date values are used as arguments.
 If the value is an array, the members of it are processed separately (use this for terms that require multiple params).
 If the value is a Date, it is converted to the form of '1-Jan-1970'.
 Subqueries (OR, NOT) are made up of objects.
+
+Command: [SEARCH](http://tools.ietf.org/html/rfc3501#section-6.4.4)
 
 Examples:
 
@@ -561,74 +461,27 @@ query = {unseen: true, not: {seen: true}}
 ### Example
 
 ```javascript
-client.search({unseen: true}, {byUid: true}, function(err, result){
-    result.forEach(function(uid){
-        console.log('Message ' + uid + ' is unread');
-    });
+client.search({unseen: true}, {byUid: true}).then((result) => {
+    result.forEach((uid) => console.log('Message ' + uid + ' is unread'));
 });
 ```
 
 ## Update flags
 
-Update message flags with `setFlags()`. This is a wrapper around `store()`
-
-```javascript
-client.setFlags(sequence, flags[, options], callback)
-```
+Update message flags with `setFlags(path, sequence, flags[, options])`. This is a wrapper around `store()`
 
 Where
 
+  * **path** is the path for the mailbox which should be selected for the command. Selects mailbox prior to executing if not already selected.
   * **sequence** defines the range of sequence numbers or UID values (if `byUid` option is set to true). Example: '1', '1:*', '1,2:3,4' etc.
   * **flags** is an object defining flag updates, see below for details
   * **options** is an optional options object
     * **byUid** if `true` executes `UID SEARCH` instead of `SEARCH`
     * **silent** if `true` does not return anything. Useful when updating large range of messages at once (`'1:*'`)
-  * **callback** is the callback function to run once all me messages are processed with the following arguments
-    * **err** is an error object, only set if the request failed
+
+Resolves with
+
     * **messages** is an array of messages from the provided sequence range (or empty when `silent:true` option is set). Includes `flags` property and `uid` if `byUid:true` option was used.
-
-If callback is not specified, the method returns a Promise.
-
-## Store
-
-Store flags or labels with `store()`
-
-```javascript
-client.store(sequence, action, flags[, options], callback)
-```
-
-Where
-
-  * **sequence** defines the range of sequence numbers or UID values (if `byUid` option is set to true). Example: '1', '1:*', '1,2:3,4' etc.
-  * **action** is the STORE argument, eg `'FLAGS'` for setting flags
-  * **flags** is an array of flags or labels
-  * **options** is an optional options object
-    * **byUid** if `true` executes `UID SEARCH` instead of `SEARCH`
-    * **silent** if `true` does not return anything. Useful when updating large range of messages at once (`'1:*'`)
-  * **callback** is the callback function to run once all me messages are processed with the following arguments
-    * **err** is an error object, only set if the request failed
-    * **messages** is an array of messages from the provided sequence range (or empty when `silent:true` option is set). Includes `flags` property and `uid` if `byUid:true` option was used.
-
-Possible actions
-
- * **FLAGS** - overwrite message flags with provided ones
- * **+FLAGS** - add provided flags to message flags
- * **-FLAGS** - remove provided flags from message flags
- * **X-GM-LABELS** - overwrite message labels with provided ones
- * **+X-GM-LABELS** - add provided labels to message labels
- * **-X-GM-LABELS** - remove provided labels from message labels
-
-If callback is not specified, the method returns a Promise.
-
-### Example
-
-Add label `\Sent` to messages
-
-```javascript
-client.store('1:*', '+X-GM-LABELS', ['\\Sent'], function(err, result){
-    ...
-});
-```
 
 ### Reading flags
 
@@ -642,132 +495,148 @@ You can check the flags for a message or a range of messages with `listMessages`
 
 Where `arrFlags` is an array containing flag strings, ie. `['\\Seen', '$MyFlag']`
 
-### Example
+```javascript
+client.setFlags('INBOX', {set: ['\\Seen']}).then((messages) => { ... })
+
+client.setFlags('INBOX', {remove: ['\\Seen']}).then((messages) => { ... })
+
+client.setFlags('INBOX', {add: ['\\Seen']}).then((messages) => { ... })
+```
+
+### Store Command
+
+Browserbox also allows direct access to the STORE command, but please use `setFlags()` for convenience. Anyway, store flags or labels with `store(path, sequence, action, flags[, options])`.
+
+Where
+
+  * **path** is the path for the mailbox which should be selected for the command. Selects mailbox prior to executing if not already selected.
+  * **sequence** defines the range of sequence numbers or UID values (if `byUid` option is set to true). Example: '1', '1:*', '1,2:3,4' etc.
+  * **action** is the STORE argument, eg `'FLAGS'` for setting flags
+  * **flags** is an array of flags or labels
+  * **options** is an optional options object
+    * **byUid** if `true` executes `UID SEARCH` instead of `SEARCH`
+    * **silent** if `true` does not return anything. Useful when updating large range of messages at once (`'1:*'`)
+
+Resolves with
+
+  * **messages** is an array of messages from the provided sequence range (or empty when `silent:true` option is set). Includes `flags` property and `uid` if `byUid:true` option was used.
+
+Possible actions
+
+ * **FLAGS** - overwrite message flags with provided ones
+ * **+FLAGS** - add provided flags to message flags
+ * **-FLAGS** - remove provided flags from message flags
+ * **X-GM-LABELS** - **GMail-only IMAP extension** to overwrite message labels with provided ones
+ * **+X-GM-LABELS** - **GMail-only IMAP extension** to add provided labels to message labels
+ * **-X-GM-LABELS** - **GMail-only IMAP extension** to remove provided labels from message labels
+
+Command: [STORE](http://tools.ietf.org/html/rfc3501#section-6.4.6)
 
 ```javascript
-client.setFlags('1', {add: ['\\Seen']}, function(err, result){
-    console.log('New flags for message: ' + result[0].flags.join(', '));
-});
+client.store('INBOX', '1:*', '+X-GM-LABELS', ['\\Sent']).then((messages) => { ... }); // adds GMail `\Sent` label to messages
 ```
 
 ## Delete messages
 
-Delete messages with `deleteMessages()`
-
-```javascript
-client.deleteMessages(sequence[, options], callback)
-```
+Delete messages with `deleteMessages(path, sequence[, options])`
 
 Where
 
+  * **path** is the path for the mailbox which should be selected for the command. Selects mailbox prior to executing if not already selected.
   * **sequence** defines the range of sequence numbers or UID values (if `byUid` option is set to true). Example: '1', '1:*', '1,2:3,4' etc.
   * **options** is an optional options object
     * **byUid** if `true` uses UID values instead of sequence numbers to define the range
-  * **callback** is the callback function to run once all me messages are processed with the following arguments
-    * **err** is an error object, only set if the request failed
 
-If callback is not specified, the method returns a Promise.
+Resolves when IMAP server completed the command.
 
 If possible (`byUid:true` is set and UIDPLUS extension is supported by the server) uses `UID EXPUNGE`
 otherwise falls back to EXPUNGE to delete the messages – which means that this method might be
 destructive. If `EXPUNGE` is used, then any messages with `\Deleted` flag set are deleted even if these
 messages are not included in the specified sequence range.
 
+Commands: [EXPUNGE](http://tools.ietf.org/html/rfc3501#section-6.4.3), [UID EXPUNGE](https://tools.ietf.org/html/rfc4315#section-2.1)
+
 ### Example
 
 ```javascript
-client.deleteMessages('1:5', function(err){
-    if(err){
-        console.log('Command failed');
-    }else{
-        console.log('Messages were deleted');
-    }
-});
+client.deleteMessages('INBOX', '1:5').then(() => { ... });
 ```
 
 ## Copy messages
 
-Copy messages with `copyMessages()`
-
-```javascript
-client.copyMessages(sequence, destination[, options], callback)
-```
+Copy messages with `copyMessages(sequence, destination[, options])`
 
 Where
 
+  * **path** is the path for the mailbox which should be selected for the command. Selects mailbox prior to executing if not already selected.
   * **sequence** defines the range of sequence numbers or UID values (if `byUid` option is set to true). Example: '1', '1:*', '1,2:3,4' etc.
   * **destination** is the destination folder path. Example: '[Gmail]/Trash'
   * **options** is an optional options object
     * **byUid** if `true` uses UID values instead of sequence numbers to define the range
-  * **callback** is the callback function to run once all me messages are processed with the following arguments
-    * **err** is an error object, only set if the request failed
-    * **message** nothing useful, just the response text from the server
 
-If callback is not specified, the method returns a Promise.
+Resolves with a response text from the server. Not really useful, can be ignored.
+
+Command: [COPY](http://tools.ietf.org/html/rfc3501#section-6.4.7)
 
 ### Example
 
 ```javascript
-client.copyMessages('1:5', '[Gmail]/Trash', function(err){
-    console.log('Messages were copied to [Gmail]/Trash');
-});
+client.copyMessages('INBOX', '1:5', '[Gmail]/Trash').then(() => { ... });
 ```
 
 ## Move messages
 
-Move messages with `moveMessages()`
-
-```javascript
-client.moveMessages(sequence, destination[, options], callback)
-```
+Move messages with `moveMessages(path, sequence, destination[, options])`
 
 Where
 
+  * **path** is the path for the mailbox which should be selected for the command. Selects mailbox prior to executing if not already selected.
   * **sequence** defines the range of sequence numbers or UID values (if `byUid` option is set to true). Example: '1', '1:*', '1,2:3,4' etc.
   * **destination** is the destination folder path. Example: '[Gmail]/Trash'
   * **options** is an optional options object
     * **byUid** if `true` uses UID values instead of sequence numbers to define the range
-  * **callback** is the callback function to run once all me messages are processed with the following arguments
-    * **err** is an error object, only set if the request failed
 
-If callback is not specified, the method returns a Promise.
+Resolves when IMAP server completed the command.
 
-If possible (MOVE extension is supported by the server) uses `MOVE` or `UID MOVE`
-otherwise falls back to COPY + EXPUNGE.
+If possible (MOVE extension is supported by the server) uses `MOVE` or `UID MOVE` otherwise falls back to COPY + EXPUNGE.
 
-The returned list of sequence numbers might not match with the sequence numbers provided to the method.
+Command: [MOVE](http://tools.ietf.org/html/rfc6851)
 
 ### Example
 
 ```javascript
-client.moveMessages('1:5', '[Gmail]/Trash', function(err){
-    if(err){
-        console.log('Command failed');
-    }else{
-        console.log('Messages were moved to [Gmail]/Trash');
-    }
-});
+client.moveMessages('INBOX', '1:5', '[Gmail]/Trash').then(() => { ... });
 ```
 
-## Update notifications
+## Keeping synchronization with your IMAP server
 
-Message updates can be listened for by setting the `onupdate` handler. First argument for the callback defines the update type, and the second one is the new value.
+It is recommended to set up some sort of local caching for the messages. IMAP relies on a mixture of mailbox-unique identifiers (UID) and sequence numbers.
+
+### Updates when you have selected a mailbox
+
+Your IMAP server sends you updates when something happens in the mailbox you have currently open. Message updates can be listened for by setting the `onupdate` handler. First argument for the callback defines the update type, and the second one is the new value.
 
 **Example**
 
 ```javascript
-client.onupdate = function(type, value){
-    if (type == 'exists') {
-        console.log(value + ' messages exists in selected mailbox');
+client.onupdate = function(path, type, value){
+    if (type === 'expunge') {
+      // untagged EXPUNGE response, e.g. "* EXPUNGE 123"
+      // value is the sequence number of the deleted message prior to deletion, so adapt your cache accordingly
+    } else if (type === 'exists') {
+      // untagged EXISTS response, e.g. "* EXISTS 123"
+      // value is new EXISTS message count in the selected mailbox
+    } else if (type === 'fetch') {
+      // untagged FETCH response, e.g. "* 123 FETCH (FLAGS (\Seen))"
+      // add a considerable amount of input tolerance here!
+      // probably some flag updates, a message or messages have been altered in some way
+      // UID is probably not listed, probably includes only the sequence number `#` and `flags` array
     }
 }
 ```
 
-Possible types:
-
-  * **exists** is emitted on untagged `EXISTS` response, `value` is the argument number used
   * **expunge** is emitted on untagged `EXPUNGE` response, `value` is the sequence number of the deleted message
-  * **fetch** is emitted on flag change. `value` includes the parsed message object (probably includes only the sequence number `#` and `flags` array)
+  * **fetch** is emitted on flag change. `value` includes the parsed message object ()
 
 ## Mailbox change notifications
 
@@ -799,6 +668,22 @@ client.close();
 ```
 
 Once the connection is actually closed `onclose` event is fired.
+
+## Events
+
+The IMAP client has several events you can attach to by setting a listener
+
+### onerror
+
+Indicates an irrecoverable error. When `onerror` is fired, the connection is already closed, hence there's no need for further cleanup.
+
+**NB! This handler is mandatory!**
+
+TODO
+this.oncert = () => {};
+this.onupdate = () => {};
+this.onselectmailbox = () => {};
+this.onclosemailbox = () => {};
 
 ## Get your hands dirty
 
