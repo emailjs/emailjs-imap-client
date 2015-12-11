@@ -7,8 +7,6 @@
         });
     } else if (typeof exports === 'object') {
         module.exports = factory(require('tcp-socket'), require('wo-imap-handler'), require('mimefuncs'), require('./browserbox-compression'), null);
-    } else {
-        root.BrowserboxImapClient = factory(navigator.TCPSocket, root.imapHandler, root.mimefuncs, root.BrowserboxCompressor);
     }
 }(this, function(TCPSocket, imapHandler, mimefuncs, Compression) {
     'use strict';

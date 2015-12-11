@@ -7,8 +7,6 @@
         });
     } else if (typeof exports === 'object') {
         module.exports = factory(require('./browserbox-imap'), require('wo-utf7'), require('wo-imap-handler'), require('mimefuncs'), require('wo-addressparser'));
-    } else {
-        root.BrowserBox = factory(root.BrowserboxImapClient, root.utf7, root.imapHandler, root.mimefuncs, root.addressparser);
     }
 }(this, function(ImapClient, utf7, imapHandler, mimefuncs, addressparser) {
     'use strict';
