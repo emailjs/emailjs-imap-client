@@ -2,891 +2,756 @@
 
 (function(factory) {
     if (typeof define === 'function' && define.amd) {
-        define(['chai', 'axe', 'browserbox', 'imap-handler', './fixtures/mime-torture-bodystructure', './fixtures/envelope'], factory.bind(null, sinon));
+        define(['chai', 'emailjs-imap-client', 'emailjs-imap-handler', './fixtures/mime-torture-bodystructure', './fixtures/envelope'], factory.bind(null, sinon));
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('sinon'), require('chai'), require('axe-logger'), require('browserbox'), require('imap-handler'), require('./fixtures/mime-torture-bodystructure'), require('./fixtures/envelope'));
+        module.exports = factory(require('sinon'), require('chai'), require('../../src/emailjs-imap-client'), require('emailjs-imap-handler'), require('./fixtures/mime-torture-bodystructure'), require('./fixtures/envelope'));
     }
-}(function(sinon, chai, axe, BrowserBox, imapHandler, mimeTorture, testEnvelope) {
+}(function(sinon, chai, ImapClient, imapHandler, mimeTorture, testEnvelope) {
     var expect = chai.expect;
-    chai.Assertion.includeStack = true;
+    chai.config.includeStack = true;
 
-    describe('browserbox unit tests', function() {
-        // don't log in the tests
-        axe.removeAppender(axe.defaultAppender);
-
+    describe('browserbox unit tests', () => {
         var br;
 
-        beforeEach(function() {
-            br = new BrowserBox();
+        beforeEach(() => {
+            br = new ImapClient();
+            br.logLevel = br.LOG_LEVEL_NONE;
             br.client.socket = {
-                send: function() {},
-                upgradeToSecure: function() {}
+                send: () => {},
+                upgradeToSecure: () => {}
             };
         });
 
-        /* jshint indent:false */
-
-        describe('#_onClose', function() {
-            it('should emit onclose', function() {
-                sinon.stub(br, 'onclose');
-
-                br._onClose();
-
-                expect(br.onclose.callCount).to.equal(1);
-
-                br.onclose.restore();
-            });
-        });
-
-        describe('#_onTimeout', function() {
-            it('should emit onerror and call destroy', function() {
-                br.onerror = function() {}; // not defined by default
-                sinon.stub(br, 'onerror');
-                sinon.stub(br.client, '_destroy');
-
-                br._onTimeout();
-
-                expect(br.onerror.callCount).to.equal(1);
-                expect(br.client._destroy.callCount).to.equal(1);
-
-                br.onerror.restore();
-                br.client._destroy.restore();
-            });
-        });
-
-        describe('#_onReady', function() {
-            it('should call updateCapability', function() {
-                sinon.stub(br, 'updateCapability');
-
-                br._onReady();
-
-                expect(br.updateCapability.callCount).to.equal(1);
-                expect(br.state).to.equal(br.STATE_NOT_AUTHENTICATED);
-
-                br.updateCapability.restore();
-            });
-        });
-
-        describe('#_onIdle', function() {
-            it('should call enterIdle', function() {
+        describe('#_onIdle', () => {
+            it('should call enterIdle', () => {
                 sinon.stub(br, 'enterIdle');
 
-                br.authenticated = true;
+                br._authenticated = true;
                 br._enteredIdle = false;
                 br._onIdle();
 
                 expect(br.enterIdle.callCount).to.equal(1);
-
-                br.enterIdle.restore();
             });
 
-            it('should not call enterIdle', function() {
+            it('should not call enterIdle', () => {
                 sinon.stub(br, 'enterIdle');
 
                 br._enteredIdle = true;
                 br._onIdle();
 
                 expect(br.enterIdle.callCount).to.equal(0);
-
-                br.enterIdle.restore();
             });
         });
 
-        describe('#connect', function() {
-            it('should initiate tcp connection', function() {
+        describe('#connect', () => {
+            beforeEach(() => {
                 sinon.stub(br.client, 'connect');
-
-                br.connect();
-
-                expect(br.client.connect.callCount).to.equal(1);
-
-                clearTimeout(br._connectionTimeout);
-                br.client.connect.restore();
+                sinon.stub(br.client, 'close');
+                sinon.stub(br, 'updateCapability');
+                sinon.stub(br, 'upgradeConnection');
+                sinon.stub(br, 'updateId');
+                sinon.stub(br, 'login');
+                sinon.stub(br, 'compressConnection');
             });
 
-            it('should timeout if connection is not created', function(done) {
-                sinon.stub(br.client, 'connect');
-                sinon.stub(br, '_onTimeout', function() {
+            it('should connect', (done) => {
+                br.client.connect.returns(Promise.resolve());
+                br.updateCapability.returns(Promise.resolve());
+                br.upgradeConnection.returns(Promise.resolve());
+                br.updateId.returns(Promise.resolve());
+                br.login.returns(Promise.resolve());
+                br.compressConnection.returns(Promise.resolve());
 
-                    expect(br.client.connect.callCount).to.equal(1);
+                br.connect().then(() => {
+                    expect(br.client.connect.calledOnce).to.be.true;
+                    expect(br.updateCapability.calledOnce).to.be.true;
+                    expect(br.upgradeConnection.calledOnce).to.be.true;
+                    expect(br.updateId.calledOnce).to.be.true;
+                    expect(br.login.calledOnce).to.be.true;
+                    expect(br.compressConnection.calledOnce).to.be.true;
+                }).then(done).catch(done);
 
-                    br.client.connect.restore();
-                    br._onTimeout.restore();
+                setTimeout(() => br.client.onready(), 0);
+            });
+
+            it('should fail to login', (done) => {
+                br.client.connect.returns(Promise.resolve());
+                br.updateCapability.returns(Promise.resolve());
+                br.upgradeConnection.returns(Promise.resolve());
+                br.updateId.returns(Promise.resolve());
+                br.login.returns(Promise.reject(new Error()));
+
+                br.connect().catch((err) => {
+                    expect(err).to.exist;
+
+                    expect(br.client.connect.calledOnce).to.be.true;
+                    expect(br.client.close.calledOnce).to.be.true;
+                    expect(br.updateCapability.calledOnce).to.be.true;
+                    expect(br.upgradeConnection.calledOnce).to.be.true;
+                    expect(br.updateId.calledOnce).to.be.true;
+                    expect(br.login.calledOnce).to.be.true;
+
+                    expect(br.compressConnection.called).to.be.false;
 
                     done();
                 });
 
+                setTimeout(() => br.client.onready(), 0);
+            });
+
+            it('should timeout', (done) => {
+                br.client.connect.returns(Promise.resolve());
                 br.TIMEOUT_CONNECTION = 1;
-                br.connect();
-            });
-        });
 
-        describe('#close', function() {
-            it('should send LOGOUT', function(done) {
-                sinon.stub(br.client, 'close');
-                sinon.stub(br, 'exec', function(cmd, callback) {
-                    expect(cmd).to.equal('LOGOUT');
-                    callback();
-                });
-
-                br.close(function() {
-                    // the close call comes after the current event loop iteration hass been handled.
-                    setTimeout(function() {
-                        expect(br.state).to.equal(br.STATE_LOGOUT);
-                        expect(br.client.close.calledOnce).to.be.true;
-                        br.exec.restore();
-                        br.client.close.restore();
-                        done();
-                    }, 0);
-                });
-            });
-        });
-
-        describe('#exec', function() {
-            beforeEach(function() {
-                sinon.stub(br, 'breakIdle', function(callback) {
-                    return callback();
-                });
-            });
-
-            afterEach(function() {
-                br.client.exec.restore();
-                br.breakIdle.restore();
-            });
-
-            it('should send string command', function(done) {
-                sinon.stub(br.client, 'exec', function() {
-                    arguments[arguments.length - 1]({}, done);
-                });
-                br.exec('TEST', function(err, response, next) {
-                    expect(br.client.exec.args[0][0]).to.equal('TEST');
-                    next();
-                });
-            });
-
-            it('should update capability from response', function(done) {
-                sinon.stub(br.client, 'exec', function() {
-                    arguments[arguments.length - 1]({
-                        capability: ['A', 'B']
-                    }, done);
-                });
-                br.exec('TEST', function(err, response, next) {
-                    expect(err).to.not.exist;
-                    expect(br.capability).to.deep.equal(['A', 'B']);
-                    next();
-                });
-            });
-
-            it('should return error on NO/BAD', function(done) {
-                sinon.stub(br.client, 'exec', function() {
-                    arguments[arguments.length - 1]({
-                        command: 'NO'
-                    }, done);
-                });
-                br.exec('TEST', function(err, response, next) {
+                br.connect().catch((err) => {
                     expect(err).to.exist;
-                    next();
-                });
-            });
 
-            it('should continue with no callback', function(done) {
-                sinon.stub(br.client, 'exec', function() {
-                    arguments[arguments.length - 1]({}, done);
+                    expect(br.client.connect.calledOnce).to.be.true;
+                    expect(br.client.close.calledOnce).to.be.true;
+
+                    expect(br.updateCapability.called).to.be.false;
+                    expect(br.upgradeConnection.called).to.be.false;
+                    expect(br.updateId.called).to.be.false;
+                    expect(br.login.called).to.be.false;
+                    expect(br.compressConnection.called).to.be.false;
+
+                    done();
                 });
-                br.exec('TEST');
-                expect(br.client.exec.callCount).to.equal(1);
             });
         });
 
-        describe('#enterIdle', function() {
-            it('should periodically send NOOP if IDLE not supported', function(done) {
-                sinon.stub(br, 'exec', function(command) {
+        describe('#close', () => {
+            it('should force-close', (done) => {
+                sinon.stub(br.client, 'close').returns(Promise.resolve());
+
+                br.close().then(() => {
+                    expect(br._state).to.equal(br.STATE_LOGOUT);
+                    expect(br.client.close.calledOnce).to.be.true;
+                    done();
+                });
+            });
+        });
+
+        describe('#exec', () => {
+            beforeEach(() => {
+                sinon.stub(br, 'breakIdle', () => {
+                    return Promise.resolve();
+                });
+            });
+
+            it('should send string command', (done) => {
+                sinon.stub(br.client, 'enqueueCommand').returns(Promise.resolve({}));
+                br.exec('TEST').then((res) => {
+                    expect(res).to.deep.equal({});
+                    expect(br.client.enqueueCommand.args[0][0]).to.equal('TEST');
+                }).then(done).catch(done);
+            });
+
+            it('should update capability from response', (done) => {
+                sinon.stub(br.client, 'enqueueCommand').returns(Promise.resolve({
+                    capability: ['A', 'B']
+                }));
+                br.exec('TEST').then((res) => {
+                    expect(res).to.deep.equal({
+                        capability: ['A', 'B']
+                    });
+                    expect(br._capability).to.deep.equal(['A', 'B']);
+                }).then(done).catch(done);
+            });
+        });
+
+        describe('#enterIdle', () => {
+            it('should periodically send NOOP if IDLE not supported', (done) => {
+                sinon.stub(br, 'exec', (command) => {
                     expect(command).to.equal('NOOP');
 
-                    br.exec.restore();
                     done();
                 });
 
-                br.capability = [];
+                br._capability = [];
                 br.TIMEOUT_NOOP = 1;
                 br.enterIdle();
             });
 
-            it('should break IDLE after timeout', function(done) {
-                sinon.stub(br.client, 'exec');
-                sinon.stub(br.client.socket, 'send', function(payload) {
+            it('should break IDLE after timeout', (done) => {
+                sinon.stub(br.client, 'enqueueCommand');
+                sinon.stub(br.client.socket, 'send', (payload) => {
 
-                    expect(br.client.exec.args[0][0].command).to.equal('IDLE');
+                    expect(br.client.enqueueCommand.args[0][0].command).to.equal('IDLE');
                     expect([].slice.call(new Uint8Array(payload))).to.deep.equal([0x44, 0x4f, 0x4e, 0x45, 0x0d, 0x0a]);
 
-                    br.client.socket.send.restore();
-                    br.client.exec.restore();
                     done();
                 });
 
-                br.capability = ['IDLE'];
+                br._capability = ['IDLE'];
                 br.TIMEOUT_IDLE = 1;
                 br.enterIdle();
             });
         });
 
-        describe('#breakIdle', function() {
-            it('should send DONE to socket', function(done) {
+        describe('#breakIdle', () => {
+            it('should send DONE to socket', (done) => {
                 sinon.stub(br.client.socket, 'send');
 
                 br._enteredIdle = 'IDLE';
-                br.breakIdle(function() {
-
+                br.breakIdle().then(() => {
                     expect([].slice.call(new Uint8Array(br.client.socket.send.args[0][0]))).to.deep.equal([0x44, 0x4f, 0x4e, 0x45, 0x0d, 0x0a]);
-                    br.client.socket.send.restore();
-
-                    done();
-                });
+                }).then(done).catch(done);
             });
         });
 
-        describe('#upgradeConnection', function() {
-            describe('Skip upgrade', function() {
-                it('should do nothing if already secured', function() {
-                    br.client.secureMode = true;
-                    br.capability = ['starttls'];
-                    br.upgradeConnection(function(err, upgraded) {
-                        expect(err).to.not.exist;
-                        expect(upgraded).to.be.false;
-                    });
-                });
-
-                it('should do nothing if STARTTLS not available', function() {
-                    br.client.secureMode = false;
-                    br.capability = [];
-                    br.upgradeConnection(function(err, upgraded) {
-                        expect(err).to.not.exist;
-                        expect(upgraded).to.be.false;
-                    });
-                });
+        describe('#upgradeConnection', () => {
+            it('should do nothing if already secured', (done) => {
+                br.client.secureMode = true;
+                br._capability = ['starttls'];
+                br.upgradeConnection().then(done).catch(done);
             });
 
-            it('should run STARTTLS', function(done) {
+            it('should do nothing if STARTTLS not available', (done) => {
+                br.client.secureMode = false;
+                br._capability = [];
+                br.upgradeConnection().then(done).catch(done);
+            });
+
+            it('should run STARTTLS', (done) => {
                 sinon.stub(br.client, 'upgrade');
-                sinon.stub(br, 'exec', function(cmd, cb) {
-                    expect(cmd).to.equal('STARTTLS');
-                    cb();
-                    expect(br.client.upgrade.callCount).to.equal(1);
-                    expect(br.capability.length).to.equal(0);
+                sinon.stub(br, 'exec').withArgs('STARTTLS').returns(Promise.resolve());
+                sinon.stub(br, 'updateCapability').returns(Promise.resolve());
 
-                    br.exec.restore();
-                    br.client.upgrade.restore();
-                    done();
-                });
-                br.capability = ['STARTTLS'];
-                br.upgradeConnection();
+                br._capability = ['STARTTLS'];
+
+                br.upgradeConnection().then(() => {
+                    expect(br.client.upgrade.callCount).to.equal(1);
+                    expect(br._capability.length).to.equal(0);
+                }).then(done).catch(done);
             });
 
         });
 
-        describe('#updateCapability', function() {
-            it('should do nothing if capability is set', function() {
-                br.capability = ['abc'];
-                br.updateCapability(function(err, updated) {
-                    expect(err).to.not.exist;
-                    expect(updated).to.be.false;
-                });
-            });
-
-            it('should run CAPABILITY if capability not set', function() {
+        describe('#updateCapability', () => {
+            beforeEach(() => {
                 sinon.stub(br, 'exec');
-
-                br.capability = [];
-                br.updateCapability();
-                expect(br.exec.args[0][0]).to.equal('CAPABILITY');
-
-                br.exec.restore();
             });
 
-            it('should force run CAPABILITY', function() {
-                sinon.stub(br, 'exec');
-
-                br.capability = ['abc'];
-                br.updateCapability(true);
-                expect(br.exec.args[0][0]).to.equal('CAPABILITY');
-
-                br.exec.restore();
+            it('should do nothing if capability is set', (done) => {
+                br._capability = ['abc'];
+                br.updateCapability().then(done).catch(done);
             });
 
-            it('should do nothing if connection is not yet upgraded', function() {
-                br.capability = [];
+            it('should run CAPABILITY if capability not set', (done) => {
+                br.exec.returns(Promise.resolve());
+
+                br._capability = [];
+
+                br.updateCapability().then(() => {
+                    expect(br.exec.args[0][0]).to.equal('CAPABILITY');
+                }).then(done).catch(done);
+            });
+
+            it('should force run CAPABILITY', (done) => {
+                br.exec.returns(Promise.resolve());
+                br._capability = ['abc'];
+
+                br.updateCapability(true).then(() => {
+                    expect(br.exec.args[0][0]).to.equal('CAPABILITY');
+                }).then(done).catch(done);
+            });
+
+            it('should do nothing if connection is not yet upgraded', (done) => {
+                br._capability = [];
                 br.client.secureMode = false;
                 br.options.requireTLS = true;
 
-                br.updateCapability(function(err, updated) {
-                    expect(err).to.not.exist;
-                    expect(updated).to.be.false;
-                });
+                br.updateCapability().then(done).catch(done);
             });
         });
 
-        describe('#listNamespaces', function() {
-            it('should run NAMESPACE if supported', function() {
+        describe('#listNamespaces', () => {
+            beforeEach(() => {
                 sinon.stub(br, 'exec');
-
-                br.capability = ['NAMESPACE'];
-                br.listNamespaces();
-                expect(br.exec.callCount).to.equal(1);
-                expect(br.exec.args[0][0]).to.equal('NAMESPACE');
-                expect(br.exec.args[0][1]).to.equal('NAMESPACE');
-
-                br.exec.restore();
             });
 
-            it('should do nothing if not supported', function() {
-                sinon.stub(br, 'exec');
+            it('should run NAMESPACE if supported', (done) => {
+                br.exec.returns(Promise.resolve({
+                    payload: {
+                        NAMESPACE: [{
+                            attributes: [
+                                [
+                                    [{
+                                        type: 'STRING',
+                                        value: 'INBOX.'
+                                    }, {
+                                        type: 'STRING',
+                                        value: '.'
+                                    }]
+                                ], null, null
+                            ]
+                        }]
+                    }
+                }));
+                br._capability = ['NAMESPACE'];
 
-                br.capability = [];
-                br.listNamespaces(function() {});
-                expect(br.exec.callCount).to.equal(0);
+                br.listNamespaces().then((namespaces) => {
+                    expect(namespaces).to.deep.equal({
+                        personal: [{
+                            prefix: 'INBOX.',
+                            delimiter: '.'
+                        }],
+                        users: false,
+                        shared: false
+                    });
+                    expect(br.exec.args[0][0]).to.equal('NAMESPACE');
+                    expect(br.exec.args[0][1]).to.equal('NAMESPACE');
+                }).then(done).catch(done);
+            });
 
-                br.exec.restore();
+            it('should do nothing if not supported', (done) => {
+                br._capability = [];
+                br.listNamespaces().then((namespaces) => {
+                    expect(namespaces).to.be.false;
+                    expect(br.exec.callCount).to.equal(0);
+                }).then(done).catch(done);
             });
         });
 
-        describe('#compressConnection', function() {
-            it('should run COMPRESS=DEFLATE if supported', function() {
-                sinon.stub(br, 'exec').yields(null, {}, function() {});
+        describe('#compressConnection', () => {
+            beforeEach(() => {
+                sinon.stub(br, 'exec');
                 sinon.stub(br.client, 'enableCompression');
+            });
 
-                br.options.enableCompression = true;
-                br.capability = ['COMPRESS=DEFLATE'];
-                br.compressConnection();
-                expect(br.exec.callCount).to.equal(1);
-                expect(br.client.enableCompression.callCount).to.equal(1);
-                expect(br.exec.args[0][0]).to.deep.equal({
+            it('should run COMPRESS=DEFLATE if supported', (done) => {
+                br.exec.withArgs({
                     command: 'COMPRESS',
                     attributes: [{
                         type: 'ATOM',
                         value: 'DEFLATE'
                     }]
-                });
+                }).returns(Promise.resolve({}));
 
-                br.exec.restore();
-                br.client.enableCompression.restore();
+                br.options.enableCompression = true;
+                br._capability = ['COMPRESS=DEFLATE'];
+                br.compressConnection().then(() => {
+                    expect(br.exec.callCount).to.equal(1);
+                    expect(br.client.enableCompression.callCount).to.equal(1);
+                }).then(done).catch(done);
             });
 
-            it('should do nothing if not supported', function() {
-                sinon.stub(br, 'exec');
+            it('should do nothing if not supported', (done) => {
+                br._capability = [];
 
-                br.capability = [];
-                br.compressConnection(function() {});
-                expect(br.exec.callCount).to.equal(0);
-
-                br.exec.restore();
+                br.compressConnection().then(() => {
+                    expect(br.exec.callCount).to.equal(0);
+                }).then(done).catch(done);
             });
 
-            it('should do nothing if not enabled', function() {
-                sinon.stub(br, 'exec');
-
+            it('should do nothing if not enabled', (done) => {
                 br.options.enableCompression = false;
-                br.capability = ['COMPRESS=DEFLATE'];
-                br.compressConnection(function() {});
-                expect(br.exec.callCount).to.equal(0);
+                br._capability = ['COMPRESS=DEFLATE'];
 
-                br.exec.restore();
+                br.compressConnection().then(() => {
+                    expect(br.exec.callCount).to.equal(0);
+                }).then(done).catch(done);
             });
         });
 
-        describe('#login', function() {
-            it('should call LOGIN', function() {
-                sinon.stub(br, 'exec');
+        describe('#login', () => {
+            it('should call LOGIN', (done) => {
+                sinon.stub(br, 'exec').returns(Promise.resolve({}));
+                sinon.stub(br, 'updateCapability').returns(Promise.resolve(true));
 
                 br.login({
                     user: 'u1',
                     pass: 'p1'
+                }).then(() => {
+                    expect(br.exec.callCount).to.equal(1);
+                    expect(br.exec.args[0][0]).to.deep.equal({
+                        command: 'login',
+                        attributes: [{
+                            type: 'STRING',
+                            value: 'u1'
+                        }, {
+                            type: 'STRING',
+                            value: 'p1',
+                            sensitive: true
+                        }]
+                    });
+
+                    done();
                 });
 
-                expect(br.exec.callCount).to.equal(1);
-                expect(br.exec.args[0][0]).to.deep.equal({
-                    command: 'login',
-                    attributes: [{
-                        type: 'STRING',
-                        value: 'u1'
-                    }, {
-                        type: 'STRING',
-                        value: 'p1',
-                        sensitive: true
-                    }]
-                });
-
-                br.exec.restore();
             });
 
-            it('should call XOAUTH2', function() {
-                sinon.stub(br, 'exec');
+            it('should call XOAUTH2', () => {
+                sinon.stub(br, 'exec').returns(Promise.resolve({}));
+                sinon.stub(br, 'updateCapability').returns(Promise.resolve(true));
 
-                br.capability = ['AUTH=XOAUTH2'];
+                br._capability = ['AUTH=XOAUTH2'];
                 br.login({
                     user: 'u1',
                     xoauth2: 'abc'
+                }).then(() => {
+                    expect(br.exec.callCount).to.equal(1);
+                    expect(br.exec.args[0][0]).to.deep.equal({
+                        command: 'AUTHENTICATE',
+                        attributes: [{
+                            type: 'ATOM',
+                            value: 'XOAUTH2'
+                        }, {
+                            type: 'ATOM',
+                            value: 'dXNlcj11MQFhdXRoPUJlYXJlciBhYmMBAQ==',
+                            sensitive: true
+                        }]
+                    });
                 });
-
-                expect(br.exec.callCount).to.equal(1);
-                expect(br.exec.args[0][0]).to.deep.equal({
-                    command: 'AUTHENTICATE',
-                    attributes: [{
-                        type: 'ATOM',
-                        value: 'XOAUTH2'
-                    }, {
-                        type: 'ATOM',
-                        value: 'dXNlcj11MQFhdXRoPUJlYXJlciBhYmMBAQ==',
-                        sensitive: true
-                    }]
-                });
-
-                br.exec.restore();
             });
         });
 
-        describe('#updateId', function() {
-            it('should not nothing if not supported', function() {
-                br.capability = [];
+        describe('#updateId', () => {
+            beforeEach(() => {
+                sinon.stub(br, 'exec');
+            });
+
+            it('should not nothing if not supported', (done) => {
+                br._capability = [];
+
                 br.updateId({
                     a: 'b',
                     c: 'd'
-                }, function(err, id) {
-                    expect(err).to.not.exist;
-                    expect(id).to.be.false;
-                });
+                }).then(() => {
+                    expect(br.serverId).to.be.false;
+                }).then(done).catch(done);
             });
 
-            it('should send NIL', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, callback) {
-                    expect(command).to.deep.equal({
-                        command: 'ID',
-                        attributes: [
-                            null
-                        ]
-                    });
+            it('should send NIL', (done) => {
+                br.exec.withArgs({
+                    command: 'ID',
+                    attributes: [
+                        null
+                    ]
+                }).returns(Promise.resolve({
+                    payload: {
+                        ID: [{
+                            attributes: [
+                                null
+                            ]
+                        }]
+                    }
+                }));
+                br._capability = ['ID'];
 
-                    callback(null, {
-                        payload: {
-                            ID: [{
-                                attributes: [
-                                    null
-                                ]
-                            }]
-                        }
-                    }, function() {
-                        br.exec.restore();
-                        done();
-                    });
-                });
-
-                br.capability = ['ID'];
-                br.updateId(null, function(err, id) {
-                    expect(err).to.not.exist;
-                    expect(id).to.deep.equal({});
-                });
+                br.updateId(null).then(() => {
+                    expect(br.serverId).to.deep.equal({});
+                }).then(done).catch(done);
             });
 
-            it('should exhange ID values', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, callback) {
-                    expect(command).to.deep.equal({
-                        command: 'ID',
-                        attributes: [
-                            ['ckey1', 'cval1', 'ckey2', 'cval2']
-                        ]
-                    });
+            it('should exhange ID values', (done) => {
+                br.exec.withArgs({
+                    command: 'ID',
+                    attributes: [
+                        ['ckey1', 'cval1', 'ckey2', 'cval2']
+                    ]
+                }).returns(Promise.resolve({
+                    payload: {
+                        ID: [{
+                            attributes: [
+                                [{
+                                    value: 'skey1'
+                                }, {
+                                    value: 'sval1'
+                                }, {
+                                    value: 'skey2'
+                                }, {
+                                    value: 'sval2'
+                                }]
+                            ]
+                        }]
+                    }
+                }));
+                br._capability = ['ID'];
 
-                    callback(null, {
-                        payload: {
-                            ID: [{
-                                attributes: [
-                                    [{
-                                        value: 'skey1'
-                                    }, {
-                                        value: 'sval1'
-                                    }, {
-                                        value: 'skey2'
-                                    }, {
-                                        value: 'sval2'
-                                    }]
-                                ]
-                            }]
-                        }
-                    }, function() {
-                        br.exec.restore();
-                        done();
-                    });
-                });
-
-                br.capability = ['ID'];
                 br.updateId({
                     ckey1: 'cval1',
                     ckey2: 'cval2'
-                }, function(err, id) {
-                    expect(err).to.not.exist;
-                    expect(id).to.deep.equal({
+                }).then(() => {
+                    expect(br.serverId).to.deep.equal({
                         skey1: 'sval1',
                         skey2: 'sval2'
                     });
-                });
+                }).then(done).catch(done);
             });
         });
 
-        describe('#listMailboxes', function() {
-            it('should call LIST and LSUB in sequence', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, callback) {
-                    br.exec.restore();
-                    sinon.stub(br, 'exec', function(command, untagged, callback) {
-                        br.exec.restore();
-
-                        expect(command).to.deep.equal({
-                            command: 'LSUB',
-                            attributes: ['', '*']
-                        });
-                        callback(null, {
-                            payload: {
-                                LSUB: [false]
-                            }
-                        }, function() {
-                            done();
-                        });
-                    });
-
-                    expect(command).to.deep.equal({
-                        command: 'LIST',
-                        attributes: ['', '*']
-                    });
-                    callback(null, {
-                        payload: {
-                            LIST: [false]
-                        }
-                    }, function() {});
-                });
-
-                br.listMailboxes(function(err, tree) {
-                    expect(err).to.not.exist;
-                    expect(tree).to.exist;
-                });
+        describe('#listMailboxes', () => {
+            beforeEach(() => {
+                sinon.stub(br, 'exec');
             });
 
-            it('should not die on NIL separators', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, callback) {
-                    br.exec.restore();
-                    sinon.stub(br, 'exec', function(command, untagged, callback) {
-                        br.exec.restore();
+            it('should call LIST and LSUB in sequence', (done) => {
+                br.exec.withArgs({
+                    command: 'LIST',
+                    attributes: ['', '*']
+                }).returns(Promise.resolve({
+                    payload: {
+                        LIST: [false]
+                    }
+                }));
 
-                        expect(command).to.deep.equal({
-                            command: 'LSUB',
-                            attributes: ['', '*']
-                        });
-                        callback(null, {
-                            payload: {
-                                LSUB: [
-                                    imapHandler.parser('* LSUB (\\NoInferiors) NIL "INBOX"')
-                                ]
-                            }
-                        }, function() {
-                            done();
-                        });
-                    });
+                br.exec.withArgs({
+                    command: 'LSUB',
+                    attributes: ['', '*']
+                }).returns(Promise.resolve({
+                    payload: {
+                        LSUB: [false]
+                    }
+                }));
 
-                    expect(command).to.deep.equal({
-                        command: 'LIST',
-                        attributes: ['', '*']
-                    });
-                    callback(null, {
-                        payload: {
-                            LIST: [
-                                imapHandler.parser('* LIST (\\NoInferiors) NIL "INBOX"')
-                            ]
-                        }
-                    }, function() {});
-                });
-
-                br.listMailboxes(function(err, tree) {
-                    expect(err).to.not.exist;
+                br.listMailboxes().then((tree) => {
                     expect(tree).to.exist;
-                });
+                }).then(done).catch(done);
+            });
+
+            it('should not die on NIL separators', (done) => {
+                br.exec.withArgs({
+                    command: 'LIST',
+                    attributes: ['', '*']
+                }).returns(Promise.resolve({
+                    payload: {
+                        LIST: [
+                            imapHandler.parser('* LIST (\\NoInferiors) NIL "INBOX"')
+                        ]
+                    }
+                }));
+
+                br.exec.withArgs({
+                    command: 'LSUB',
+                    attributes: ['', '*']
+                }).returns(Promise.resolve({
+                    payload: {
+                        LSUB: [
+                            imapHandler.parser('* LSUB (\\NoInferiors) NIL "INBOX"')
+                        ]
+                    }
+                }));
+
+                br.listMailboxes().then((tree) => {
+                    expect(tree).to.exist;
+                }).then(done).catch(done);
             });
         });
 
-        describe('#createMailbox', function() {
-            // The spec allows unquoted ATOM-style syntax too, but for
-            // simplicity we always generate a string even if it could be
-            // expressed as an atom.
-            it('should call CREATE with a string payload', function(done) {
-                sinon.stub(br, 'exec').yields(null, null, done);
-                var mailboxName = 'foo';
-                br.createMailbox(mailboxName, function(err) {
-                    expect(err).to.not.exist;
+        describe('#createMailbox', () => {
+            beforeEach(() => {
+                sinon.stub(br, 'exec');
+            });
 
-                    expect(br.exec.args[0][0]).to.deep.equal({
-                        command: 'CREATE',
-                        attributes: [mailboxName]
-                    });
+            it('should call CREATE with a string payload', (done) => {
+                // The spec allows unquoted ATOM-style syntax too, but for
+                // simplicity we always generate a string even if it could be
+                // expressed as an atom.
+                br.exec.withArgs({
+                    command: 'CREATE',
+                    attributes: ['mailboxname']
+                }).returns(Promise.resolve());
 
+                br.createMailbox('mailboxname').then(() => {
                     expect(br.exec.callCount).to.equal(1);
-
-                    br.exec.restore();
-                });
+                }).then(done).catch(done);
             });
 
-            it('should call mutf7 encode the argument', function(done) {
-                sinon.stub(br, 'exec').yields(null, null, done);
+            it('should call mutf7 encode the argument', (done) => {
                 // From RFC 3501
-                var localName = '~peter/mail/\u53f0\u5317/\u65e5\u672c\u8a9e';
-                var serverName = '~peter/mail/&U,BTFw-/&ZeVnLIqe-';
-                br.createMailbox(localName, function(err) {
-                    expect(err).to.not.exist;
+                br.exec.withArgs({
+                    command: 'CREATE',
+                    attributes: ['~peter/mail/&U,BTFw-/&ZeVnLIqe-']
+                }).returns(Promise.resolve());
 
-                    expect(br.exec.args[0][0]).to.deep.equal({
-                        command: 'CREATE',
-                        attributes: [serverName]
-                    });
-
+                br.createMailbox('~peter/mail/\u53f0\u5317/\u65e5\u672c\u8a9e').then(() => {
                     expect(br.exec.callCount).to.equal(1);
-
-                    br.exec.restore();
-                });
+                }).then(done).catch(done);
             });
 
-            it('should treat an ALREADYEXISTS response as success', function(done) {
+            it('should treat an ALREADYEXISTS response as success', (done) => {
                 var fakeErr = {
                     code: 'ALREADYEXISTS'
                 };
-                var fakeResp = {
-                    code: 'ALREADYEXISTS'
-                };
-                sinon.stub(br, 'exec').yields(fakeErr, fakeResp, done);
-                var mailboxName = 'foo';
-                br.createMailbox(mailboxName, function(err, alreadyExists) {
-                    expect(err).to.not.exist;
-                    expect(alreadyExists).to.be.true;
+                br.exec.withArgs({
+                    command: 'CREATE',
+                    attributes: ['mailboxname']
+                }).returns(Promise.reject(fakeErr));
 
-                    expect(br.exec.args[0][0]).to.deep.equal({
-                        command: 'CREATE',
-                        attributes: [mailboxName]
-                    });
-
+                br.createMailbox('mailboxname').then(() => {
                     expect(br.exec.callCount).to.equal(1);
-
-                    br.exec.restore();
-                });
+                }).then(done).catch(done);
             });
         });
 
-        describe('#listMessages', function() {
-            it('should call FETCH', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc', done);
-                });
-                sinon.stub(br, '_buildFETCHCommand', function() {
-                    return {};
-                });
+        describe('#listMessages', () => {
+            beforeEach(() => {
+                sinon.stub(br, 'exec');
+                sinon.stub(br, '_buildFETCHCommand');
                 sinon.stub(br, '_parseFETCH');
+            });
 
-                br.listMessages('1:2', ['uid', 'flags'], {
+            it('should call FETCH', (done) => {
+                br.exec.returns(Promise.resolve('abc'));
+                br._buildFETCHCommand.withArgs(['1:2', ['uid', 'flags'], {
                     byUid: true
-                }, function() {});
+                }]).returns({});
 
-                expect(br._buildFETCHCommand.callCount).to.equal(1);
-                expect(br._buildFETCHCommand.args[0][0]).to.equal('1:2');
-                expect(br._buildFETCHCommand.args[0][1]).to.deep.equal(['uid', 'flags']);
-                expect(br._buildFETCHCommand.args[0][2]).to.deep.equal({
+                br.listMessages('INBOX', '1:2', ['uid', 'flags'], {
                     byUid: true
-                });
-                expect(br.exec.callCount).to.equal(1);
-                expect(br._parseFETCH.withArgs('abc').callCount).to.equal(1);
-
-                br.exec.restore();
-                br._buildFETCHCommand.restore();
-                br._parseFETCH.restore();
+                }).then(() => {
+                    expect(br._buildFETCHCommand.callCount).to.equal(1);
+                    expect(br._parseFETCH.withArgs('abc').callCount).to.equal(1);
+                }).then(done).catch(done);
             });
         });
 
-        describe('#search', function() {
-            it('should call SEARCH', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc', done);
-                });
-                sinon.stub(br, '_buildSEARCHCommand', function() {
-                    return {};
-                });
+        describe('#search', () => {
+            beforeEach(() => {
+                sinon.stub(br, 'exec');
+                sinon.stub(br, '_buildSEARCHCommand');
                 sinon.stub(br, '_parseSEARCH');
+            });
 
-                br.search({
+            it('should call SEARCH', (done) => {
+                br.exec.returns(Promise.resolve('abc'));
+                br._buildSEARCHCommand.withArgs({
                     uid: 1
                 }, {
                     byUid: true
-                }, function() {});
+                }).returns({});
 
-                expect(br._buildSEARCHCommand.callCount).to.equal(1);
-                expect(br._buildSEARCHCommand.args[0][0]).to.deep.equal({
+                br.search('INBOX', {
                     uid: 1
-                });
-                expect(br._buildSEARCHCommand.args[0][1]).to.deep.equal({
+                }, {
                     byUid: true
-                });
-                expect(br.exec.callCount).to.equal(1);
-                expect(br._parseSEARCH.withArgs('abc').callCount).to.equal(1);
-
-                br.exec.restore();
-                br._buildSEARCHCommand.restore();
-                br._parseSEARCH.restore();
+                }).then(() => {
+                    expect(br._buildSEARCHCommand.callCount).to.equal(1);
+                    expect(br.exec.callCount).to.equal(1);
+                    expect(br._parseSEARCH.withArgs('abc').callCount).to.equal(1);
+                }).then(done).catch(done);
             });
         });
 
-        describe('#upload', function() {
-            it('should call APPEND with custom flag', function(done) {
-                sinon.stub(br, 'exec').yields(null, null, done);
+        describe('#upload', () => {
+            beforeEach(() => {
+                sinon.stub(br, 'exec');
+            });
+
+            it('should call APPEND with custom flag', (done) => {
+                br.exec.returns(Promise.resolve());
 
                 br.upload('mailbox', 'this is a message', {
                     flags: ['\\$MyFlag']
-                }, function(err, success) {
-                    expect(err).to.not.exist;
-                    expect(success).to.be.true;
-
+                }).then(() => {
                     expect(br.exec.callCount).to.equal(1);
-
-                    br.exec.restore();
-                });
+                }).then(done).catch(done);
             });
 
-            it('should call APPEND w/o flags', function(done) {
-                sinon.stub(br, 'exec').yields(null, null, done);
+            it('should call APPEND w/o flags', (done) => {
+                br.exec.returns(Promise.resolve());
 
-                br.upload('mailbox', 'this is a message', function(err, success) {
-                    expect(err).to.not.exist;
-                    expect(success).to.be.true;
-
+                br.upload('mailbox', 'this is a message').then(() => {
                     expect(br.exec.callCount).to.equal(1);
-
-                    br.exec.restore();
-                });
+                }).then(done).catch(done);
             });
         });
 
-        describe('#setFlags', function() {
-            it('should call STORE', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc', done);
-                });
-                sinon.stub(br, '_buildSTORECommand', function() {
-                    return {};
-                });
+        describe('#setFlags', () => {
+            beforeEach(() => {
+                sinon.stub(br, 'exec');
+                sinon.stub(br, '_buildSTORECommand');
                 sinon.stub(br, '_parseFETCH');
+            });
 
-                br.setFlags('1:2', ['\\Seen', '$MyFlag'], {
+            it('should call STORE', (done) => {
+                br.exec.returns(Promise.resolve('abc'));
+                br._buildSTORECommand.withArgs('1:2','FLAGS',['\\Seen', '$MyFlag'], {
                     byUid: true
-                }, function() {});
+                }).returns({});
 
-                expect(br._buildSTORECommand.callCount).to.equal(1);
-                expect(br._buildSTORECommand.args[0][0]).to.equal('1:2');
-                expect(br._buildSTORECommand.args[0][1]).to.equal('FLAGS');
-                expect(br._buildSTORECommand.args[0][2]).to.deep.equal(['\\Seen', '$MyFlag']);
-                expect(br._buildSTORECommand.args[0][3]).to.deep.equal({
+                br.setFlags('INBOX', '1:2', ['\\Seen', '$MyFlag'], {
                     byUid: true
-                });
-                expect(br.exec.callCount).to.equal(1);
-                expect(br._parseFETCH.withArgs('abc').callCount).to.equal(1);
-
-                br.exec.restore();
-                br._buildSTORECommand.restore();
-                br._parseFETCH.restore();
+                }).then(() => {
+                    expect(br.exec.callCount).to.equal(1);
+                    expect(br._parseFETCH.withArgs('abc').callCount).to.equal(1);
+                }).then(done).catch(done);
             });
         });
 
-        describe('#store', function() {
-            it('should call STORE', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc', done);
-                });
-                sinon.stub(br, '_buildSTORECommand', function() {
-                    return {};
-                });
+        describe('#store', () => {
+            beforeEach(() => {
+                sinon.stub(br, 'exec');
+                sinon.stub(br, '_buildSTORECommand');
                 sinon.stub(br, '_parseFETCH');
+            });
 
-                br.store('1:2', '+X-GM-LABELS', ['\\Sent', '\\Junk'], {
+            it('should call STORE', (done) => {
+                br.exec.returns(Promise.resolve('abc'));
+                br._buildSTORECommand.withArgs('1:2', '+X-GM-LABELS', ['\\Sent', '\\Junk'], {
                     byUid: true
-                }, function() {});
+                }).returns({});
 
-                expect(br._buildSTORECommand.callCount).to.equal(1);
-                expect(br._buildSTORECommand.args[0][0]).to.equal('1:2');
-                expect(br._buildSTORECommand.args[0][1]).to.equal('+X-GM-LABELS');
-                expect(br._buildSTORECommand.args[0][2]).to.deep.equal(['\\Sent', '\\Junk']);
-                expect(br._buildSTORECommand.args[0][3]).to.deep.equal({
+                br.store('INBOX', '1:2', '+X-GM-LABELS', ['\\Sent', '\\Junk'], {
                     byUid: true
-                });
-                expect(br.exec.callCount).to.equal(1);
-                expect(br._parseFETCH.withArgs('abc').callCount).to.equal(1);
-
-                br.exec.restore();
-                br._buildSTORECommand.restore();
-                br._parseFETCH.restore();
+                }).then(() => {
+                    expect(br._buildSTORECommand.callCount).to.equal(1);
+                    expect(br.exec.callCount).to.equal(1);
+                    expect(br._parseFETCH.withArgs('abc').callCount).to.equal(1);
+                }).then(done).catch(done);
             });
         });
 
-        describe('#deleteMessages', function() {
-            beforeEach(function() {
-                sinon.stub(br, 'setFlags', function(seq, flags, options, callback) {
-                    expect(flags).to.deep.equal({
-                        add: '\\Deleted'
-                    });
-                    callback();
-                });
-                sinon.stub(br, 'exec', function(command, callback) {
-                    callback(null, 'abc', function() {});
-                });
+        describe('#deleteMessages', () => {
+            beforeEach(() => {
+                sinon.stub(br, 'setFlags');
+                sinon.stub(br, 'exec');
             });
 
-            afterEach(function() {
-                br.setFlags.restore();
-                br.exec.restore();
-            });
-
-            it('should call UID EXPUNGE', function() {
-                br.capability = ['UIDPLUS'];
-                br.deleteMessages('1:2', {
-                    byUid: true
-                }, function() {});
-
-                expect(br.exec.callCount).to.equal(1);
-                expect(br.exec.args[0][0]).to.deep.equal({
+            it('should call UID EXPUNGE', (done) => {
+                br.exec.withArgs({
                     command: 'UID EXPUNGE',
                     attributes: [{
                         type: 'sequence',
                         value: '1:2'
                     }]
-                });
+                }).returns(Promise.resolve('abc'));
+                br.setFlags.withArgs('INBOX', '1:2', {
+                    add: '\\Deleted'
+                }).returns(Promise.resolve());
+
+                br._capability = ['UIDPLUS'];
+                br.deleteMessages('INBOX', '1:2', {
+                    byUid: true
+                }).then(() => {
+                    expect(br.exec.callCount).to.equal(1);
+                }).then(done).catch(done);
             });
 
-            it('should call EXPUNGE', function() {
-                br.capability = [];
-                br.deleteMessages('1:2', {
-                    byUid: true
-                }, function() {});
+            it('should call EXPUNGE', (done) => {
+                br.exec.withArgs('EXPUNGE').returns(Promise.resolve('abc'));
+                br.setFlags.withArgs('INBOX', '1:2', {
+                    add: '\\Deleted'
+                }).returns(Promise.resolve());
 
-                expect(br.exec.callCount).to.equal(1);
-                expect(br.exec.args[0][0]).to.equal('EXPUNGE');
+                br._capability = [];
+                br.deleteMessages('INBOX', '1:2', {
+                    byUid: true
+                }).then(() => {
+                    expect(br.exec.callCount).to.equal(1);
+                }).then(done).catch(done);
             });
         });
 
-        describe('#copyMessages', function() {
-            it('should call COPY', function(done) {
-                sinon.stub(br, 'exec', function(command, options, callback) {
-                    callback(null, {
-                        humanReadable: 'abc'
-                    }, done);
-                });
+        describe('#copyMessages', () => {
+            beforeEach(() => {
+                sinon.stub(br, 'exec');
+            });
 
-                br.copyMessages('1:2', '[Gmail]/Trash', {
-                    byUid: true
-                }, function(err, response) {
-                    expect(err).to.not.exist;
-                    expect(response).to.equal('abc');
-                });
-
-                expect(br.exec.callCount).to.equal(1);
-                expect(br.exec.args[0][0]).to.deep.equal({
+            it('should call COPY', (done) => {
+                br.exec.withArgs({
                     command: 'UID COPY',
                     attributes: [{
                         type: 'sequence',
@@ -895,25 +760,28 @@
                         type: 'atom',
                         value: '[Gmail]/Trash'
                     }]
-                });
+                }).returns(Promise.resolve({
+                    humanReadable: 'abc'
+                }));
 
-                br.exec.restore();
+                br.copyMessages('INBOX', '1:2', '[Gmail]/Trash', {
+                    byUid: true
+                }).then((response) => {
+                    expect(response).to.equal('abc');
+                    expect(br.exec.callCount).to.equal(1);
+                }).then(done).catch(done);
             });
         });
 
-        describe('#moveMessages', function() {
-            it('should call MOVE if supported', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc', done);
-                });
+        describe('#moveMessages', () => {
+            beforeEach(() => {
+                sinon.stub(br, 'exec');
+                sinon.stub(br, 'copyMessages');
+                sinon.stub(br, 'deleteMessages');
+            });
 
-                br.capability = ['MOVE'];
-                br.moveMessages('1:2', '[Gmail]/Trash', {
-                    byUid: true
-                }, function() {});
-
-                expect(br.exec.callCount).to.equal(1);
-                expect(br.exec.args[0][0]).to.deep.equal({
+            it('should call MOVE if supported', (done) => {
+                br.exec.withArgs({
                     command: 'UID MOVE',
                     attributes: [{
                         type: 'sequence',
@@ -922,76 +790,57 @@
                         type: 'atom',
                         value: '[Gmail]/Trash'
                     }]
-                });
-                expect(br.exec.args[0][1]).to.deep.equal(['OK']);
+                }, ['OK']).returns(Promise.resolve('abc'));
 
-                br.exec.restore();
+                br._capability = ['MOVE'];
+                br.moveMessages('INBOX', '1:2', '[Gmail]/Trash', {
+                    byUid: true
+                }).then(() => {
+                    expect(br.exec.callCount).to.equal(1);
+                }).then(done).catch(done);
             });
 
-            it('should fallback to copy+expunge', function() {
-                sinon.stub(br, 'copyMessages', function(sequence, destination, options, callback) {
-                    expect(sequence).to.equal('1:2');
-                    expect(destination).to.equal('[Gmail]/Trash');
-                    expect(options).to.deep.equal({
-                        byUid: true
-                    });
-                    callback();
-                });
-                sinon.stub(br, 'deleteMessages');
-
-                br.capability = [];
-                br.moveMessages('1:2', '[Gmail]/Trash', {
+            it('should fallback to copy+expunge', (done) => {
+                br.copyMessages.withArgs('INBOX', '1:2', '[Gmail]/Trash', {
                     byUid: true
-                }, function() {});
-
-                expect(br.deleteMessages.callCount).to.equal(1);
-                expect(br.deleteMessages.args[0][0]).to.equal('1:2');
-                expect(br.deleteMessages.args[0][1]).to.deep.equal({
+                }).returns(Promise.resolve());
+                br.deleteMessages.withArgs('1:2', {
                     byUid: true
-                });
+                }).returns(Promise.resolve());
 
-                br.copyMessages.restore();
-                br.deleteMessages.restore();
+                br._capability = [];
+                br.moveMessages('INBOX', '1:2', '[Gmail]/Trash', {
+                    byUid: true
+                }).then(() => {
+                    expect(br.deleteMessages.callCount).to.equal(1);
+                }).then(done).catch(done);
             });
         });
 
-        describe('#selectMailbox', function() {
-            it('should run SELECT', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc', done);
-                });
+        describe('#selectMailbox', () => {
+            beforeEach(() => {
+                sinon.stub(br, 'exec');
                 sinon.stub(br, '_parseSELECT');
+            });
 
-                br.selectMailbox('[Gmail]/Trash', function() {});
-
-                expect(br.exec.callCount).to.equal(1);
-                expect(br.exec.args[0][0]).to.deep.equal({
+            it('should run SELECT', (done) => {
+                br.exec.withArgs({
                     command: 'SELECT',
                     attributes: [{
                         type: 'STRING',
                         value: '[Gmail]/Trash'
                     }]
-                });
-                expect(br._parseSELECT.withArgs('abc').callCount).to.equal(1);
-                expect(br.state).to.equal(br.STATE_SELECTED);
+                }).returns(Promise.resolve('abc'));
 
-                br.exec.restore();
-                br._parseSELECT.restore();
+                br.selectMailbox('[Gmail]/Trash').then(() => {
+                    expect(br.exec.callCount).to.equal(1);
+                    expect(br._parseSELECT.withArgs('abc').callCount).to.equal(1);
+                    expect(br._state).to.equal(br.STATE_SELECTED);
+                }).then(done).catch(done);
             });
 
-            it('should run SELECT with CONDSTORE', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc', done);
-                });
-                sinon.stub(br, '_parseSELECT');
-
-                br.capability = ['CONDSTORE'];
-                br.selectMailbox('[Gmail]/Trash', {
-                    condstore: true
-                }, function() {});
-
-                expect(br.exec.callCount).to.equal(1);
-                expect(br.exec.args[0][0]).to.deep.equal({
+            it('should run SELECT with CONDSTORE', (done) => {
+                br.exec.withArgs({
                     command: 'SELECT',
                     attributes: [{
                             type: 'STRING',
@@ -1002,117 +851,113 @@
                             value: 'CONDSTORE'
                         }]
                     ]
-                });
-                expect(br._parseSELECT.withArgs('abc').callCount).to.equal(1);
-                expect(br.state).to.equal(br.STATE_SELECTED);
+                }).returns(Promise.resolve('abc'));
 
-                br.exec.restore();
-                br._parseSELECT.restore();
+                br._capability = ['CONDSTORE'];
+                br.selectMailbox('[Gmail]/Trash', {
+                    condstore: true
+                }).then(() => {
+                    expect(br.exec.callCount).to.equal(1);
+                    expect(br._parseSELECT.withArgs('abc').callCount).to.equal(1);
+                    expect(br._state).to.equal(br.STATE_SELECTED);
+                }).then(done).catch(done);
             });
 
-            it('should emit onselectmailbox', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc', done);
-                });
-                sinon.stub(br, '_parseSELECT').returns('def');
-                sinon.stub(br, 'onselectmailbox');
+            it('should emit onselectmailbox', (done) => {
+                br.exec.returns(Promise.resolve('abc'));
+                br._parseSELECT.withArgs('abc').returns('def');
 
-                br.selectMailbox('[Gmail]/Trash', function() {});
+                br.onselectmailbox = (path, mailbox) => {
+                    expect(path).to.equal('[Gmail]/Trash');
+                    expect(mailbox).to.equal('def');
+                    done();
+                };
 
-                expect(br._parseSELECT.withArgs('abc').callCount).to.equal(1);
-                expect(br.onselectmailbox.withArgs('[Gmail]/Trash', 'def').callCount).to.equal(1);
-
-                br.exec.restore();
-                br._parseSELECT.restore();
-                br.onselectmailbox.restore();
+                br.selectMailbox('[Gmail]/Trash').then(() => {
+                    expect(br._parseSELECT.callCount).to.equal(1);
+                }).catch(done);
             });
 
-            it('should emit onclosemailbox', function(done) {
-                sinon.stub(br, 'exec', function(command, untagged, options, callback) {
-                    callback(null, 'abc', done);
-                });
-                sinon.stub(br, '_parseSELECT').returns('def');
-                sinon.stub(br, 'onclosemailbox');
+            it('should emit onclosemailbox', (done) => {
+                br.exec.returns(Promise.resolve('abc'));
+                br._parseSELECT.withArgs('abc').returns('def');
 
-                br.selectedMailbox = 'yyy';
-                br.selectMailbox('[Gmail]/Trash', function() {});
+                br.onclosemailbox = (path) => expect(path).to.equal('yyy');
 
-                expect(br.onclosemailbox.withArgs('yyy').callCount).to.equal(1);
-
-                br.exec.restore();
-                br._parseSELECT.restore();
-                br.onclosemailbox.restore();
+                br._selectedMailbox = 'yyy';
+                br.selectMailbox('[Gmail]/Trash').then(() => {
+                    expect(br._parseSELECT.callCount).to.equal(1);
+                }).then(done).catch(done);
             });
         });
 
-        describe('#hasCapability', function() {
-            it('should detect existing capability', function() {
-                br.capability = ['ZZZ'];
+        describe('#hasCapability', () => {
+            it('should detect existing capability', () => {
+                br._capability = ['ZZZ'];
                 expect(br.hasCapability('zzz')).to.be.true;
             });
 
-            it('should detect non existing capability', function() {
-                br.capability = ['ZZZ'];
+            it('should detect non existing capability', () => {
+                br._capability = ['ZZZ'];
                 expect(br.hasCapability('ooo')).to.be.false;
                 expect(br.hasCapability()).to.be.false;
             });
         });
 
-        describe('#_untaggedOkHandler', function() {
-            it('should update capability if present', function() {
+        describe('#_untaggedOkHandler', () => {
+            it('should update capability if present', () => {
                 br._untaggedOkHandler({
                     capability: ['abc']
-                }, function() {});
-                expect(br.capability).to.deep.equal(['abc']);
+                }, () => {});
+                expect(br._capability).to.deep.equal(['abc']);
             });
         });
 
-        describe('#_untaggedCapabilityHandler', function() {
-            it('should update capability', function() {
+        describe('#_untaggedCapabilityHandler', () => {
+            it('should update capability', () => {
                 br._untaggedCapabilityHandler({
                     attributes: [{
                         value: 'abc'
                     }]
-                }, function() {});
-                expect(br.capability).to.deep.equal(['ABC']);
+                }, () => {});
+                expect(br._capability).to.deep.equal(['ABC']);
             });
         });
 
-        describe('#_untaggedExistsHandler', function() {
-            it('should emit onupdate', function() {
+        describe('#_untaggedExistsHandler', () => {
+            it('should emit onupdate', () => {
                 sinon.stub(br, 'onupdate');
+                br.selectedMailbox = 'FOO';
 
                 br._untaggedExistsHandler({
                     nr: 123
-                }, function() {});
-                expect(br.onupdate.withArgs('exists', 123).callCount).to.equal(1);
-
-                br.onupdate.restore();
+                }, () => {});
+                expect(br.onupdate.withArgs('FOO', 'exists', 123).callCount).to.equal(1);
             });
         });
 
-        describe('#_untaggedExpungeHandler', function() {
-            it('should emit onupdate', function() {
+        describe('#_untaggedExpungeHandler', () => {
+            it('should emit onupdate', () => {
                 sinon.stub(br, 'onupdate');
+                br.selectedMailbox = 'FOO';
 
                 br._untaggedExpungeHandler({
                     nr: 123
-                }, function() {});
-                expect(br.onupdate.withArgs('expunge', 123).callCount).to.equal(1);
-
-                br.onupdate.restore();
+                }, () => {});
+                expect(br.onupdate.withArgs('FOO', 'expunge', 123).callCount).to.equal(1);
             });
         });
 
-        describe('#_untaggedFetchHandler', function() {
-            it('should emit onupdate', function() {
+        describe('#_untaggedFetchHandler', () => {
+            it('should emit onupdate', () => {
                 sinon.stub(br, 'onupdate');
                 sinon.stub(br, '_parseFETCH').returns('abc');
+                br.selectedMailbox = 'FOO';
 
                 br._untaggedFetchHandler({
                     nr: 123
-                }, function() {});
-                expect(br.onupdate.withArgs('fetch', 'abc').callCount).to.equal(1);
+                }, () => {});
+                expect(br.onupdate.withArgs('FOO', 'fetch', 'abc').callCount).to.equal(1);
                 expect(br._parseFETCH.args[0][0]).to.deep.equal({
                     payload: {
                         FETCH: [{
@@ -1120,14 +965,11 @@
                         }]
                     }
                 });
-
-                br.onupdate.restore();
-                br._parseFETCH.restore();
             });
         });
 
-        describe('#_parseSELECT', function() {
-            it('should parse a complete response', function() {
+        describe('#_parseSELECT', () => {
+            it('should parse a complete response', () => {
                 expect(br._parseSELECT({
                     code: 'READ-WRITE',
                     payload: {
@@ -1170,7 +1012,7 @@
                 });
             });
 
-            it('should parse response with no modseq', function() {
+            it('should parse response with no modseq', () => {
                 expect(br._parseSELECT({
                     code: 'READ-WRITE',
                     payload: {
@@ -1209,7 +1051,7 @@
                 });
             });
 
-            it('should parse response with read-only', function() {
+            it('should parse response with read-only', () => {
                 expect(br._parseSELECT({
                     code: 'READ-ONLY',
                     payload: {
@@ -1248,7 +1090,7 @@
                 });
             });
 
-            it('should parse response with NOMODSEQ flag', function() {
+            it('should parse response with NOMODSEQ flag', () => {
                 expect(br._parseSELECT({
                     code: 'READ-WRITE',
                     payload: {
@@ -1291,8 +1133,8 @@
             });
         });
 
-        describe('#_parseNAMESPACE', function() {
-            it('should not succeed for no namespace response', function() {
+        describe('#_parseNAMESPACE', () => {
+            it('should not succeed for no namespace response', () => {
                 expect(br._parseNAMESPACE({
                     payload: {
                         NAMESPACE: []
@@ -1300,7 +1142,7 @@
                 })).to.be.false;
             });
 
-            it('should return single personal namespace', function() {
+            it('should return single personal namespace', () => {
                 expect(br._parseNAMESPACE({
                     payload: {
                         NAMESPACE: [{
@@ -1327,7 +1169,7 @@
                 });
             });
 
-            it('should return single personal, single users, multiple shared', function() {
+            it('should return single personal, single users, multiple shared', () => {
                 expect(br._parseNAMESPACE({
                     payload: {
                         NAMESPACE: [{
@@ -1391,7 +1233,7 @@
                 });
             });
 
-            it('should handle NIL namespace hierarchy delim', function() {
+            it('should handle NIL namespace hierarchy delim', () => {
                 expect(br._parseNAMESPACE({
                     payload: {
                         NAMESPACE: [
@@ -1411,9 +1253,9 @@
             });
         });
 
-        describe('#_buildFETCHCommand', function() {
-            it('should build single ALL', function() {
-                expect(br._buildFETCHCommand('1:*', 'all', {})).to.deep.equal({
+        describe('#_buildFETCHCommand', () => {
+            it('should build single ALL', () => {
+                expect(br._buildFETCHCommand('1:*', ['all'], {})).to.deep.equal({
                     command: 'FETCH',
                     attributes: [{
                         type: 'SEQUENCE',
@@ -1425,8 +1267,8 @@
                 });
             });
 
-            it('should build FETCH with uid', function() {
-                expect(br._buildFETCHCommand('1:*', 'all', {
+            it('should build FETCH with uid', () => {
+                expect(br._buildFETCHCommand('1:*', ['all'], {
                     byUid: true
                 })).to.deep.equal({
                     command: 'UID FETCH',
@@ -1440,7 +1282,7 @@
                 });
             });
 
-            it('should build FETCH with uid, envelope', function() {
+            it('should build FETCH with uid, envelope', () => {
                 expect(br._buildFETCHCommand('1:*', ['uid', 'envelope'], {})).to.deep.equal({
                     command: 'FETCH',
                     attributes: [{
@@ -1458,7 +1300,7 @@
                 });
             });
 
-            it('should build FETCH with modseq', function() {
+            it('should build FETCH with modseq', () => {
                 expect(br._buildFETCHCommand('1:*', ['modseq (1234567)'], {})).to.deep.equal({
                     command: 'FETCH',
                     attributes: [{
@@ -1478,8 +1320,8 @@
                 });
             });
 
-            it('should build FETCH with section', function() {
-                expect(br._buildFETCHCommand('1:*', 'body[text]', {})).to.deep.equal({
+            it('should build FETCH with section', () => {
+                expect(br._buildFETCHCommand('1:*', ['body[text]'], {})).to.deep.equal({
                     command: 'FETCH',
                     attributes: [{
                         type: 'SEQUENCE',
@@ -1495,8 +1337,8 @@
                 });
             });
 
-            it('should build FETCH with section and list', function() {
-                expect(br._buildFETCHCommand('1:*', 'body[header.fields (date in-reply-to)]', {})).to.deep.equal({
+            it('should build FETCH with section and list', () => {
+                expect(br._buildFETCHCommand('1:*', ['body[header.fields (date in-reply-to)]'], {})).to.deep.equal({
                     command: 'FETCH',
                     attributes: [{
                         type: 'SEQUENCE',
@@ -1520,8 +1362,8 @@
                 });
             });
 
-            it('should build FETCH with ', function() {
-                expect(br._buildFETCHCommand('1:*', 'all', {
+            it('should build FETCH with ', () => {
+                expect(br._buildFETCHCommand('1:*', ['all'], {
                     changedSince: '123456'
                 })).to.deep.equal({
                     command: 'FETCH',
@@ -1543,8 +1385,8 @@
                 });
             });
 
-            it('should build FETCH with partial', function() {
-                expect(br._buildFETCHCommand('1:*', 'body[]', {})).to.deep.equal({
+            it('should build FETCH with partial', () => {
+                expect(br._buildFETCHCommand('1:*', ['body[]'], {})).to.deep.equal({
                     command: 'FETCH',
                     attributes: [{
                         type: 'SEQUENCE',
@@ -1558,8 +1400,8 @@
             });
         });
 
-        describe('#_parseFETCH', function() {
-            it('should return values lowercase keys', function() {
+        describe('#_parseFETCH', () => {
+            it('should return values lowercase keys', () => {
                 sinon.stub(br, '_parseFetchValue').returns('def');
                 expect(br._parseFETCH({
                     payload: {
@@ -1598,11 +1440,9 @@
                     type: 'ATOM',
                     value: 'abc'
                 }).callCount).to.equal(1);
-
-                br._parseFetchValue.restore();
             });
 
-            it('should merge multiple responses based on sequence number', function() {
+            it('should merge multiple responses based on sequence number', () => {
                 expect(br._parseFETCH({
                     payload: {
                         FETCH: [{
@@ -1651,18 +1491,18 @@
             });
         });
 
-        describe('#_parseENVELOPE', function() {
-            it('should parsed envelope object', function() {
+        describe('#_parseENVELOPE', () => {
+            it('should parsed envelope object', () => {
                 expect(br._parseENVELOPE(testEnvelope.source)).to.deep.equal(testEnvelope.parsed);
             });
         });
 
-        describe('#_parseBODYSTRUCTURE', function() {
-            it('should parse bodystructure object', function() {
+        describe('#_parseBODYSTRUCTURE', () => {
+            it('should parse bodystructure object', () => {
                 expect(br._parseBODYSTRUCTURE(mimeTorture.source)).to.deep.equal(mimeTorture.parsed);
             });
 
-            it('should parse bodystructure with unicode filename', function() {
+            it('should parse bodystructure with unicode filename', () => {
                 var input = [
                     [{
                             type: 'STRING',
@@ -1729,8 +1569,8 @@
             });
         });
 
-        describe('#_buildSEARCHCommand', function() {
-            it('should compose a search command', function() {
+        describe('#_buildSEARCHCommand', () => {
+            it('should compose a search command', () => {
                 expect(br._buildSEARCHCommand({
                     unseen: true,
                     header: ['subject', 'hello world'],
@@ -1809,7 +1649,7 @@
                 });
             });
 
-            it('should compose an unicode search command', function() {
+            it('should compose an unicode search command', () => {
                 expect(br._buildSEARCHCommand({
                     body: 'jõgeva'
                 }, {})).to.deep.equal({
@@ -1831,8 +1671,8 @@
             });
         });
 
-        describe('#_parseSEARCH', function() {
-            it('should parse SEARCH response', function() {
+        describe('#_parseSEARCH', () => {
+            it('should parse SEARCH response', () => {
                 expect(br._parseSEARCH({
                     payload: {
                         SEARCH: [{
@@ -1850,7 +1690,7 @@
                 })).to.deep.equal([5, 6, 7]);
             });
 
-            it('should parse empty SEARCH response', function() {
+            it('should parse empty SEARCH response', () => {
                 expect(br._parseSEARCH({
                     payload: {
                         SEARCH: [{
@@ -1862,8 +1702,8 @@
             });
         });
 
-        describe('#_buildSTORECommand', function() {
-            it('should compose a store command from an array', function() {
+        describe('#_buildSTORECommand', () => {
+            it('should compose a store command from an array', () => {
                 expect(br._buildSTORECommand('1,2,3', 'FLAGS', ['a', 'b'], {})).to.deep.equal({
                     command: 'STORE',
                     attributes: [{
@@ -1884,7 +1724,7 @@
                 });
             });
 
-            it('should compose a store set flags command', function() {
+            it('should compose a store set flags command', () => {
                 expect(br._buildSTORECommand('1,2,3', 'FLAGS', ['a', 'b'], {})).to.deep.equal({
                     command: 'STORE',
                     attributes: [{
@@ -1905,7 +1745,7 @@
                 });
             });
 
-            it('should compose a store add flags command', function() {
+            it('should compose a store add flags command', () => {
                 expect(br._buildSTORECommand('1,2,3', '+FLAGS', ['a', 'b'], {})).to.deep.equal({
                     command: 'STORE',
                     attributes: [{
@@ -1926,7 +1766,7 @@
                 });
             });
 
-            it('should compose a store remove flags command', function() {
+            it('should compose a store remove flags command', () => {
                 expect(br._buildSTORECommand('1,2,3', '-FLAGS', ['a', 'b'], {})).to.deep.equal({
                     command: 'STORE',
                     attributes: [{
@@ -1947,7 +1787,7 @@
                 });
             });
 
-            it('should compose a store remove silent flags command', function() {
+            it('should compose a store remove silent flags command', () => {
                 expect(br._buildSTORECommand('1,2,3', '-FLAGS', ['a', 'b'], {
                     silent: true
                 })).to.deep.equal({
@@ -1970,7 +1810,7 @@
                 });
             });
 
-            it('should compose a uid store flags command', function() {
+            it('should compose a uid store flags command', () => {
                 expect(br._buildSTORECommand('1,2,3', 'FLAGS', ['a', 'b'], {
                     byUid: true
                 })).to.deep.equal({
@@ -1995,28 +1835,27 @@
 
         });
 
-        describe('#_changeState', function() {
-            it('should set the state value', function() {
+        describe('#_changeState', () => {
+            it('should set the state value', () => {
                 br._changeState(12345);
 
-                expect(br.state).to.equal(12345);
+                expect(br._state).to.equal(12345);
             });
 
-            it('should emit onclosemailbox if mailbox was closed', function() {
+            it('should emit onclosemailbox if mailbox was closed', () => {
                 sinon.stub(br, 'onclosemailbox');
-                br.state = br.STATE_SELECTED;
-                br.selectedMailbox = 'aaa';
+                br._state = br.STATE_SELECTED;
+                br._selectedMailbox = 'aaa';
 
                 br._changeState(12345);
 
-                expect(br.selectedMailbox).to.be.false;
+                expect(br._selectedMailbox).to.be.false;
                 expect(br.onclosemailbox.withArgs('aaa').callCount).to.equal(1);
-                br.onclosemailbox.restore();
             });
         });
 
-        describe('#_ensurePath', function() {
-            it('should create the path if not present', function() {
+        describe('#_ensurePath', () => {
+            it('should create the path if not present', () => {
                 var tree = {
                     children: []
                 };
@@ -2041,7 +1880,7 @@
                 });
             });
 
-            it('should return existing path if possible', function() {
+            it('should return existing path if possible', () => {
                 var tree = {
                     children: [{
                         name: 'hello',
@@ -2065,7 +1904,7 @@
                 });
             });
 
-            it('should handle case insensitive Inbox', function() {
+            it('should handle case insensitive Inbox', () => {
                 var tree = {
                     children: []
                 };
@@ -2103,25 +1942,25 @@
             });
         });
 
-        describe('#_checkSpecialUse', function() {
-            it('should exist', function() {
+        describe('#_checkSpecialUse', () => {
+            it('should exist', () => {
                 expect(br._checkSpecialUse({
                     flags: ['test', '\\All']
                 })).to.equal('\\All');
 
             });
 
-            it('should fail for non-existent flag', function() {
+            it('should fail for non-existent flag', () => {
                 expect(false, br._checkSpecialUse({}));
             });
 
-            it('should fail for invalid flag', function() {
+            it('should fail for invalid flag', () => {
                 expect(br._checkSpecialUse({
                     flags: ['test']
                 })).to.be.false;
             });
 
-            it('should return special use flag if match is found', function() {
+            it('should return special use flag if match is found', () => {
                 expect(br._checkSpecialUse({
                     name: 'test'
                 })).to.be.false;
@@ -2131,36 +1970,48 @@
             });
         });
 
-        describe('#_buildXOAuth2Token', function() {
-            it('should return base64 encoded XOAUTH2 token', function() {
+        describe('#_buildXOAuth2Token', () => {
+            it('should return base64 encoded XOAUTH2 token', () => {
                 expect(br._buildXOAuth2Token('user@host', 'abcde')).to.equal('dXNlcj11c2VyQGhvc3QBYXV0aD1CZWFyZXIgYWJjZGUBAQ==');
             });
         });
 
-        describe('untagged updates', function() {
-            it('should receive information about untagged exists', function(done) {
+        describe('untagged updates', () => {
+            it('should receive information about untagged exists', (done) => {
                 br.client._connectionReady = true;
-                br.onupdate = function(type, value) {
+                br.selectedMailbox = 'FOO';
+                br.onupdate = (path, type, value) => {
+                    expect(path).to.equal('FOO');
                     expect(type).to.equal('exists');
                     expect(value).to.equal(123);
                     done();
                 };
-                br.client._addToServerQueue('* 123 EXISTS');
+                br.client._onData({
+                    /* * 123 EXISTS\r\n */
+                    data: new Uint8Array([42, 32, 49, 50, 51, 32, 69, 88, 73, 83, 84, 83, 13, 10]).buffer
+                });
             });
 
-            it('should receive information about untagged expunge', function(done) {
+            it('should receive information about untagged expunge', (done) => {
                 br.client._connectionReady = true;
-                br.onupdate = function(type, value) {
+                br.selectedMailbox = 'FOO';
+                br.onupdate = (path, type, value) => {
+                    expect(path).to.equal('FOO');
                     expect(type).to.equal('expunge');
                     expect(value).to.equal(456);
                     done();
                 };
-                br.client._addToServerQueue('* 456 EXPUNGE');
+                br.client._onData({
+                    /* * 456 EXPUNGE\r\n */
+                    data: new Uint8Array([42, 32, 52, 53, 54, 32, 69, 88, 80, 85, 78, 71, 69, 13, 10]).buffer
+                });
             });
 
-            it('should receive information about untagged fetch', function(done) {
+            it('should receive information about untagged fetch', (done) => {
                 br.client._connectionReady = true;
-                br.onupdate = function(type, value) {
+                br.selectedMailbox = 'FOO';
+                br.onupdate = (path, type, value) => {
+                    expect(path).to.equal('FOO');
                     expect(type).to.equal('fetch');
                     expect(value).to.deep.equal({
                         '#': 123,
@@ -2169,7 +2020,10 @@
                     });
                     done();
                 };
-                br.client._addToServerQueue('* 123 FETCH (FLAGS (\\Seen) MODSEQ (4))');
+                br.client._onData({
+                    /* * 123 FETCH (FLAGS (\\Seen) MODSEQ (4))\r\n */
+                    data: new Uint8Array([42, 32, 49, 50, 51, 32, 70, 69, 84, 67, 72, 32, 40, 70, 76, 65, 71, 83, 32, 40, 92, 83, 101, 101, 110, 41, 32, 77, 79, 68, 83, 69, 81, 32, 40, 52, 41, 41, 13, 10]).buffer
+                });
             });
         });
     });

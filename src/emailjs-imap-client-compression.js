@@ -22,11 +22,9 @@
     'use strict';
 
     if (typeof define === 'function' && define.amd) {
-        define(['browserbox-pako'], factory);
+        define(['emailjs-imap-client-pako'], factory);
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('./browserbox-pako'));
-    } else {
-        root.BrowserboxCompressor = factory(root.pako);
+        module.exports = factory(require('./emailjs-imap-client-pako'));
     }
 }(this, function(pako) {
     'use strict';
@@ -36,7 +34,7 @@
      *
      * Handles de-/compression via #inflate() and #deflate(), calls you back via #deflatedReady() and #inflatedReady().
      * The chunk we get from deflater is actually a view of a 16kB arraybuffer, so we need to copy the relevant parts
-     * memory to a new arraybuffer. 
+     * memory to a new arraybuffer.
      */
     var Compressor = function() {
         this.deflatedReady = false;

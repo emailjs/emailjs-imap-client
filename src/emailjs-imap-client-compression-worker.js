@@ -1,9 +1,9 @@
 (function() {
     'use strict';
 
-    // 
+    //
     // constants used for communication with the worker
-    // 
+    //
     var MESSAGE_START = 'start';
     var MESSAGE_INFLATE = 'inflate';
     var MESSAGE_INFLATED_DATA_READY = 'inflated_ready';
@@ -11,8 +11,8 @@
     var MESSAGE_DEFLATED_DATA_READY = 'deflated_ready';
 
     // require the compressor
-    var Compressor = require('./browserbox-compression');
-    
+    var Compressor = require('./emailjs-imap-client-compression');
+
     var compressor = new Compressor();
     compressor.inflatedReady = inflatedReady;
     compressor.deflatedReady = deflatedReady;
