@@ -2,11 +2,11 @@
 
 (function (factory) {
     if (typeof define === 'function' && define.amd) {
-        define(['chai', '../../src/browserbox', 'hoodiecrow'], factory);
+        define(['chai', '../../src/emailjs-imap-client', 'hoodiecrow-imap'], factory);
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('chai'), require('../../src/browserbox'), require('hoodiecrow'));
+        module.exports = factory(require('chai'), require('../../src/emailjs-imap-client'), require('hoodiecrow-imap'));
     }
-}(function(chai, BrowserBox, hoodiecrow) {
+}(function(chai, ImapClient, hoodiecrow) {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
     var expect = chai.expect;
@@ -82,7 +82,7 @@
             });
 
             it('should use STARTTLS by default', (done) => {
-                imap = new BrowserBox('127.0.0.1', port, {
+                imap = new ImapClient('127.0.0.1', port, {
                     auth: {
                         user: "testuser",
                         pass: "testpass"
@@ -103,7 +103,7 @@
             });
 
             it('should ignore STARTTLS', (done) => {
-                imap = new BrowserBox('127.0.0.1', port, {
+                imap = new ImapClient('127.0.0.1', port, {
                     auth: {
                         user: "testuser",
                         pass: "testpass"
@@ -121,7 +121,7 @@
             });
 
             it('should fail connecting to non-STARTTLS host', (done) => {
-                imap = new BrowserBox('127.0.0.1', port + 2, {
+                imap = new ImapClient('127.0.0.1', port + 2, {
                     auth: {
                         user: "testuser",
                         pass: "testpass"
@@ -138,7 +138,7 @@
             });
 
             it('should connect to non secure host', (done) => {
-                imap = new BrowserBox('127.0.0.1', port + 2, {
+                imap = new ImapClient('127.0.0.1', port + 2, {
                     auth: {
                         user: "testuser",
                         pass: "testpass"
@@ -158,7 +158,7 @@
         describe('Post login tests', () => {
 
             beforeEach((done) => {
-                imap = new BrowserBox('127.0.0.1', port, {
+                imap = new ImapClient('127.0.0.1', port, {
                     auth: {
                         user: "testuser",
                         pass: "testpass"
@@ -391,7 +391,7 @@
         describe('Timeout', () => {
 
             beforeEach((done) => {
-                imap = new BrowserBox('127.0.0.1', port, {
+                imap = new ImapClient('127.0.0.1', port, {
                     auth: {
                         user: "testuser",
                         pass: "testpass"

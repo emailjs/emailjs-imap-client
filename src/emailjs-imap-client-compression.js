@@ -22,9 +22,9 @@
     'use strict';
 
     if (typeof define === 'function' && define.amd) {
-        define(['browserbox-pako'], factory);
+        define(['emailjs-imap-client-pako'], factory);
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('./browserbox-pako'));
+        module.exports = factory(require('./emailjs-imap-client-pako'));
     }
 }(this, function(pako) {
     'use strict';

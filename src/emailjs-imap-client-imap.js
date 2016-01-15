@@ -2,13 +2,11 @@
     'use strict';
 
     if (typeof define === 'function' && define.amd) {
-        define(['tcp-socket', 'imap-handler', 'mimefuncs', 'browserbox-compression'], function(TCPSocket, imapHandler, mimefuncs, compression) {
-            return factory(TCPSocket, imapHandler, mimefuncs, compression);
-        });
+        define(['emailjs-tcp-socket', 'emailjs-imap-handler', 'emailjs-mime-codec', 'emailjs-imap-client-compression'], factory);
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('tcp-socket'), require('wo-imap-handler'), require('mimefuncs'), require('./browserbox-compression'), null);
+        module.exports = factory(require('emailjs-tcp-socket'), require('emailjs-imap-handler'), require('emailjs-mime-codec'), require('./emailjs-imap-client-compression'), null);
     }
-}(this, function(TCPSocket, imapHandler, mimefuncs, Compression) {
+}(this, function(TCPSocket, imapHandler, mimecodec, Compression) {
     'use strict';
 
     //
@@ -33,9 +31,9 @@
      * @param {Number} [port=143] Port number to connect to
      * @param {Object} [options] Optional options object
      * @param {Boolean} [options.useSecureTransport] Set to true, to use encrypted connection
-     * @param {String} [options.compressionWorkerPath] offloads de-/compression computation to a web worker, this is the path to the browserified browserbox-compressor-worker.js
+     * @param {String} [options.compressionWorkerPath] offloads de-/compression computation to a web worker, this is the path to the browserified emailjs-compressor-worker.js
      */
-    function ImapClient(host, port, options) {
+    function Imap(host, port, options) {
         this.options = options || {};
 
         this.port = port || (this.options.useSecureTransport ? 993 : 143);
@@ -84,12 +82,12 @@
     /**
      * How much time to wait since the last response until the connection is considered idling
      */
-    ImapClient.prototype.TIMEOUT_ENTER_IDLE = 1000;
+    Imap.prototype.TIMEOUT_ENTER_IDLE = 1000;
 
     /**
      * Lower Bound for socket timeout to wait since the last data was written to a socket
      */
-    ImapClient.prototype.TIMEOUT_SOCKET_LOWER_BOUND = 10000;
+    Imap.prototype.TIMEOUT_SOCKET_LOWER_BOUND = 10000;
 
     /**
      * Multiplier for socket timeout:
@@ -98,7 +96,7 @@
      * the safe side. We can timeout after a lower bound of 10s + (n KB / 10 KB/s). A 1 MB message
      * upload would be 110 seconds to wait for the timeout. 10 KB/s === 0.1 s/B
      */
-    ImapClient.prototype.TIMEOUT_SOCKET_MULTIPLIER = 0.1;
+    Imap.prototype.TIMEOUT_SOCKET_MULTIPLIER = 0.1;
 
     // PUBLIC METHODS
 
@@ -112,7 +110,7 @@
      *     in production use!
      * @returns {Promise} Resolves when socket is opened
      */
-    ImapClient.prototype.connect = function(Socket) {
+    Imap.prototype.connect = function(Socket) {
         return new Promise((resolve, reject) => {
             this.socket = (Socket || TCPSocket).open(this.host, this.port, {
                 binaryType: 'arraybuffer',
@@ -149,7 +147,7 @@
      *
      * @returns {Promise} Resolves when the socket is closed
      */
-    ImapClient.prototype.close = function() {
+    Imap.prototype.close = function() {
         return new Promise((resolve) => {
             var tearDown = () => {
                 this._clientQueue = [];
@@ -186,7 +184,7 @@
      *
      * @returns {Promise} Resolves when connection is closed by server.
      */
-    ImapClient.prototype.logout = function() {
+    Imap.prototype.logout = function() {
         return new Promise((resolve, reject) => {
             this.socket.onclose = this.socket.onerror = () => {
                 this.close().then(resolve).catch(reject);
@@ -199,7 +197,7 @@
     /**
      * Initiates TLS handshake
      */
-    ImapClient.prototype.upgrade = function() {
+    Imap.prototype.upgrade = function() {
         this.secureMode = true;
         this.socket.upgradeToSecure();
     };
@@ -218,7 +216,7 @@
      * @param {Object} [options] Optional data for the command payload
      * @returns {Promise} Promise that resolves when the corresponding response was received
      */
-    ImapClient.prototype.enqueueCommand = function(request, acceptUntagged, options) {
+    Imap.prototype.enqueueCommand = function(request, acceptUntagged, options) {
         if (typeof request === 'string') {
             request = {
                 command: request
@@ -279,8 +277,8 @@
      *
      * @param {String} str Payload
      */
-    ImapClient.prototype.send = function(str) {
-        var buffer = mimefuncs.toTypedArray(str).buffer,
+    Imap.prototype.send = function(str) {
+        var buffer = mimecodec.toTypedArray(str).buffer,
             timeout = this.TIMEOUT_SOCKET_LOWER_BOUND + Math.floor(buffer.byteLength * this.TIMEOUT_SOCKET_MULTIPLIER);
 
         clearTimeout(this._socketTimeoutTimer); // clear pending timeouts
@@ -301,7 +299,7 @@
      * @param {String} command Untagged command name
      * @param {Function} callback Callback function with response object and continue callback function
      */
-    ImapClient.prototype.setHandler = function(command, callback) {
+    Imap.prototype.setHandler = function(command, callback) {
         this._globalAcceptUntagged[command.toUpperCase().trim()] = callback;
     };
 
@@ -313,7 +311,7 @@
      * @event
      * @param {Event} evt Event object. See evt.data for the error
      */
-    ImapClient.prototype._onError = function(evt) {
+    Imap.prototype._onError = function(evt) {
         var error;
         if (this.isError(evt)) {
             error = evt;
@@ -338,13 +336,13 @@
      *
      * @param {Event} evt
      */
-    ImapClient.prototype._onData = function(evt) {
+    Imap.prototype._onData = function(evt) {
         clearTimeout(this._socketTimeoutTimer); // clear the timeout, the socket is still up
-        this._incomingBuffer += mimefuncs.fromTypedArray(evt.data); // append to the incoming buffer
+        this._incomingBuffer += mimecodec.fromTypedArray(evt.data); // append to the incoming buffer
         this._parseIncomingCommands(this._iterateIncomingBuffer()); // Consume the incoming buffer
     };
 
-    ImapClient.prototype._iterateIncomingBuffer = function* () {
+    Imap.prototype._iterateIncomingBuffer = function* () {
         var match;
         // The input is interesting as long as there are complete lines
         while ((match = this._incomingBuffer.match(COMMAND_REGEX))) {
@@ -388,7 +386,7 @@
     /**
      * Processes a command from the queue. The command is parsed and feeded to a handler
      */
-    ImapClient.prototype._parseIncomingCommands = function(commands) {
+    Imap.prototype._parseIncomingCommands = function(commands) {
         for (var command of commands) {
             this._clearIdle();
 
@@ -440,7 +438,7 @@
      *
      * @param {Object} response Parsed command object
      */
-    ImapClient.prototype._handleResponse = function(response) {
+    Imap.prototype._handleResponse = function(response) {
         var command = (response && response.command || '').toUpperCase().trim();
 
         if (!this._currentCommand) {
@@ -472,7 +470,7 @@
     /**
      * Sends a command from client queue to the server.
      */
-    ImapClient.prototype._sendRequest = function() {
+    Imap.prototype._sendRequest = function() {
         if (!this._clientQueue.length) {
             return this._enterIdle();
         }
@@ -535,7 +533,7 @@
     /**
      * Emits onidle, noting to do currently
      */
-    ImapClient.prototype._enterIdle = function() {
+    Imap.prototype._enterIdle = function() {
         clearTimeout(this._idleTimer);
         this._idleTimer = setTimeout(() => this.onidle(), this.TIMEOUT_ENTER_IDLE);
     };
@@ -543,7 +541,7 @@
     /**
      * Cancel idle timer
      */
-    ImapClient.prototype._clearIdle = function() {
+    Imap.prototype._clearIdle = function() {
         clearTimeout(this._idleTimer);
     };
 
@@ -564,7 +562,7 @@
      *
      * @param {Object} response Parsed response object
      */
-    ImapClient.prototype._processResponse = function(response) {
+    Imap.prototype._processResponse = function(response) {
         var command = (response && response.command || '').toString().toUpperCase().trim(),
             option,
             key;
@@ -620,7 +618,7 @@
      * @param {Mixed} value Value to be checked
      * @return {Boolean} returns true if the value is an Error
      */
-    ImapClient.prototype.isError = function(value) {
+    Imap.prototype.isError = function(value) {
         return !!Object.prototype.toString.call(value).match(/Error\]$/);
     };
 
@@ -629,7 +627,7 @@
     /**
      * Sets up deflate/inflate for the IO
      */
-    ImapClient.prototype.enableCompression = function() {
+    Imap.prototype.enableCompression = function() {
         this._socketOnData = this.socket.ondata;
         this.compressed = true;
 
@@ -708,7 +706,7 @@
     /**
      * Undoes any changes related to compression. This only be called when closing the connection
      */
-    ImapClient.prototype._disableCompression = function() {
+    Imap.prototype._disableCompression = function() {
         if (!this.compressed) {
             return;
         }
@@ -729,7 +727,7 @@
      *
      * @param {ArrayBuffer} buffer Outgoing uncompressed arraybuffer
      */
-    ImapClient.prototype._sendCompressed = function(buffer) {
+    Imap.prototype._sendCompressed = function(buffer) {
         // deflate
         if (this._compressionWorker) {
             this._compressionWorker.postMessage(this._createMessage(MESSAGE_DEFLATE, buffer), [buffer]);
@@ -738,7 +736,7 @@
         }
     };
 
-    ImapClient.prototype._createMessage = function(message, buffer) {
+    Imap.prototype._createMessage = function(message, buffer) {
         return {
             message: message,
             buffer: buffer
@@ -746,5 +744,5 @@
     };
 
 
-    return ImapClient;
+    return Imap;
 }));

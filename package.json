@@ -1,7 +1,7 @@
 {
-  "name": "browserbox",
+  "name": "emailjs-imap-client",
   "version": "2.0.0",
-  "homepage": "https://github.com/whiteout-io/browserbox",
+  "homepage": "https://github.com/emailjs/emailjs-imap-client",
   "description": "JavaScript IMAP client",
   "author": "Andris Reinman <andris@kreata.ee>",
   "keywords": [
@@ -11,28 +11,28 @@
   "scripts": {
     "test": "grunt"
   },
-  "engines" : {
-    "node" : ">=4.0.0"
+  "engines": {
+    "node": ">=4.0.0"
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/whiteout-io/browserbox.git"
+    "url": "git://github.com/emailjs/emailjs-imap-client.git"
   },
-  "main": "src/browserbox",
+  "main": "src/emailjs-imap-client",
   "dependencies": {
-    "mimefuncs": "^0.3.9",
-    "tcp-socket": "^0.5.5",
-    "wo-addressparser": "^0.1.3",
-    "wo-imap-handler": "^0.1.14",
-    "wo-utf7": "^2.0.2"
+    "emailjs-addressparser": "^1.0.1",
+    "emailjs-imap-handler": "^1.0.0",
+    "emailjs-mime-codec": "^1.0.1",
+    "emailjs-tcp-socket": "^1.0.1",
+    "emailjs-utf7": "^3.0.1"
   },
   "devDependencies": {
     "chai": "^3.4.1",
     "grunt": "^0.4.5",
     "grunt-contrib-jshint": "^0.11.3",
     "grunt-mocha-test": "^0.12.7",
-    "mocha": "^2.3.3",
-    "sinon": "^1.17.2",
-    "hoodiecrow": "^1.2.0"
+    "hoodiecrow-imap": "^2.0.0",
+    "mocha": "^2.3.4",
+    "sinon": "^1.17.2"
   }
 }

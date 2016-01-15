@@ -1,8 +1,8 @@
-# browserbox
+# emailjs-imap-client
 
 IMAP client written with ES2015 (ES6).
 
-[![Build Status](https://travis-ci.org/whiteout-io/browserbox.png?branch=master)](https://travis-ci.org/whiteout-io/browserbox)
+[![Build Status](https://travis-ci.org/whiteout-io/emailjs-imap-client.png?branch=master)](https://travis-ci.org/whiteout-io/emailjs-imap-client)
 
 ## StringEncoding API
 
@@ -22,22 +22,22 @@ Please take a look at the [tcp-socket documentation](https://github.com/whiteout
 
 ### [npm](https://www.npmjs.org/):
 
-    npm install browserbox
+    npm install emailjs-imap-client
 
 ## Usage
 
 ### AMD
 
-Require [browserbox.js](src/browserbox.js) as `browserbox`
+Require [emailjs-imap-client.js](src/emailjs-imap-client.js) as `emailjs-imap-client`
 
 ## API
 
 ```
-var BrowserBox = require('browserbox')
-var client = new BrowserBox(host[, port][, options])
+var ImapClient = require('emailjs-imap-client')
+var client = new ImapClient(host[, port][, options])
 ```
 
-Please note that **instances cannot be reused**! After terminating a connection or encountering an error, please create a new BrowserBox instance!
+Please note that **instances cannot be reused**! After terminating a connection or encountering an error, please create a new ImapClient instance!
 
 Where
 
@@ -55,14 +55,14 @@ Where
     * **enableCompression** - if set to true then use IMAP COMPRESS extension (rfc4978) if the server supports it (Gmail does). All data sent and received in this case is compressed with *deflate*
     * **ca** (optional) (only in conjunction with the [TCPSocket shim](https://github.com/whiteout-io/tcp-socket)) if you use TLS with forge, pin a PEM-encoded certificate as a string. Please refer to the [tcp-socket documentation](https://github.com/whiteout-io/tcp-socket) for more information!
     * **tlsWorkerPath** (optional) (only in conjunction with the [TCPSocket shim](https://github.com/whiteout-io/tcp-socket)) if you use TLS with forge, this path indicates where the file for the TLS Web Worker is located. Please refer to the [tcp-socket documentation](https://github.com/whiteout-io/tcp-socket) for more information!
-    * **compressionWorkerPath** (optional) offloads de-/compression computation to a web worker, this is the path to the browserified browserbox-compressor-worker.js
+    * **compressionWorkerPath** (optional) offloads de-/compression computation to a web worker, this is the path to the browserified emailjs-imap-client-compressor-worker.js
 
 Default STARTTLS support is opportunistic – if the server advertises STARTTLS capability, the client tries to use it. If STARTTLS is not advertised, the clients sends passwords in the plain. You can use `ignoreTLS` and `requireTLS` to change this behavior by explicitly enabling or disabling STARTTLS usage.
 
 Example
 
 ```javascript
-var client = new BrowserBox('localhost', 143, {
+var client = new ImapClient('localhost', 143, {
     auth: {
         user: 'testuser',
         pass: 'testpass'
@@ -70,7 +70,7 @@ var client = new BrowserBox('localhost', 143, {
 });
 ```
 
-**Use of web workers with compression**: If you use compression, we can spin up a Web Worker to handle the TLS-related computation off the main thread. To do this, you need to **browserify** `browserbox-compressor-worker.js`, specify the path via `options.compressionWorkerPath`
+**Use of web workers with compression**: If you use compression, we can spin up a Web Worker to handle the TLS-related computation off the main thread. To do this, you need to **browserify** `emailjs-imap-client-compressor-worker.js`, specify the path via `options.compressionWorkerPath`
 
 ```
 client.onerror = function(error){}
@@ -523,7 +523,7 @@ client.setFlags('INBOX', {add: ['\\Seen']}).then((messages) => { ... })
 
 ### Store Command
 
-Browserbox also allows direct access to the STORE command, but please use `setFlags()` for convenience. Anyway, store flags or labels with `store(path, sequence, action, flags[, options])`.
+The client also allows direct access to the STORE command, but please use `setFlags()` for convenience. Anyway, store flags or labels with `store(path, sequence, action, flags[, options])`.
 
 Where
 
@@ -693,8 +693,8 @@ Should you be using the TCP-Socket shim on a platform that has no native support
 ## Get your hands dirty
 
 ```
-$ git clone git@github.com:whiteout-io/browserbox.git
-$ cd browserbox
+$ git clone git@github.com:whiteout-io/emailjs-imap-client.git
+$ cd emailjs-imap-client
 $ npm install
 $ npm test
 ```

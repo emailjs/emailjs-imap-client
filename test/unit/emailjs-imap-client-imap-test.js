@@ -2,9 +2,9 @@
 
 (function(factory) {
     if (typeof define === 'function' && define.amd) {
-        define(['chai', 'browserbox-imap', 'mimefuncs'], factory.bind(null, sinon));
+        define(['chai', 'emailjs-imap-client-imap', 'emailjs-mime-codec'], factory.bind(null, sinon));
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('sinon'), require('chai'), require('../../src/browserbox-imap'), require('mimefuncs'));
+        module.exports = factory(require('sinon'), require('chai'), require('../../src/emailjs-imap-client-imap'), require('emailjs-mime-codec'));
     }
 }(function(sinon, chai, ImapClient, mimefuncs) {
     var expect = chai.expect;

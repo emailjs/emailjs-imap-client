@@ -2,11 +2,9 @@
     'use strict';
 
     if (typeof define === 'function' && define.amd) {
-        define(['browserbox-imap', 'utf7', 'imap-handler', 'mimefuncs', 'addressparser'], function(ImapClient, utf7, imapHandler, mimefuncs, addressparser) {
-            return factory(ImapClient, utf7, imapHandler, mimefuncs, addressparser);
-        });
+        define(['emailjs-imap-client-imap', 'emailjs-utf7', 'emailjs-imap-handler', 'emailjs-mime-codec', 'emailjs-addressparser'], factory);
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('./browserbox-imap'), require('wo-utf7'), require('wo-imap-handler'), require('mimefuncs'), require('wo-addressparser'));
+        module.exports = factory(require('./emailjs-imap-client-imap'), require('emailjs-utf7'), require('emailjs-imap-handler'), require('emailjs-mime-codec'), require('emailjs-addressparser'));
     }
 }(this, function(ImapClient, utf7, imapHandler, mimefuncs, addressparser) {
     'use strict';
@@ -22,7 +20,7 @@
     var SESSIONCOUNTER = 0;
 
     /**
-     * Browserbox IMAP client
+     * emailjs IMAP client
      *
      * @constructor
      *
@@ -30,7 +28,7 @@
      * @param {Number} [port=143] Port number to connect to
      * @param {Object} [options] Optional options object
      */
-    function BrowserBox(host, port, options) {
+    function Client(host, port, options) {
         this.serverId = false; // RFC 2971 Server ID as key value pairs
 
         // Event placeholders
@@ -83,7 +81,7 @@
      *
      * @returns {Promise} Promise when login procedure is complete
      */
-    BrowserBox.prototype.connect = function() {
+    Client.prototype.connect = function() {
         return new Promise((resolve, reject) => {
             var connectionTimeout = setTimeout(() => reject(new Error('Timeout connecting to server')), this.TIMEOUT_CONNECTION);
             this.logger.debug('Connecting to', this.client.host, ':',  this.client.port);
@@ -134,7 +132,7 @@
      *
      * @returns {Promise} Resolves when server has closed the connection
      */
-    BrowserBox.prototype.logout = function() {
+    Client.prototype.logout = function() {
         this._changeState(this.STATE_LOGOUT);
         this.logger.debug('Logging out...');
         return this.client.logout().then(() => {
@@ -147,7 +145,7 @@
      *
      * @returns {Promise} Resolves when socket is closed
      */
-    BrowserBox.prototype.close = function() {
+    Client.prototype.close = function() {
         this._changeState(this.STATE_LOGOUT);
         clearTimeout(this._idleTimeout);
         this.logger.debug('Closing connection...');
@@ -163,7 +161,7 @@
      * @param {Object} id ID as key value pairs. See http://tools.ietf.org/html/rfc2971#section-3.3 for possible values
      * @returns {Promise} Resolves when response has been parsed
      */
-    BrowserBox.prototype.updateId = function(id) {
+    Client.prototype.updateId = function(id) {
         if (this._capability.indexOf('ID') < 0) {
             return Promise.resolve();
         }
@@ -221,7 +219,7 @@
      * @param {Object} [options] Options object
      * @returns {Promise} Promise with information about the selected mailbox
      */
-    BrowserBox.prototype.selectMailbox = function(path, options) {
+    Client.prototype.selectMailbox = function(path, options) {
         options = options || {};
 
         var query = {
@@ -269,7 +267,7 @@
      *
      * @returns {Promise} Promise with namespace object
      */
-    BrowserBox.prototype.listNamespaces = function() {
+    Client.prototype.listNamespaces = function() {
         if (this._capability.indexOf('NAMESPACE') < 0) {
             return Promise.resolve(false);
         }
@@ -290,7 +288,7 @@
      *
      * @returns {Promise} Promise with list of mailboxes
      */
-    BrowserBox.prototype.listMailboxes = function() {
+    Client.prototype.listMailboxes = function() {
         var tree;
 
         this.logger.debug('Listing mailboxes...');
@@ -365,7 +363,7 @@
      *     Promise resolves if mailbox was created.
      *     In the event the server says NO [ALREADYEXISTS], we treat that as success.
      */
-    BrowserBox.prototype.createMailbox = function(path) {
+    Client.prototype.createMailbox = function(path) {
         this.logger.debug('Creating mailbox', path, '...');
         return this.exec({
             command: 'CREATE',
@@ -393,7 +391,7 @@
      * @param {Object} [options] Query modifiers
      * @returns {Promise} Promise with the fetched message info
      */
-    BrowserBox.prototype.listMessages = function(path, sequence, items, options) {
+    Client.prototype.listMessages = function(path, sequence, items, options) {
         items = items || [{
             fast: true
         }];
@@ -417,7 +415,7 @@
      * @param {Object} [options] Query modifiers
      * @returns {Promise} Promise with the array of matching seq. or uid numbers
      */
-    BrowserBox.prototype.search = function(path, query, options) {
+    Client.prototype.search = function(path, query, options) {
         options = options || {};
 
         this.logger.debug('Searching in', path, '...');
@@ -439,7 +437,7 @@
      * @param {Object} [options] Query modifiers
      * @returns {Promise} Promise with the array of matching seq. or uid numbers
      */
-    BrowserBox.prototype.setFlags = function(path, sequence, flags, options) {
+    Client.prototype.setFlags = function(path, sequence, flags, options) {
         var key = '';
         var list = [];
 
@@ -474,7 +472,7 @@
      * @param {Object} [options] Query modifiers
      * @returns {Promise} Promise with the array of matching seq. or uid numbers
      */
-    BrowserBox.prototype.store = function(path, sequence, action, flags, options) {
+    Client.prototype.store = function(path, sequence, action, flags, options) {
         options = options || {};
 
         var command = this._buildSTORECommand(sequence, action, flags, options);
@@ -494,7 +492,7 @@
      * @param {Array} options.flags Any flags you want to set on the uploaded message. Defaults to [\Seen]. (optional)
      * @returns {Promise} Promise with the array of matching seq. or uid numbers
      */
-    BrowserBox.prototype.upload = function(destination, message, options) {
+    Client.prototype.upload = function(destination, message, options) {
         options = options || {};
         options.flags = options.flags || ['\\Seen'];
         var flags = options.flags.map((flag) => {
@@ -540,7 +538,7 @@
      * @param {Object} [options] Query modifiers
      * @returns {Promise} Promise
      */
-    BrowserBox.prototype.deleteMessages = function(path, sequence, options) {
+    Client.prototype.deleteMessages = function(path, sequence, options) {
         options = options || {};
 
         // add \Deleted flag to the messages and run EXPUNGE or UID EXPUNGE
@@ -580,7 +578,7 @@
      * @param {Boolean} [options.byUid] If true, uses UID COPY instead of COPY
      * @returns {Promise} Promise
      */
-    BrowserBox.prototype.copyMessages = function(path, sequence, destination, options) {
+    Client.prototype.copyMessages = function(path, sequence, destination, options) {
         options = options || {};
 
         this.logger.debug('Copying messages', sequence, 'from', path, 'to', destination, '...');
@@ -612,7 +610,7 @@
      * @param {Object} [options] Query modifiers
      * @returns {Promise} Promise
      */
-    BrowserBox.prototype.moveMessages = function(path, sequence, destination, options) {
+    Client.prototype.moveMessages = function(path, sequence, destination, options) {
         options = options || {};
 
         this.logger.debug('Moving messages', sequence, 'from', path, 'to', destination, '...');
@@ -648,16 +646,16 @@
 
 
     // State constants
-    BrowserBox.prototype.STATE_CONNECTING = 1;
-    BrowserBox.prototype.STATE_NOT_AUTHENTICATED = 2;
-    BrowserBox.prototype.STATE_AUTHENTICATED = 3;
-    BrowserBox.prototype.STATE_SELECTED = 4;
-    BrowserBox.prototype.STATE_LOGOUT = 5;
+    Client.prototype.STATE_CONNECTING = 1;
+    Client.prototype.STATE_NOT_AUTHENTICATED = 2;
+    Client.prototype.STATE_AUTHENTICATED = 3;
+    Client.prototype.STATE_SELECTED = 4;
+    Client.prototype.STATE_LOGOUT = 5;
 
     // Timeout constants
-    BrowserBox.prototype.TIMEOUT_CONNECTION = 90 * 1000; // Milliseconds to wait for the IMAP greeting from the server
-    BrowserBox.prototype.TIMEOUT_NOOP = 60 * 1000; // Milliseconds between NOOP commands while idling
-    BrowserBox.prototype.TIMEOUT_IDLE = 60 * 1000; // Milliseconds until IDLE command is cancelled
+    Client.prototype.TIMEOUT_CONNECTION = 90 * 1000; // Milliseconds to wait for the IMAP greeting from the server
+    Client.prototype.TIMEOUT_NOOP = 60 * 1000; // Milliseconds between NOOP commands while idling
+    Client.prototype.TIMEOUT_IDLE = 60 * 1000; // Milliseconds until IDLE command is cancelled
 
 
     /**
@@ -666,7 +664,7 @@
      * COMPRESS details:
      *   https://tools.ietf.org/html/rfc4978
      */
-    BrowserBox.prototype.compressConnection = function() {
+    Client.prototype.compressConnection = function() {
         if (!this.options.enableCompression || this._capability.indexOf('COMPRESS=DEFLATE') < 0 || this.client.compressed) {
             return Promise.resolve(false);
         }
@@ -696,7 +694,7 @@
      * @param {String} auth.pass
      * @param {String} auth.xoauth2
      */
-    BrowserBox.prototype.login = function(auth) {
+    Client.prototype.login = function(auth) {
         var command, options = {};
 
         if (!auth) {
@@ -762,7 +760,7 @@
      * @param {Object} request Structured request object
      * @param {Array} acceptUntagged a list of untagged responses that will be included in 'payload' property
      */
-    BrowserBox.prototype.exec = function(request, acceptUntagged, options) {
+    Client.prototype.exec = function(request, acceptUntagged, options) {
         return this.breakIdle().then(() => {
             return this.client.enqueueCommand(request, acceptUntagged, options);
         }).then((response) => {
@@ -777,7 +775,7 @@
      * Indicates that the connection started idling. Initiates a cycle
      * of NOOPs or IDLEs to receive notifications about updates in the server
      */
-    BrowserBox.prototype._onIdle = function() {
+    Client.prototype._onIdle = function() {
         if (!this._authenticated || this._enteredIdle) {
             // No need to IDLE when not logged in or already idling
             return;
@@ -793,7 +791,7 @@
      * IDLE details:
      *   https://tools.ietf.org/html/rfc2177
      */
-    BrowserBox.prototype.enterIdle = function() {
+    Client.prototype.enterIdle = function() {
         if (this._enteredIdle) {
             return;
         }
@@ -820,7 +818,7 @@
     /**
      * Stops actions related idling, if IDLE is supported, sends DONE to stop it
      */
-    BrowserBox.prototype.breakIdle = function() {
+    Client.prototype.breakIdle = function() {
         if (!this._enteredIdle) {
             return Promise.resolve();
         }
@@ -844,7 +842,7 @@
      *
      * @param {Boolean} [forced] By default the command is not run if capability is already listed. Set to true to skip this validation
      */
-    BrowserBox.prototype.upgradeConnection = function() {
+    Client.prototype.upgradeConnection = function() {
         // skip request, if already secured
         if (this.client.secureMode) {
             return Promise.resolve(false);
@@ -874,7 +872,7 @@
      *
      * @param {Boolean} [forced] By default the command is not run if capability is already listed. Set to true to skip this validation
      */
-    BrowserBox.prototype.updateCapability = function(forced) {
+    Client.prototype.updateCapability = function(forced) {
         // skip request, if not forced update and capabilities are already loaded
         if (!forced && this._capability.length) {
             return Promise.resolve();
@@ -890,7 +888,7 @@
         return this.exec('CAPABILITY');
     };
 
-    BrowserBox.prototype.hasCapability = function(capa) {
+    Client.prototype.hasCapability = function(capa) {
         return this._capability.indexOf((capa || '').toString().toUpperCase().trim()) >= 0;
     };
 
@@ -902,7 +900,7 @@
      * @param {Object} response Parsed server response
      * @param {Function} next Until called, server responses are not processed
      */
-    BrowserBox.prototype._untaggedOkHandler = function(response) {
+    Client.prototype._untaggedOkHandler = function(response) {
         if (response && response.capability) {
             this._capability = response.capability;
         }
@@ -914,7 +912,7 @@
      * @param {Object} response Parsed server response
      * @param {Function} next Until called, server responses are not processed
      */
-    BrowserBox.prototype._untaggedCapabilityHandler = function(response) {
+    Client.prototype._untaggedCapabilityHandler = function(response) {
         this._capability = [].concat(response && response.attributes || []).map((capa) => (capa.value || '').toString().toUpperCase().trim());
     };
 
@@ -924,7 +922,7 @@
      * @param {Object} response Parsed server response
      * @param {Function} next Until called, server responses are not processed
      */
-    BrowserBox.prototype._untaggedExistsHandler = function(response) {
+    Client.prototype._untaggedExistsHandler = function(response) {
         if (response && response.hasOwnProperty('nr')) {
             this.onupdate(this.selectedMailbox, 'exists', response.nr);
         }
@@ -936,7 +934,7 @@
      * @param {Object} response Parsed server response
      * @param {Function} next Until called, server responses are not processed
      */
-    BrowserBox.prototype._untaggedExpungeHandler = function(response) {
+    Client.prototype._untaggedExpungeHandler = function(response) {
         if (response && response.hasOwnProperty('nr')) {
             this.onupdate(this.selectedMailbox, 'expunge', response.nr);
         }
@@ -948,7 +946,7 @@
      * @param {Object} response Parsed server response
      * @param {Function} next Until called, server responses are not processed
      */
-    BrowserBox.prototype._untaggedFetchHandler = function(response) {
+    Client.prototype._untaggedFetchHandler = function(response) {
         this.onupdate(this.selectedMailbox, 'fetch', [].concat(this._parseFETCH({
             payload: {
                 FETCH: [response]
@@ -964,7 +962,7 @@
      * @param {Object} response
      * @return {Object} Mailbox information object
      */
-    BrowserBox.prototype._parseSELECT = function(response) {
+    Client.prototype._parseSELECT = function(response) {
         if (!response || !response.payload) {
             return;
         }
@@ -1014,7 +1012,7 @@
      * @param {Object} response
      * @return {Object} Namespaces object
      */
-    BrowserBox.prototype._parseNAMESPACE = function(response) {
+    Client.prototype._parseNAMESPACE = function(response) {
         if (!response.payload || !response.payload.NAMESPACE || !response.payload.NAMESPACE.length) {
             return false;
         }
@@ -1037,7 +1035,7 @@
      * @param {Object} element
      * @return {Object} Namespaces element object
      */
-    BrowserBox.prototype._parseNAMESPACEElement = function(element) {
+    Client.prototype._parseNAMESPACEElement = function(element) {
         if (!element) {
             return false;
         }
@@ -1063,7 +1061,7 @@
      * @param {Object} [options] Optional options object. Use `{byUid:true}` for `UID FETCH`
      * @returns {Object} Structured IMAP command
      */
-    BrowserBox.prototype._buildFETCHCommand = function(sequence, items, options) {
+    Client.prototype._buildFETCHCommand = function(sequence, items, options) {
         var command = {
             command: options.byUid ? 'UID FETCH' : 'FETCH',
             attributes: [{
@@ -1123,7 +1121,7 @@
      * @param {Object} response
      * @return {Object} Message object
      */
-    BrowserBox.prototype._parseFETCH = function(response) {
+    Client.prototype._parseFETCH = function(response) {
         if (!response || !response.payload || !response.payload.FETCH || !response.payload.FETCH.length) {
             return [];
         }
@@ -1167,7 +1165,7 @@
      * @param {Mized} value Value for the key
      * @return {Mixed} Processed value
      */
-    BrowserBox.prototype._parseFetchValue = function(key, value) {
+    Client.prototype._parseFetchValue = function(key, value) {
         if (!value) {
             return null;
         }
@@ -1210,7 +1208,7 @@
      * @param {Array} value Envelope array
      * @param {Object} Envelope object
      */
-    BrowserBox.prototype._parseENVELOPE = function(value) {
+    Client.prototype._parseENVELOPE = function(value) {
         var envelope = {};
 
         /*
@@ -1291,7 +1289,7 @@
      * @param {Array} value BODYSTRUCTURE array
      * @param {Object} Envelope object
      */
-    BrowserBox.prototype._parseBODYSTRUCTURE = function(value) {
+    Client.prototype._parseBODYSTRUCTURE = function(value) {
         var processNode = (node, path) => {
             path = path || [];
 
@@ -1481,7 +1479,7 @@
      * @param {Boolean} [options.byUid] If ture, use UID SEARCH instead of SEARCH
      * @return {Object} IMAP command object
      */
-    BrowserBox.prototype._buildSEARCHCommand = function(query, options) {
+    Client.prototype._buildSEARCHCommand = function(query, options) {
         var command = {
             command: options.byUid ? 'UID SEARCH' : 'SEARCH'
         };
@@ -1591,7 +1589,7 @@
      * @return {Object} Message object
      * @param {Array} Sorted Seq./UID number list
      */
-    BrowserBox.prototype._parseSEARCH = function(response) {
+    Client.prototype._parseSEARCH = function(response) {
         var list = [];
 
         if (!response || !response.payload || !response.payload.SEARCH || !response.payload.SEARCH.length) {
@@ -1614,7 +1612,7 @@
     /**
      * Creates an IMAP STORE command from the selected arguments
      */
-    BrowserBox.prototype._buildSTORECommand = function(sequence, action, flags, options) {
+    Client.prototype._buildSTORECommand = function(sequence, action, flags, options) {
         var command = {
             command: options.byUid ? 'UID STORE' : 'STORE',
             attributes: [{
@@ -1643,7 +1641,7 @@
      *
      * @param {Number} newState The state you want to change to
      */
-    BrowserBox.prototype._changeState = function(newState) {
+    Client.prototype._changeState = function(newState) {
         if (newState === this._state) {
             return;
         }
@@ -1667,7 +1665,7 @@
      * @param {String} delimiter
      * @return {Object} branch for used path
      */
-    BrowserBox.prototype._ensurePath = function(tree, path, delimiter) {
+    Client.prototype._ensurePath = function(tree, path, delimiter) {
         var names = path.split(delimiter);
         var branch = tree;
         var i, j, found;
@@ -1701,7 +1699,7 @@
      * @param {String} b Mailbox name
      * @returns {Boolean} True if the folder names match
      */
-    BrowserBox.prototype._compareMailboxNames = function(a, b) {
+    Client.prototype._compareMailboxNames = function(a, b) {
         return (a.toUpperCase() === 'INBOX' ? 'INBOX' : a) === (b.toUpperCase() === 'INBOX' ? 'INBOX' : b);
     };
 
@@ -1711,7 +1709,7 @@
      * @param {Object} mailbox
      * @return {String} Special use flag (if detected)
      */
-    BrowserBox.prototype._checkSpecialUse = function(mailbox) {
+    Client.prototype._checkSpecialUse = function(mailbox) {
         var i, type;
 
         if (!mailbox.flags) {
@@ -1730,7 +1728,7 @@
         return false;
     };
 
-    BrowserBox.prototype._checkSpecialUseByName = function(mailbox) {
+    Client.prototype._checkSpecialUseByName = function(mailbox) {
         var name = (mailbox.name || '').toLowerCase().trim(),
             i, type;
 
@@ -1752,7 +1750,7 @@
      * @param {String} token Valid access token for the user
      * @return {String} Base64 formatted login token
      */
-    BrowserBox.prototype._buildXOAuth2Token = function(user, token) {
+    Client.prototype._buildXOAuth2Token = function(user, token) {
         var authData = [
             'user=' + (user || ''),
             'auth=Bearer ' + token,
@@ -1768,7 +1766,7 @@
      * @param {String} name Name part of an address
      * @returns {String} Mime word encoded or quoted string
      */
-    BrowserBox.prototype._encodeAddressName = function(name) {
+    Client.prototype._encodeAddressName = function(name) {
         if (!/^[\w ']*$/.test(name)) {
             if (/^[\x20-\x7e]*$/.test(name)) {
                 return JSON.stringify(name);
@@ -1779,14 +1777,14 @@
         return name;
     };
 
-    BrowserBox.prototype.LOG_LEVEL_NONE = 1000;
-    BrowserBox.prototype.LOG_LEVEL_ERROR = 40;
-    BrowserBox.prototype.LOG_LEVEL_WARN = 30;
-    BrowserBox.prototype.LOG_LEVEL_INFO = 20;
-    BrowserBox.prototype.LOG_LEVEL_DEBUG = 10;
-    BrowserBox.prototype.LOG_LEVEL_ALL = 0;
+    Client.prototype.LOG_LEVEL_NONE = 1000;
+    Client.prototype.LOG_LEVEL_ERROR = 40;
+    Client.prototype.LOG_LEVEL_WARN = 30;
+    Client.prototype.LOG_LEVEL_INFO = 20;
+    Client.prototype.LOG_LEVEL_DEBUG = 10;
+    Client.prototype.LOG_LEVEL_ALL = 0;
 
-    BrowserBox.prototype.createLogger = function() {
+    Client.prototype.createLogger = function() {
         var createLogger = (tag) => {
             var log = (level, messages) => {
                 messages.map((message) => {
@@ -1818,7 +1816,7 @@
             };
         };
 
-        var logger = this.options.logger || createLogger(this.logLevel, "BrowserBox@" + this.options.sessionId);
+        var logger = this.options.logger || createLogger(this.logLevel, "emailjs-imap-client@" + this.options.sessionId);
         this.logger = this.client.logger = {
             // this could become way nicer when node supports the rest operator...
             debug: function() {
@@ -1844,5 +1842,5 @@
         };
     };
 
-    return BrowserBox;
+    return Client;
 }));
