@@ -2,21 +2,21 @@
 
 IMAP client written with ES2015 (ES6).
 
-[![Build Status](https://travis-ci.org/whiteout-io/emailjs-imap-client.png?branch=master)](https://travis-ci.org/whiteout-io/emailjs-imap-client)
+[![Build Status](https://travis-ci.org/emailjs/emailjs-imap-client.png?branch=master)](https://travis-ci.org/emailjs/emailjs-imap-client)
 
 ## StringEncoding API
 
-This module requires `TextEncoder` and `TextDecoder` to exist as part of the StringEncoding API (see: [MDN](https://developer.mozilla.org/en-US/docs/WebAPI/Encoding_API) [whatwg.org](http://encoding.spec.whatwg.org/#api)). This is supported by Firefox, Chrome and Opera. For other browser environments [there is a polyfill](https://github.com/whiteout-io/stringencoding).
+This module requires `TextEncoder` and `TextDecoder` to exist as part of the StringEncoding API (see: [MDN](https://developer.mozilla.org/en-US/docs/WebAPI/Encoding_API) [whatwg.org](http://encoding.spec.whatwg.org/#api)). This is supported by Firefox, Chrome and Opera. For other browser environments [there is a polyfill](https://github.com/emailjs/emailjs-tringencoding).
 
 ## TCPSocket API
 
-There is a [shim](https://github.com/whiteout-io/tcp-socket) that brings [Mozilla-flavored](https://developer.mozilla.org/en-US/docs/WebAPI/TCP_Socket) version of the [Raw Socket API](http://www.w3.org/TR/raw-sockets/) to other platforms.
+There is a [shim](https://github.com/emailjs/emailjs-tcp-socket) that brings [Mozilla-flavored](https://developer.mozilla.org/en-US/docs/WebAPI/TCP_Socket) version of the [Raw Socket API](http://www.w3.org/TR/raw-sockets/) to other platforms.
 
 If you are on a platform that uses forge instead of a native TLS implementation (e.g. chrome.socket), you have to set the .oncert(pemEncodedCertificate) handler that passes the TLS certificate that the server presents. It can be used on a trust-on-first-use basis for subsequent connection.
 
 If forge is used to handle TLS traffic, you may choose to handle the TLS-related load in a Web Worker. Please use tlsWorkerPath to point to `tcp-socket-tls-worker.js`!
 
-Please take a look at the [tcp-socket documentation](https://github.com/whiteout-io/tcp-socket) for more information!
+Please take a look at the [tcp-socket documentation](https://github.com/emailjs/emailjs-tcp-socket) for more information!
 
 ## Installation
 
@@ -28,7 +28,7 @@ Please take a look at the [tcp-socket documentation](https://github.com/whiteout
 
 ### AMD
 
-Require [emailjs-imap-client.js](src/emailjs-imap-client.js) as `emailjs-imap-client`
+Require [emailjs-imap-client.js](src/emailjs-imap-client.js) as `ImapClient`
 
 ## API
 
@@ -53,8 +53,8 @@ Where
     * **ignoreTLS** – if set to true, do not call STARTTLS before authentication even if the host advertises support for it
     * **requireTLS** – if set to true, always use STARTTLS before authentication even if the host does not advertise it. If STARTTLS fails, do not try to authenticate the user
     * **enableCompression** - if set to true then use IMAP COMPRESS extension (rfc4978) if the server supports it (Gmail does). All data sent and received in this case is compressed with *deflate*
-    * **ca** (optional) (only in conjunction with the [TCPSocket shim](https://github.com/whiteout-io/tcp-socket)) if you use TLS with forge, pin a PEM-encoded certificate as a string. Please refer to the [tcp-socket documentation](https://github.com/whiteout-io/tcp-socket) for more information!
-    * **tlsWorkerPath** (optional) (only in conjunction with the [TCPSocket shim](https://github.com/whiteout-io/tcp-socket)) if you use TLS with forge, this path indicates where the file for the TLS Web Worker is located. Please refer to the [tcp-socket documentation](https://github.com/whiteout-io/tcp-socket) for more information!
+    * **ca** (optional) (only in conjunction with the [TCPSocket shim](https://github.com/emailjs/emailjs-tcp-socket)) if you use TLS with forge, pin a PEM-encoded certificate as a string. Please refer to the [tcp-socket documentation](https://github.com/emailjs/emailjs-tcp-socket) for more information!
+    * **tlsWorkerPath** (optional) (only in conjunction with the [TCPSocket shim](https://github.com/emailjs/emailjs-tcp-socket)) if you use TLS with forge, this path indicates where the file for the TLS Web Worker is located. Please refer to the [tcp-socket documentation](https://github.com/emailjs/emailjs-tcp-socket) for more information!
     * **compressionWorkerPath** (optional) offloads de-/compression computation to a web worker, this is the path to the browserified emailjs-imap-client-compressor-worker.js
 
 Default STARTTLS support is opportunistic – if the server advertises STARTTLS capability, the client tries to use it. If STARTTLS is not advertised, the clients sends passwords in the plain. You can use `ignoreTLS` and `requireTLS` to change this behavior by explicitly enabling or disabling STARTTLS usage.
@@ -693,7 +693,7 @@ Should you be using the TCP-Socket shim on a platform that has no native support
 ## Get your hands dirty
 
 ```
-$ git clone git@github.com:whiteout-io/emailjs-imap-client.git
+$ git clone git@github.com:emailjs/emailjs-imap-client.git
 $ cd emailjs-imap-client
 $ npm install
 $ npm test
