@@ -415,7 +415,7 @@
 
             var response;
             try {
-                response = imapHandler.parser(command);
+                response = imapHandler.parser(command.trim());
                 this.logger.debug('S:', imapHandler.compiler(response, false, true));
             } catch (e) {
                 this.logger.error('Error parsing imap command!', response);
