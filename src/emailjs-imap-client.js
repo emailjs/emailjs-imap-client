@@ -1646,7 +1646,7 @@
             return;
         }
 
-        this.logger.debug('Entering state: ' + this._state);
+        this.logger.debug('Entering state: ' + newState);
 
         // if a mailbox was opened, emit onclosemailbox and clear selectedMailbox value
         if (this._state === this.STATE_SELECTED && this._selectedMailbox) {
