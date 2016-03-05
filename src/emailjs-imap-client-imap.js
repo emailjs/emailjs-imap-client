@@ -157,10 +157,15 @@
 
                 if (this.socket) {
                     // remove all listeners
-                    this.socket.onclose = () => {};
-                    this.socket.ondata = () => {};
-                    this.socket.ondrain = () => {};
-                    this.socket.onerror = () => {};
+                    this.socket.onopen = null;
+                    this.socket.onclose = null;
+                    this.socket.ondata = null;
+                    this.socket.onerror = null;
+                    try {
+                        this.socket.oncert = null;
+                    } catch (E) {}
+
+                    this.socket = null;
                 }
 
                 resolve();
