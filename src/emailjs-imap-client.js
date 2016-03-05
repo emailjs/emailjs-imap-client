@@ -79,7 +79,7 @@
 
         // propagate the error upwards
         this.onerror && this.onerror(err);
-    }
+    };
 
     //
     //
