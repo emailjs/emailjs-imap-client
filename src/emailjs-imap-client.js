@@ -32,10 +32,10 @@
         this.serverId = false; // RFC 2971 Server ID as key value pairs
 
         // Event placeholders
-        this.oncert = () => {};
-        this.onupdate = () => {};
-        this.onselectmailbox = () => {};
-        this.onclosemailbox = () => {};
+        this.oncert = null;
+        this.onupdate = null;
+        this.onselectmailbox = null;
+        this.onclosemailbox = null;
 
         //
         // Internals
@@ -54,7 +54,7 @@
 
         // Event Handlers
         this.client.onerror = this._onError.bind(this);
-        this.client.oncert = (cert) => this.oncert(cert); // allows certificate handling for platforms w/o native tls support
+        this.client.oncert = (cert) => (this.oncert && this.oncert(cert)); // allows certificate handling for platforms w/o native tls support
         this.client.onidle = () => this._onIdle(); // start idling
 
         // Default handlers for untagged responses
@@ -256,7 +256,7 @@
             this._changeState(this.STATE_SELECTED);
 
             if (this._selectedMailbox && this._selectedMailbox !== path) {
-                this.onclosemailbox(this._selectedMailbox);
+                this.onclosemailbox && this.onclosemailbox(this._selectedMailbox);
             }
 
             this._selectedMailbox = path;
@@ -264,7 +264,7 @@
             var mailboxInfo = this._parseSELECT(response);
 
             setTimeout(() => {
-                this.onselectmailbox(path, mailboxInfo);
+                this.onselectmailbox && this.onselectmailbox(path, mailboxInfo);
             }, 0);
 
             return mailboxInfo;
@@ -936,7 +936,7 @@
      */
     Client.prototype._untaggedExistsHandler = function(response) {
         if (response && response.hasOwnProperty('nr')) {
-            this.onupdate(this.selectedMailbox, 'exists', response.nr);
+            this.onupdate && this.onupdate(this.selectedMailbox, 'exists', response.nr);
         }
     };
 
@@ -948,7 +948,7 @@
      */
     Client.prototype._untaggedExpungeHandler = function(response) {
         if (response && response.hasOwnProperty('nr')) {
-            this.onupdate(this.selectedMailbox, 'expunge', response.nr);
+            this.onupdate && this.onupdate(this.selectedMailbox, 'expunge', response.nr);
         }
     };
 
@@ -959,7 +959,7 @@
      * @param {Function} next Until called, server responses are not processed
      */
     Client.prototype._untaggedFetchHandler = function(response) {
-        this.onupdate(this.selectedMailbox, 'fetch', [].concat(this._parseFETCH({
+        this.onupdate && this.onupdate(this.selectedMailbox, 'fetch', [].concat(this._parseFETCH({
             payload: {
                 FETCH: [response]
             }
@@ -1662,7 +1662,7 @@
 
         // if a mailbox was opened, emit onclosemailbox and clear selectedMailbox value
         if (this._state === this.STATE_SELECTED && this._selectedMailbox) {
-            this.onclosemailbox(this._selectedMailbox);
+            this.onclosemailbox && this.onclosemailbox(this._selectedMailbox);
             this._selectedMailbox = false;
         }
 
