@@ -152,8 +152,12 @@
             var tearDown = () => {
                 this._clientQueue = [];
                 this._currentCommand = false;
+
                 clearTimeout(this._idleTimer);
+                this._idleTimer = null;
+
                 clearTimeout(this._socketTimeoutTimer);
+                this._socketTimeoutTimer = null;
 
                 if (this.socket) {
                     // remove all listeners
@@ -343,6 +347,8 @@
      */
     Imap.prototype._onData = function(evt) {
         clearTimeout(this._socketTimeoutTimer); // clear the timeout, the socket is still up
+        this._socketTimeoutTimer = null;
+
         this._incomingBuffer += mimecodec.fromTypedArray(evt.data); // append to the incoming buffer
         this._parseIncomingCommands(this._iterateIncomingBuffer()); // Consume the incoming buffer
     };
@@ -548,6 +554,7 @@
      */
     Imap.prototype._clearIdle = function() {
         clearTimeout(this._idleTimer);
+        this._idleTimer = null;
     };
 
     /**
