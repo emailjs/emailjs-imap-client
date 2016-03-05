@@ -684,8 +684,6 @@ The IMAP client has several events you can attach to by setting a listener
 
 The invocation of `onerror` indicates an irrecoverable error. When `onerror` is fired, the connection is already closed, hence there's no need for further cleanup.
 
-**NB! This handler is mandatory!**
-
 ### TCP-Socket related events
 
 Should you be using the TCP-Socket shim on a platform that has no native support for TLS, the certificate of the remote host is propagated via the `oncert` event. The only argument is the PEM-encoded X.501 TLS certificate, however this doesn't include the whole certificate chain.
