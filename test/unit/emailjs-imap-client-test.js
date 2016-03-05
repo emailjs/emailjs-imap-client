@@ -926,7 +926,7 @@
 
         describe('#_untaggedExistsHandler', () => {
             it('should emit onupdate', () => {
-                sinon.stub(br, 'onupdate');
+                br.onupdate = sinon.stub();
                 br.selectedMailbox = 'FOO';
 
                 br._untaggedExistsHandler({
@@ -938,7 +938,7 @@
 
         describe('#_untaggedExpungeHandler', () => {
             it('should emit onupdate', () => {
-                sinon.stub(br, 'onupdate');
+                br.onupdate = sinon.stub();
                 br.selectedMailbox = 'FOO';
 
                 br._untaggedExpungeHandler({
@@ -950,7 +950,7 @@
 
         describe('#_untaggedFetchHandler', () => {
             it('should emit onupdate', () => {
-                sinon.stub(br, 'onupdate');
+                br.onupdate = sinon.stub();
                 sinon.stub(br, '_parseFETCH').returns('abc');
                 br.selectedMailbox = 'FOO';
 
@@ -1843,7 +1843,7 @@
             });
 
             it('should emit onclosemailbox if mailbox was closed', () => {
-                sinon.stub(br, 'onclosemailbox');
+                br.onclosemailbox = sinon.stub();
                 br._state = br.STATE_SELECTED;
                 br._selectedMailbox = 'aaa';
 
