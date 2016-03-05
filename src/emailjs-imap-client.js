@@ -53,7 +53,7 @@
         this.client = new ImapClient(host, port, this.options); // IMAP client object
 
         // Event Handlers
-        this.client.onerror = (err) => this.onerror(err); // proxy error events
+        this.client.onerror = this._onError.bind(this);
         this.client.oncert = (cert) => this.oncert(cert); // allows certificate handling for platforms w/o native tls support
         this.client.onidle = () => this._onIdle(); // start idling
 
@@ -67,6 +67,18 @@
         // Activate logging
         this.createLogger();
         this.logLevel = this.LOG_LEVEL_ALL;
+    }
+
+    /**
+     * Called if the lower-level ImapClient has encountered an unrecoverable
+     * error during operation. Cleans up and propagates the error upwards.
+     */
+    Client.prototype._onError = function(err) {
+        // make sure no idle timeout is pending anymore
+        clearTimeout(this._idleTimeout);
+
+        // propagate the error upwards
+        this.onerror && this.onerror(err);
     }
 
     //
@@ -112,7 +124,7 @@
             return this.compressConnection();
         }).then(() => {
             this.logger.debug('Connection established, ready to roll!');
-            this.client.onerror = (err) => this.onerror(err); // proxy error events
+            this.client.onerror = this._onError.bind(this);
         }).catch((err) => {
             this.logger.error('Could not connect to server', err);
             this.close(); // we don't really care whether this works or not
