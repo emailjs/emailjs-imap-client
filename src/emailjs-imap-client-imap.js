@@ -70,11 +70,12 @@
         this._literalRemaining = 0;
 
         //
-        // Event placeholders, should be overriden
+        // Event placeholders, may be overriden with callback functions
         //
-        this.onerror = () => {}; // Irrecoverable error occurred. Connection to the server will be closed automatically.
-        this.onready = () => {}; // The connection to the server has been established and greeting is received
-        this.onidle = () => {}; // There are no more commands to process
+        this.oncert = null;
+        this.onerror = null; // Irrecoverable error occurred. Connection to the server will be closed automatically.
+        this.onready = null; // The connection to the server has been established and greeting is received
+        this.onidle = null;  // There are no more commands to process
     }
 
     // Constants
@@ -122,7 +123,7 @@
             // allows certificate handling for platform w/o native tls support
             // oncert is non standard so setting it might throw if the socket object is immutable
             try {
-                this.socket.oncert = this.oncert;
+                this.socket.oncert = (cert) => { this.oncert && this.oncert(cert); };
             } catch (E) {}
 
             // Connection closing unexpected is an error
@@ -332,8 +333,11 @@
 
         this.logger.error(error);
 
+        // always call onerror callback, no matter if close() succeeds or fails
         this.close().then(() => {
-            this.onerror(error);
+            this.onerror && this.onerror(error);
+        }, () => {
+            this.onerror && this.onerror(error);
         });
     };
 
@@ -439,7 +443,7 @@
             // first response from the server, connection is now usable
             if (!this._connectionReady) {
                 this._connectionReady = true;
-                this.onready();
+                this.onready && this.onready();
             }
         }
     };
@@ -546,7 +550,7 @@
      */
     Imap.prototype._enterIdle = function() {
         clearTimeout(this._idleTimer);
-        this._idleTimer = setTimeout(() => this.onidle(), this.TIMEOUT_ENTER_IDLE);
+        this._idleTimer = setTimeout(() => (this.onidle && this.onidle()), this.TIMEOUT_ENTER_IDLE);
     };
 
     /**
