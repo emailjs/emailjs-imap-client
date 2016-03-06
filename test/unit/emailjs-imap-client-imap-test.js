@@ -38,9 +38,7 @@
             socketStub = sinon.createStubInstance(TCPSocket);
             sinon.stub(TCPSocket, 'open').withArgs(host, port).returns(socketStub);
 
-            setTimeout(() => socketStub.onopen(), 0);
-
-            return client.connect(TCPSocket).then(() => {
+            var promise = client.connect(TCPSocket).then(() => {
                 expect(TCPSocket.open.callCount).to.equal(1);
 
                 expect(socketStub.onerror).to.exist;
@@ -48,6 +46,10 @@
                 expect(socketStub.onclose).to.exist;
                 expect(socketStub.ondata).to.exist;
             });
+
+            setTimeout(() => socketStub.onopen(), 0);
+
+            return promise;
         });
 
         describe('#close', () => {
