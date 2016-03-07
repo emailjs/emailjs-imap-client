@@ -70,11 +70,12 @@
         this._literalRemaining = 0;
 
         //
-        // Event placeholders, should be overriden
+        // Event placeholders, may be overriden with callback functions
         //
-        this.onerror = () => {}; // Irrecoverable error occurred. Connection to the server will be closed automatically.
-        this.onready = () => {}; // The connection to the server has been established and greeting is received
-        this.onidle = () => {}; // There are no more commands to process
+        this.oncert = null;
+        this.onerror = null; // Irrecoverable error occurred. Connection to the server will be closed automatically.
+        this.onready = null; // The connection to the server has been established and greeting is received
+        this.onidle = null;  // There are no more commands to process
     }
 
     // Constants
@@ -122,7 +123,7 @@
             // allows certificate handling for platform w/o native tls support
             // oncert is non standard so setting it might throw if the socket object is immutable
             try {
-                this.socket.oncert = this.oncert;
+                this.socket.oncert = (cert) => { this.oncert && this.oncert(cert); };
             } catch (E) {}
 
             // Connection closing unexpected is an error
@@ -152,15 +153,24 @@
             var tearDown = () => {
                 this._clientQueue = [];
                 this._currentCommand = false;
+
                 clearTimeout(this._idleTimer);
+                this._idleTimer = null;
+
                 clearTimeout(this._socketTimeoutTimer);
+                this._socketTimeoutTimer = null;
 
                 if (this.socket) {
                     // remove all listeners
-                    this.socket.onclose = () => {};
-                    this.socket.ondata = () => {};
-                    this.socket.ondrain = () => {};
-                    this.socket.onerror = () => {};
+                    this.socket.onopen = null;
+                    this.socket.onclose = null;
+                    this.socket.ondata = null;
+                    this.socket.onerror = null;
+                    try {
+                        this.socket.oncert = null;
+                    } catch (E) {}
+
+                    this.socket = null;
                 }
 
                 resolve();
@@ -323,8 +333,11 @@
 
         this.logger.error(error);
 
+        // always call onerror callback, no matter if close() succeeds or fails
         this.close().then(() => {
-            this.onerror(error);
+            this.onerror && this.onerror(error);
+        }, () => {
+            this.onerror && this.onerror(error);
         });
     };
 
@@ -338,6 +351,8 @@
      */
     Imap.prototype._onData = function(evt) {
         clearTimeout(this._socketTimeoutTimer); // clear the timeout, the socket is still up
+        this._socketTimeoutTimer = null;
+
         this._incomingBuffer += mimecodec.fromTypedArray(evt.data); // append to the incoming buffer
         this._parseIncomingCommands(this._iterateIncomingBuffer()); // Consume the incoming buffer
     };
@@ -428,7 +443,7 @@
             // first response from the server, connection is now usable
             if (!this._connectionReady) {
                 this._connectionReady = true;
-                this.onready();
+                this.onready && this.onready();
             }
         }
     };
@@ -535,7 +550,7 @@
      */
     Imap.prototype._enterIdle = function() {
         clearTimeout(this._idleTimer);
-        this._idleTimer = setTimeout(() => this.onidle(), this.TIMEOUT_ENTER_IDLE);
+        this._idleTimer = setTimeout(() => (this.onidle && this.onidle()), this.TIMEOUT_ENTER_IDLE);
     };
 
     /**
@@ -543,6 +558,7 @@
      */
     Imap.prototype._clearIdle = function() {
         clearTimeout(this._idleTimer);
+        this._idleTimer = null;
     };
 
     /**

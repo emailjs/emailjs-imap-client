@@ -18,7 +18,7 @@
 
         /* jshint indent:false */
 
-        beforeEach((done) => {
+        beforeEach(() => {
             client = new ImapClient(host, port);
             expect(client).to.exist;
 
@@ -38,16 +38,18 @@
             socketStub = sinon.createStubInstance(TCPSocket);
             sinon.stub(TCPSocket, 'open').withArgs(host, port).returns(socketStub);
 
-            client.connect(TCPSocket).then(() => {
+            var promise = client.connect(TCPSocket).then(() => {
                 expect(TCPSocket.open.callCount).to.equal(1);
 
                 expect(socketStub.onerror).to.exist;
                 expect(socketStub.onopen).to.exist;
                 expect(socketStub.onclose).to.exist;
                 expect(socketStub.ondata).to.exist;
-            }).then(done).catch(done);
+            });
 
             setTimeout(() => socketStub.onopen(), 0);
+
+            return promise;
         });
 
         describe('#close', () => {
@@ -55,7 +57,7 @@
                 client.socket.readyState = 'open';
 
                 client.close().then(() => {
-                    expect(client.socket.close.callCount).to.equal(1);
+                    expect(socketStub.close.callCount).to.equal(1);
                 }).then(done).catch(done);
 
                 setTimeout(() => socketStub.onclose(), 0);
@@ -65,7 +67,7 @@
                 client.socket.readyState = 'not open. duh.';
 
                 client.close().then(() => {
-                    expect(client.socket.close.called).to.be.false;
+                    expect(socketStub.close.called).to.be.false;
                 }).then(done).catch(done);
 
                 setTimeout(() => socketStub.onclose(), 0);
@@ -153,7 +155,7 @@
 
         describe('#_parseIncomingCommands', () => {
             it('should process a tagged item from the queue', () => {
-                sinon.stub(client, 'onready');
+                client.onready = sinon.stub();
                 sinon.stub(client, '_handleResponse');
 
                 function* gen() { yield 'OK Hello world!'; }
