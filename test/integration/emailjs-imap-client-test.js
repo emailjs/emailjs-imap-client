@@ -81,7 +81,7 @@
                 insecureServer.close(done);
             });
 
-            it('should use STARTTLS by default', (done) => {
+            it('should use STARTTLS by default', () => {
                 imap = new ImapClient('127.0.0.1', port, {
                     auth: {
                         user: "testuser",
@@ -91,18 +91,14 @@
                 });
                 imap.logLevel = imap.LOG_LEVEL_NONE;
 
-                imap.onerror = () => {
-                    done();
-                };
-
-                imap.connect().then(() => {
+                return imap.connect().then(() => {
                     expect(imap.client.secureMode).to.be.true;
                 }).then(() => {
                     return imap.close();
-                }).then(done).catch(done);
+                });
             });
 
-            it('should ignore STARTTLS', (done) => {
+            it('should ignore STARTTLS', () => {
                 imap = new ImapClient('127.0.0.1', port, {
                     auth: {
                         user: "testuser",
@@ -113,11 +109,11 @@
                 });
                 imap.logLevel = imap.LOG_LEVEL_NONE;
 
-                imap.connect().then(() => {
+                return imap.connect().then(() => {
                     expect(imap.client.secureMode).to.be.false;
                 }).then(() => {
                     return imap.close();
-                }).then(done).catch(done);
+                });
             });
 
             it('should fail connecting to non-STARTTLS host', (done) => {
@@ -137,7 +133,7 @@
                 });
             });
 
-            it('should connect to non secure host', (done) => {
+            it('should connect to non secure host', () => {
                 imap = new ImapClient('127.0.0.1', port + 2, {
                     auth: {
                         user: "testuser",
@@ -147,17 +143,17 @@
                 });
                 imap.logLevel = imap.LOG_LEVEL_NONE;
 
-                imap.connect().then(() => {
+                return imap.connect().then(() => {
                     expect(imap.client.secureMode).to.be.false;
                 }).then(() => {
                     return imap.close();
-                }).then(done).catch(done);
+                });
             });
         });
 
         describe('Post login tests', () => {
 
-            beforeEach((done) => {
+            beforeEach(() => {
                 imap = new ImapClient('127.0.0.1', port, {
                     auth: {
                         user: "testuser",
@@ -167,38 +163,36 @@
                 });
                 imap.logLevel = imap.LOG_LEVEL_NONE;
 
-                imap.connect().then(() => {
+                return imap.connect().then(() => {
                     return imap.selectMailbox('[Gmail]/Spam');
-                }).then(() => {
-                    done();
-                }).catch(done);
+                });
             });
 
-            afterEach((done) => {
-                imap.close().then(done);
+            afterEach(() => {
+                return imap.close();
             });
 
             describe('#listMailboxes', () => {
-                it('should succeed', (done) => {
-                    imap.listMailboxes().then((mailboxes) => {
+                it('should succeed', () => {
+                    return imap.listMailboxes().then((mailboxes) => {
                         expect(mailboxes).to.exist;
-                    }).then(done).catch(done);
+                    });
                 });
             });
 
             describe('#listMessages', () => {
-                it('should succeed', (done) => {
-                    imap.listMessages('inbox', "1:*", ["uid", "flags", "envelope", "bodystructure", "body.peek[]"]).then((messages) => {
+                it('should succeed', () => {
+                    return imap.listMessages('inbox', "1:*", ["uid", "flags", "envelope", "bodystructure", "body.peek[]"]).then((messages) => {
                         expect(messages).to.not.be.empty;
-                    }).then(done).catch(done);
+                    });
                 });
             });
 
             describe('#upload', () => {
-                it('should succeed', (done) => {
+                it('should succeed', () => {
                     var msgCount;
 
-                    imap.listMessages('inbox', "1:*", ["uid", "flags", "envelope", "bodystructure"]).then((messages) => {
+                    return imap.listMessages('inbox', "1:*", ["uid", "flags", "envelope", "bodystructure"]).then((messages) => {
                         expect(messages).to.not.be.empty;
                         msgCount = messages.length;
                     }).then(() => {
@@ -209,62 +203,62 @@
                         return imap.listMessages('inbox', "1:*", ["uid", "flags", "envelope", "bodystructure"]);
                     }).then((messages) => {
                         expect(messages.length).to.equal(msgCount + 1);
-                    }).then(done).catch(done);
+                    });
                 });
             });
 
             describe('#search', () => {
-                it('should return a sequence number', (done) => {
-                    imap.search('inbox', {
+                it('should return a sequence number', () => {
+                    return imap.search('inbox', {
                         header: ['subject', 'hello 3']
                     }).then((result) => {
                         expect(result).to.deep.equal([3]);
-                    }).then(done).catch(done);
+                    });
                 });
 
-                it('should return an uid', (done) => {
-                    imap.search('inbox', {
+                it('should return an uid', () => {
+                    return imap.search('inbox', {
                         header: ['subject', 'hello 3']
                     }, {
                         byUid: true
                     }).then((result) => {
                         expect(result).to.deep.equal([555]);
-                    }).then(done).catch(done);
+                    });
                 });
 
-                it('should work with complex queries', (done) => {
-                    imap.search('inbox', {
+                it('should work with complex queries', () => {
+                    return imap.search('inbox', {
                         header: ['subject', 'hello'],
                         seen: true
                     }).then((result) => {
                         expect(result).to.deep.equal([2]);
-                    }).then(done).catch(done);
+                    });
                 });
             });
 
             describe('#setFlags', () => {
-                it('should set flags for a message', (done) => {
-                    imap.setFlags('inbox', '1', ['\\Seen', '$MyFlag']).then((result) => {
+                it('should set flags for a message', () => {
+                    return imap.setFlags('inbox', '1', ['\\Seen', '$MyFlag']).then((result) => {
                         expect(result).to.deep.equal([{
                             '#': 1,
                             'flags': ['\\Seen', '$MyFlag']
                         }]);
-                    }).then(done).catch(done);
+                    });
                 });
 
-                it('should add flags to a message', (done) => {
-                    imap.setFlags('inbox', '2', {
+                it('should add flags to a message', () => {
+                    return imap.setFlags('inbox', '2', {
                         add: ['$MyFlag']
                     }).then((result) => {
                         expect(result).to.deep.equal([{
                             '#': 2,
                             'flags': ['\\Seen', '$MyFlag']
                         }]);
-                    }).then(done).catch(done);
+                    });
                 });
 
-                it('should remove flags from a message', (done) => {
-                    imap.setFlags('inbox', '557', {
+                it('should remove flags from a message', () => {
+                    return imap.setFlags('inbox', '557', {
                         remove: ['\\Deleted']
                     }, {
                         byUid: true
@@ -274,44 +268,44 @@
                             'flags': ['$MyFlag'],
                             'uid': 557
                         }]);
-                    }).then(done).catch(done);
+                    });
                 });
 
-                it('should not return anything on silent mode', (done) => {
-                    imap.setFlags('inbox', '1', ['$MyFlag2'], {
+                it('should not return anything on silent mode', () => {
+                    return imap.setFlags('inbox', '1', ['$MyFlag2'], {
                         silent: true
                     }).then((result) => {
                         expect(result).to.deep.equal([]);
-                    }).then(done).catch(done);
+                    });
                 });
             });
 
             describe('#store', () => {
-                it('should add labels for a message', (done) => {
-                    imap.store('inbox', '1', '+X-GM-LABELS', ['\\Sent', '\\Junk']).then((result) => {
+                it('should add labels for a message', () => {
+                    return imap.store('inbox', '1', '+X-GM-LABELS', ['\\Sent', '\\Junk']).then((result) => {
                         expect(result).to.deep.equal([{
                             '#': 1,
                             'x-gm-labels': ['\\Inbox', '\\Sent', '\\Junk']
                         }]);
-                    }).then(done).catch(done);
+                    });
                 });
 
-                it('should set labels for a message', (done) => {
-                    imap.store('inbox', '1', 'X-GM-LABELS', ['\\Sent', '\\Junk']).then((result) => {
+                it('should set labels for a message', () => {
+                    return imap.store('inbox', '1', 'X-GM-LABELS', ['\\Sent', '\\Junk']).then((result) => {
                         expect(result).to.deep.equal([{
                             '#': 1,
                             'x-gm-labels': ['\\Sent', '\\Junk']
                         }]);
-                    }).then(done).catch(done);
+                    });
                 });
 
-                it('should remove labels from a message', (done) => {
-                    imap.store('inbox', '1', '-X-GM-LABELS', ['\\Sent', '\\Inbox']).then((result) => {
+                it('should remove labels from a message', () => {
+                    return imap.store('inbox', '1', '-X-GM-LABELS', ['\\Sent', '\\Inbox']).then((result) => {
                         expect(result).to.deep.equal([{
                             '#': 1,
                             'x-gm-labels': []
                         }]);
-                    }).then(done).catch(done);
+                    });
                 });
             });
 
@@ -345,21 +339,21 @@
             });
 
             describe('#copyMessages', () => {
-                it('should copy a message', (done) => {
-                    imap.copyMessages('inbox', 555, '[Gmail]/Trash', {
+                it('should copy a message', () => {
+                    return imap.copyMessages('inbox', 555, '[Gmail]/Trash', {
                         byUid: true
                     }).then(() => {
                         return imap.selectMailbox('[Gmail]/Trash');
                     }).then((info) => {
                         expect(info.exists).to.equal(1);
-                    }).then(done).catch(done);
+                    });
                 });
             });
 
             describe('#moveMessages', () => {
-                it('should move a message', (done) => {
+                it('should move a message', () => {
                     var initialInfo;
-                    imap.selectMailbox('inbox').then((info) => {
+                    return imap.selectMailbox('inbox').then((info) => {
                         initialInfo = info;
                         return imap.moveMessages('inbox', 555, '[Gmail]/Spam', {
                             byUid: true
@@ -371,7 +365,7 @@
                         return imap.selectMailbox('inbox');
                     }).then((resultInfo) => {
                         expect(initialInfo.exists).to.not.equal(resultInfo.exists);
-                    }).then(done).catch(done);
+                    });
                 });
             });
 
@@ -402,7 +396,7 @@
 
         describe('Timeout', () => {
 
-            beforeEach((done) => {
+            beforeEach(() => {
                 imap = new ImapClient('127.0.0.1', port, {
                     auth: {
                         user: "testuser",
@@ -412,7 +406,7 @@
                 });
                 imap.logLevel = imap.LOG_LEVEL_NONE;
 
-                imap.connect().then(done);
+                return imap.connect();
             });
 
             it('should timeout', (done) => {
