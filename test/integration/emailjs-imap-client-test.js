@@ -316,10 +316,22 @@
             });
 
             describe('#deleteMessages', () => {
-                it('should delete a message', (done) => {
+                it('should delete a message', () => {
                     var initialInfo;
 
-                    imap.selectMailbox('inbox').then((info) => {
+                    var expungeNotified = new Promise((resolve, reject) => {
+                        imap.onupdate = function(mb, type /*, data*/) {
+                            try {
+                                expect(mb).to.equal('inbox');
+                                expect(type).to.equal('expunge');
+                                resolve();
+                            } catch(err) {
+                                reject(err);
+                            }
+                        };
+                    });
+
+                    return imap.selectMailbox('inbox').then((info) => {
                         initialInfo = info;
                         return imap.deleteMessages('inbox', 557, {
                             byUid: true
@@ -327,8 +339,8 @@
                     }).then(() => {
                         return imap.selectMailbox('inbox');
                     }).then((resultInfo) => {
-                        expect(initialInfo.exists !== resultInfo.exists).to.be.true;
-                    }).then(done).catch(done);
+                        expect(initialInfo.exists - 1 === resultInfo.exists).to.be.true;
+                    }).then(() => expungeNotified);
                 });
             });
 
