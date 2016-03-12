@@ -936,7 +936,7 @@
      */
     Client.prototype._untaggedExistsHandler = function(response) {
         if (response && response.hasOwnProperty('nr')) {
-            this.onupdate && this.onupdate(this.selectedMailbox, 'exists', response.nr);
+            this.onupdate && this.onupdate(this._selectedMailbox, 'exists', response.nr);
         }
     };
 
@@ -948,7 +948,7 @@
      */
     Client.prototype._untaggedExpungeHandler = function(response) {
         if (response && response.hasOwnProperty('nr')) {
-            this.onupdate && this.onupdate(this.selectedMailbox, 'expunge', response.nr);
+            this.onupdate && this.onupdate(this._selectedMailbox, 'expunge', response.nr);
         }
     };
 
@@ -959,7 +959,7 @@
      * @param {Function} next Until called, server responses are not processed
      */
     Client.prototype._untaggedFetchHandler = function(response) {
-        this.onupdate && this.onupdate(this.selectedMailbox, 'fetch', [].concat(this._parseFETCH({
+        this.onupdate && this.onupdate(this._selectedMailbox, 'fetch', [].concat(this._parseFETCH({
             payload: {
                 FETCH: [response]
             }
