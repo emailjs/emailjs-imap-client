@@ -47,7 +47,7 @@
                 expect(socketStub.ondata).to.exist;
             });
 
-            setTimeout(() => socketStub.onopen(), 0);
+            setTimeout(() => socketStub.onopen(), 10);
 
             return promise;
         });

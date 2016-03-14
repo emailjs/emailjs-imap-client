@@ -927,7 +927,7 @@
         describe('#_untaggedExistsHandler', () => {
             it('should emit onupdate', () => {
                 br.onupdate = sinon.stub();
-                br.selectedMailbox = 'FOO';
+                br._selectedMailbox = 'FOO';
 
                 br._untaggedExistsHandler({
                     nr: 123
@@ -939,7 +939,7 @@
         describe('#_untaggedExpungeHandler', () => {
             it('should emit onupdate', () => {
                 br.onupdate = sinon.stub();
-                br.selectedMailbox = 'FOO';
+                br._selectedMailbox = 'FOO';
 
                 br._untaggedExpungeHandler({
                     nr: 123
@@ -952,7 +952,7 @@
             it('should emit onupdate', () => {
                 br.onupdate = sinon.stub();
                 sinon.stub(br, '_parseFETCH').returns('abc');
-                br.selectedMailbox = 'FOO';
+                br._selectedMailbox = 'FOO';
 
                 br._untaggedFetchHandler({
                     nr: 123
@@ -1979,7 +1979,7 @@
         describe('untagged updates', () => {
             it('should receive information about untagged exists', (done) => {
                 br.client._connectionReady = true;
-                br.selectedMailbox = 'FOO';
+                br._selectedMailbox = 'FOO';
                 br.onupdate = (path, type, value) => {
                     expect(path).to.equal('FOO');
                     expect(type).to.equal('exists');
@@ -1994,7 +1994,7 @@
 
             it('should receive information about untagged expunge', (done) => {
                 br.client._connectionReady = true;
-                br.selectedMailbox = 'FOO';
+                br._selectedMailbox = 'FOO';
                 br.onupdate = (path, type, value) => {
                     expect(path).to.equal('FOO');
                     expect(type).to.equal('expunge');
@@ -2009,7 +2009,7 @@
 
             it('should receive information about untagged fetch', (done) => {
                 br.client._connectionReady = true;
-                br.selectedMailbox = 'FOO';
+                br._selectedMailbox = 'FOO';
                 br.onupdate = (path, type, value) => {
                     expect(path).to.equal('FOO');
                     expect(type).to.equal('fetch');
