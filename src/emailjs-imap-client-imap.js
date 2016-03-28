@@ -422,7 +422,7 @@
                     var chunk = this._currentCommand.data.shift();
                     chunk += (!this._currentCommand.data.length ? EOL : ''); // EOL if there's nothing more to send
                     this.send(chunk);
-                } else if (typeof this._currentCommand.errorResponseExpectsEmptyLine) {
+                } else if (this._currentCommand.errorResponseExpectsEmptyLine) {
                     this.send(EOL); // XOAUTH2 empty response, error will be reported when server continues with NO response
                 }
                 continue;
