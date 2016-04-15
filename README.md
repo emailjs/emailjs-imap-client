@@ -1,6 +1,6 @@
 # emailjs-imap-client
 
-IMAP client written with ES2015 (ES6).
+IMAP client library written with ES2015 (ES6).
 
 [![Build Status](https://travis-ci.org/emailjs/emailjs-imap-client.png?branch=master)](https://travis-ci.org/emailjs/emailjs-imap-client)
 
