@@ -1967,6 +1967,10 @@
                 expect(br._checkSpecialUse({
                     name: 'Praht'
                 })).to.equal('\\Trash');
+                expect(br._checkSpecialUse({
+                    flags: ['\HasChildren'],
+                    name: 'Praht'
+                })).to.equal('\\Trash');
             });
         });
 
