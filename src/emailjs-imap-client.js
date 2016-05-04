@@ -1828,7 +1828,7 @@
             };
         };
 
-        var logger = this.options.logger || createLogger(this.logLevel, "emailjs-imap-client@" + this.options.sessionId);
+        var logger = this.options.logger || createLogger(this.options.sessionId || 1);
         this.logger = this.client.logger = {
             // this could become way nicer when node supports the rest operator...
             debug: function() {
