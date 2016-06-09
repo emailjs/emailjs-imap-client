@@ -2,11 +2,11 @@
     'use strict';
 
     if (typeof define === 'function' && define.amd) {
-        define(['emailjs-imap-client-imap', 'emailjs-utf7', 'emailjs-imap-handler', 'emailjs-mime-codec', 'emailjs-addressparser'], factory);
+        define(['emailjs-imap-client-imap', 'emailjs-utf7', 'emailjs-imap-handler', 'emailjs-mime-codec', 'emailjs-addressparser', 'binary-search'], factory);
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('./emailjs-imap-client-imap'), require('emailjs-utf7'), require('emailjs-imap-handler'), require('emailjs-mime-codec'), require('emailjs-addressparser'));
+        module.exports = factory(require('./emailjs-imap-client-imap'), require('emailjs-utf7'), require('emailjs-imap-handler'), require('emailjs-mime-codec'), require('emailjs-addressparser'), require('binary-search'));
     }
-}(this, function(ImapClient, utf7, imapHandler, mimefuncs, addressparser) {
+}(this, function(ImapClient, utf7, imapHandler, mimefuncs, addressparser, binSearch) {
     'use strict';
 
     var SPECIAL_USE_FLAGS = ['\\All', '\\Archive', '\\Drafts', '\\Flagged', '\\Junk', '\\Sent', '\\Trash'];
@@ -1602,6 +1602,7 @@
      * @param {Array} Sorted Seq./UID number list
      */
     Client.prototype._parseSEARCH = function(response) {
+        var cmp = (a, b) => (a - b);
         var list = [];
 
         if (!response || !response.payload || !response.payload.SEARCH || !response.payload.SEARCH.length) {
@@ -1611,13 +1612,13 @@
         [].concat(response.payload.SEARCH || []).forEach((result) => {
             [].concat(result.attributes || []).forEach((nr) => {
                 nr = Number(nr && nr.value || nr || 0) || 0;
-                if (list.indexOf(nr) < 0) {
-                    list.push(nr);
+                var idx = binSearch(list, nr, cmp);
+                if (idx < 0) {
+                    list.splice(-idx-1, 0, nr);
                 }
             });
         });
 
-        list.sort((a, b) => (a - b));
         return list;
     };
 
