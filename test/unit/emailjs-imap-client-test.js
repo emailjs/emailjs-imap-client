@@ -863,19 +863,36 @@
                 }).then(done).catch(done);
             });
 
-            it('should emit onselectmailbox', (done) => {
-                br.exec.returns(Promise.resolve('abc'));
-                br._parseSELECT.withArgs('abc').returns('def');
+            describe('should emit onselectmailbox before selectMailbox is resolved', () => {
+                beforeEach(() => {
+                    br.exec.returns(Promise.resolve('abc'));
+                    br._parseSELECT.withArgs('abc').returns('def');
+                });
 
-                br.onselectmailbox = (path, mailbox) => {
-                    expect(path).to.equal('[Gmail]/Trash');
-                    expect(mailbox).to.equal('def');
-                    done();
-                };
+                it('when it returns a promise', (done) => {
+                    var promiseResolved = false;
+                    br.onselectmailbox = () => new Promise((resolve) => {
+                        resolve();
+                        promiseResolved = true;
+                    });
+                    var onselectmailboxSpy = sinon.spy(br, "onselectmailbox");
+                    br.selectMailbox('[Gmail]/Trash').then(() => {
+                        expect(br._parseSELECT.callCount).to.equal(1);
+                        expect(onselectmailboxSpy.withArgs('[Gmail]/Trash', 'def').callCount).to.equal(1);
+                        expect(promiseResolved).to.equal(true);
+                        done();
+                    }).catch(done);
+                });
 
-                br.selectMailbox('[Gmail]/Trash').then(() => {
-                    expect(br._parseSELECT.callCount).to.equal(1);
-                }).catch(done);
+                it('when it does not return a promise', (done) => {
+                    br.onselectmailbox = () => {};
+                    var onselectmailboxSpy = sinon.spy(br, "onselectmailbox");
+                    br.selectMailbox('[Gmail]/Trash').then(() => {
+                        expect(br._parseSELECT.callCount).to.equal(1);
+                        expect(onselectmailboxSpy.withArgs('[Gmail]/Trash', 'def').callCount).to.equal(1);
+                        done();
+                    }).catch(done);
+                });
             });
 
             it('should emit onclosemailbox', (done) => {

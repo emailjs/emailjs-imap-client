@@ -263,11 +263,12 @@
 
             var mailboxInfo = this._parseSELECT(response);
 
-            setTimeout(() => {
-                this.onselectmailbox && this.onselectmailbox(path, mailboxInfo);
-            }, 0);
-
-            return mailboxInfo;
+            var maybePromise = this.onselectmailbox && this.onselectmailbox(path, mailboxInfo);
+            if (maybePromise && typeof maybePromise.then === 'function') {
+                return maybePromise.then(() => mailboxInfo);
+            } else {
+                return mailboxInfo;
+            }
         });
     };
 
