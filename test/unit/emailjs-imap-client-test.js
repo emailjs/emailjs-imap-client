@@ -1960,7 +1960,7 @@
         });
 
         describe('#_checkSpecialUse', () => {
-            it('should exist', () => {
+            it('should return a matching special use flag', () => {
                 expect(br._checkSpecialUse({
                     flags: ['test', '\\All']
                 })).to.equal('\\All');
@@ -1977,13 +1977,24 @@
                 })).to.be.false;
             });
 
-            it('should return special use flag if match is found', () => {
+            it('should return special use flag if a matching name is found', () => {
                 expect(br._checkSpecialUse({
                     name: 'test'
                 })).to.be.false;
                 expect(br._checkSpecialUse({
                     name: 'Praht'
                 })).to.equal('\\Trash');
+                expect(br._checkSpecialUse({
+                    flags: ['\HasChildren'], // not a special use flag
+                    name: 'Praht'
+                })).to.equal('\\Trash');
+            });
+
+            it('should prefer matching special use flag over a matching name', () => {
+                expect(br._checkSpecialUse({
+                    flags: ['\\All'],
+                    name: 'Praht'
+                })).to.equal('\\All');
             });
         });
 
