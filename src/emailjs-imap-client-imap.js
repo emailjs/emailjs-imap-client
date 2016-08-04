@@ -132,7 +132,7 @@
               try {
                 this._onData(evt);
               } catch (err) {
-                reject(err);
+                this._onError(err);
               }
             };
 
