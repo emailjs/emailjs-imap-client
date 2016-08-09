@@ -128,7 +128,13 @@
 
             // Connection closing unexpected is an error
             this.socket.onclose = () => this._onError(new Error('Socket closed unexceptedly!'));
-            this.socket.ondata = (evt) => this._onData(evt);
+            this.socket.ondata = (evt) => {
+              try {
+                this._onData(evt);
+              } catch (err) {
+                this._onError(err);
+              }
+            };
 
             // if an error happens during create time, reject the promise
             this.socket.onerror = (e) => {
