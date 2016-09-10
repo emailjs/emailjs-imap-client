@@ -2,7 +2,7 @@
     'use strict';
 
     if (typeof define === 'function' && define.amd) {
-        define(['emailjs-imap-client-imap', 'emailjs-utf7', 'emailjs-imap-handler', 'emailjs-mime-codec', 'emailjs-addressparser'], factory);
+        define(['./emailjs-imap-client-imap', 'emailjs-utf7', 'emailjs-imap-handler', 'emailjs-mime-codec', 'emailjs-addressparser'], factory);
     } else if (typeof exports === 'object') {
         module.exports = factory(require('./emailjs-imap-client-imap'), require('emailjs-utf7'), require('emailjs-imap-handler'), require('emailjs-mime-codec'), require('emailjs-addressparser'));
     }

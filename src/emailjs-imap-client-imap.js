@@ -2,7 +2,7 @@
     'use strict';
 
     if (typeof define === 'function' && define.amd) {
-        define(['emailjs-tcp-socket', 'emailjs-imap-handler', 'emailjs-mime-codec', 'emailjs-imap-client-compression'], factory);
+        define(['emailjs-tcp-socket', 'emailjs-imap-handler', 'emailjs-mime-codec', './emailjs-imap-client-compression'], factory);
     } else if (typeof exports === 'object') {
         module.exports = factory(require('emailjs-tcp-socket'), require('emailjs-imap-handler'), require('emailjs-mime-codec'), require('./emailjs-imap-client-compression'), null);
     }
