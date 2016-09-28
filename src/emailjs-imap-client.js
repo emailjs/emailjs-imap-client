@@ -1595,6 +1595,43 @@
     };
 
     /**
+     * Binary Search
+     *
+     * @param {Array} haystack Ordered array
+     * @param {any} needle Item to search for in haystack
+     * @param {Function} comparator Function that defines the sort order
+     * @return {Number} Index of needle in haystack or if not found,
+     *     -Index-1 is the position where needle could be inserted while still
+     *     keeping haystack ordered.
+     */
+    Client.prototype._binSearch = function(haystack, needle, comparator) {
+        var mid, cmp;
+        var low = 0;
+        var high = haystack.length - 1;
+
+        while (low <= high) {
+            // Note that "(low + high) >>> 1" may overflow, and results in
+            // a typecast to double (which gives the wrong results).
+            mid = low + (high - low >> 1);
+            cmp = +comparator(haystack[mid], needle);
+
+            if (cmp < 0.0) {
+                // too low
+                low = mid + 1;
+            } else if (cmp > 0.0) {
+                // too high
+                high = mid - 1;
+            } else {
+                // key found
+                return mid;
+            }
+        }
+
+        // key not found
+        return ~low;
+    };
+
+    /**
      * Parses SEARCH response. Gathers all untagged SEARCH responses, fetched seq./uid numbers
      * and compiles these into a sorted array.
      *
@@ -1603,6 +1640,7 @@
      * @param {Array} Sorted Seq./UID number list
      */
     Client.prototype._parseSEARCH = function(response) {
+        var cmp = (a, b) => (a - b);
         var list = [];
 
         if (!response || !response.payload || !response.payload.SEARCH || !response.payload.SEARCH.length) {
@@ -1612,13 +1650,13 @@
         [].concat(response.payload.SEARCH || []).forEach((result) => {
             [].concat(result.attributes || []).forEach((nr) => {
                 nr = Number(nr && nr.value || nr || 0) || 0;
-                if (list.indexOf(nr) < 0) {
-                    list.push(nr);
+                var idx = this._binSearch(list, nr, cmp);
+                if (idx < 0) {
+                    list.splice(-idx-1, 0, nr);
                 }
             });
         });
 
-        list.sort((a, b) => (a - b));
         return list;
     };
 
