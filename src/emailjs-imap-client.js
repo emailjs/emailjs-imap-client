@@ -2,11 +2,11 @@
     'use strict';
 
     if (typeof define === 'function' && define.amd) {
-        define(['emailjs-imap-client-imap', 'emailjs-utf7', 'emailjs-imap-handler', 'emailjs-mime-codec', 'emailjs-addressparser', 'binary-search'], factory);
+        define(['emailjs-imap-client-imap', 'emailjs-utf7', 'emailjs-imap-handler', 'emailjs-mime-codec', 'emailjs-addressparser'], factory);
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('./emailjs-imap-client-imap'), require('emailjs-utf7'), require('emailjs-imap-handler'), require('emailjs-mime-codec'), require('emailjs-addressparser'), require('binary-search'));
+        module.exports = factory(require('./emailjs-imap-client-imap'), require('emailjs-utf7'), require('emailjs-imap-handler'), require('emailjs-mime-codec'), require('emailjs-addressparser'));
     }
-}(this, function(ImapClient, utf7, imapHandler, mimefuncs, addressparser, binSearch) {
+}(this, function(ImapClient, utf7, imapHandler, mimefuncs, addressparser) {
     'use strict';
 
     var SPECIAL_USE_FLAGS = ['\\All', '\\Archive', '\\Drafts', '\\Flagged', '\\Junk', '\\Sent', '\\Trash'];
@@ -1594,6 +1594,43 @@
     };
 
     /**
+     * Binary Search
+     *
+     * @param {Array} haystack Ordered array
+     * @param {any} needle Item to search for in haystack
+     * @param {Function} comparator Function that defines the sort order
+     * @return {Number} Index of needle in haystack or if not found,
+     *     -Index-1 is the position where needle could be inserted while still
+     *     keeping haystack ordered.
+     */
+    Client.prototype._binSearch = function(haystack, needle, comparator) {
+        var mid, cmp;
+        var low = 0;
+        var high = haystack.length - 1;
+
+        while (low <= high) {
+            // Note that "(low + high) >>> 1" may overflow, and results in
+            // a typecast to double (which gives the wrong results).
+            mid = low + (high - low >> 1);
+            cmp = +comparator(haystack[mid], needle);
+
+            if (cmp < 0.0) {
+                // too low
+                low = mid + 1;
+            } else if (cmp > 0.0) {
+                // too high
+                high = mid - 1;
+            } else {
+                // key found
+                return mid;
+            }
+        }
+
+        // key not found
+        return ~low;
+    };
+
+    /**
      * Parses SEARCH response. Gathers all untagged SEARCH responses, fetched seq./uid numbers
      * and compiles these into a sorted array.
      *
@@ -1612,7 +1649,7 @@
         [].concat(response.payload.SEARCH || []).forEach((result) => {
             [].concat(result.attributes || []).forEach((nr) => {
                 nr = Number(nr && nr.value || nr || 0) || 0;
-                var idx = binSearch(list, nr, cmp);
+                var idx = this._binSearch(list, nr, cmp);
                 if (idx < 0) {
                     list.splice(-idx-1, 0, nr);
                 }
