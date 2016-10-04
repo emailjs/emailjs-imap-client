@@ -3,9 +3,9 @@
 // run like this:
 //   GMAIL_USER="my.user@gmail.com" GMAIL_PASS="my-pass" node compression-example.js
 
-var BrowserBox = require('../src/browserbox.js');
+var ImapClient = require('../src/emailjs-imap-client.js');
 
-var connection = new BrowserBox('imap.gmail.com', 993, {
+var client = new ImapClient('imap.gmail.com', 993, {
     useSecureTransport: true,
     auth: {
         user: process.env.GMAIL_USER,
@@ -14,18 +14,14 @@ var connection = new BrowserBox('imap.gmail.com', 993, {
     enableCompression: true
 });
 
-connection.onerror = function(err) {
+client.onerror = function(err) {
     console.log(err);
 };
 
-connection.onauth = function() {
-    setTimeout(function() {
-        connection.listMailboxes(function(err, mailboxes) {
-            setTimeout(function() {
-                connection.close();
-            }, 3000);
-        });
-    }, 3000);
-};
-
-connection.connect();
+client.connect().then(() => {
+    client.listMailboxes().then((mailboxes) => {
+        console.log(mailboxes);
+    }).then(() => {
+        client.logout();
+    });
+});
