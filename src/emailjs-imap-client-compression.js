@@ -21,7 +21,7 @@
 (function(root, factory) {
     'use strict';
 
-    if (typeof define === 'function' && define.amd) {
+    if (typeof __webpack_require__ === 'undefined' && typeof define === 'function' && define.amd) {
         define(['emailjs-imap-client-pako'], factory);
     } else if (typeof exports === 'object') {
         module.exports = factory(require('./emailjs-imap-client-pako'));
