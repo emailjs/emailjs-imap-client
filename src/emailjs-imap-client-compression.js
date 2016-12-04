@@ -22,7 +22,7 @@
     'use strict';
 
     if (typeof define === 'function' && define.amd) {
-        define(['emailjs-imap-client-pako'], factory);
+        define(['./emailjs-imap-client-pako'], factory);
     } else if (typeof exports === 'object') {
         module.exports = factory(require('./emailjs-imap-client-pako'));
     }
