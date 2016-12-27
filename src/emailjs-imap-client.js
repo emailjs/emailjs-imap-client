@@ -117,7 +117,8 @@
         }).then(() => {
             return this.upgradeConnection();
         }).then(() => {
-            return this.updateId(this.options.id);
+            return this.updateId(this.options.id)
+            .catch(err => this.logger.warn('Failed to update id', err));
         }).then(() => {
             return this.login(this.options.auth);
         }).then(() => {
