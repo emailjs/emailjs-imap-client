@@ -134,9 +134,7 @@
 
         describe('#exec', () => {
             beforeEach(() => {
-                sinon.stub(br, 'breakIdle', () => {
-                    return Promise.resolve();
-                });
+                sinon.stub(br, 'breakIdle');
             });
 
             it('should send string command', (done) => {
@@ -194,9 +192,9 @@
                 sinon.stub(br.client.socket, 'send');
 
                 br._enteredIdle = 'IDLE';
-                br.breakIdle().then(() => {
-                    expect([].slice.call(new Uint8Array(br.client.socket.send.args[0][0]))).to.deep.equal([0x44, 0x4f, 0x4e, 0x45, 0x0d, 0x0a]);
-                }).then(done).catch(done);
+                br.breakIdle();
+                expect([].slice.call(new Uint8Array(br.client.socket.send.args[0][0]))).to.deep.equal([0x44, 0x4f, 0x4e, 0x45, 0x0d, 0x0a]);
+                done();
             });
         });
 
