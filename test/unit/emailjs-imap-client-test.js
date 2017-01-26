@@ -815,6 +815,40 @@
             });
         });
 
+        describe('#_shouldSelectMailbox', () => {
+            it('should return true when ctx is undefined', () => {
+                expect(br._shouldSelectMailbox('path')).to.be.true;
+            });
+
+            it('should return true when a different path is queued', () => {
+                sinon.stub(br.client, 'getPreviouslyQueued').returns({
+                    request: {
+                        command: 'SELECT',
+                        attributes: [{
+                            type: 'STRING',
+                            value: 'queued path'
+                        }]
+                    }
+                });
+
+                expect(br._shouldSelectMailbox('path', {})).to.be.true;
+            });
+
+            it('should return false when the same path is queued', () => {
+                sinon.stub(br.client, 'getPreviouslyQueued').returns({
+                    request: {
+                        command: 'SELECT',
+                        attributes: [{
+                            type: 'STRING',
+                            value: 'queued path'
+                        }]
+                    }
+                });
+
+                expect(br._shouldSelectMailbox('queued path', {})).to.be.false;
+            });
+       });
+
         describe('#selectMailbox', () => {
             beforeEach(() => {
                 sinon.stub(br, 'exec');
