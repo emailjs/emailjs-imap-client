@@ -409,20 +409,6 @@
                         expect(messages[0].flags).to.deep.equal(['\\Seen']);
                     });
                 });
-
-                it('should select correct mailboxes in prechecks on concurrent calls', () => {
-                    return imap.selectMailbox('[Gmail]/A').then(() => {
-                      return Promise.all([
-                        imap.selectMailbox('[Gmail]/B'),
-                        imap.setFlags('[Gmail]/A', '1', ['\\Seen'])
-                      ]);
-                    }).then(() => {
-                        return imap.listMessages('[Gmail]/A', '1:1', ['flags']);
-                    }).then((messages) => {
-                        expect(messages.length).to.equal(1);
-                        expect(messages[0].flags).to.deep.equal(['\\Seen']);
-                    });
-                });
             });
         });
 
