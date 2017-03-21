@@ -406,20 +406,43 @@
                 });
                 imap.logLevel = imap.LOG_LEVEL_NONE;
 
-                return imap.connect();
+                return imap.connect()
+                .then(() => {
+                    // remove the ondata event to simulate 100% packet loss and make the socket time out after 10ms
+                    imap.client.TIMEOUT_SOCKET_LOWER_BOUND = 10;
+                    imap.client.TIMEOUT_SOCKET_MULTIPLIER = 0;
+                    imap.client.socket.ondata = () => {};
+                });
             });
 
             it('should timeout', (done) => {
-                // remove the ondata event to simulate 100% packet loss and make the socket time out after 10ms
-                imap.client.TIMEOUT_SOCKET_LOWER_BOUND = 10;
-                imap.client.TIMEOUT_SOCKET_MULTIPLIER = 0;
-                imap.client.socket.ondata = () => {};
-
                 imap.onerror = () => {
                     done();
                 };
 
                 imap.selectMailbox('inbox');
+            });
+
+            it('should reject all pending commands on timeout', (done) => {
+                let rejectionCount = 0;
+                Promise.all([
+
+                    imap.selectMailbox("INBOX")
+                    .catch(err => {
+                        expect(err).to.exist;
+                        rejectionCount++;
+                    }),
+
+                    imap.listMessages("INBOX", "1:*", ['body.peek[]'])
+                    .catch(err => {
+                        expect(err).to.exist;
+                        rejectionCount++;
+                    }),
+
+                ]).then(() => {
+                    expect(rejectionCount).to.equal(2);
+                    done();
+                });
             });
         });
     });
