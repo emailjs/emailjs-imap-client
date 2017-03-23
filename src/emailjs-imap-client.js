@@ -128,7 +128,7 @@
             this.client.onerror = this._onError.bind(this);
         }).catch((err) => {
             this.logger.error('Could not connect to server', err);
-            this.close(); // we don't really care whether this works or not
+            this.close(err); // we don't really care whether this works or not
             throw err;
         });
     };
@@ -158,11 +158,11 @@
      *
      * @returns {Promise} Resolves when socket is closed
      */
-    Client.prototype.close = function() {
+    Client.prototype.close = function(err) {
         this._changeState(this.STATE_LOGOUT);
         clearTimeout(this._idleTimeout);
         this.logger.debug('Closing connection...');
-        return this.client.close();
+        return this.client.close(err);
     };
 
     /**
