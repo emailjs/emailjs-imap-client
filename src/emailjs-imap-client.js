@@ -791,9 +791,8 @@
      * @param {Array} acceptUntagged a list of untagged responses that will be included in 'payload' property
      */
     Client.prototype.exec = function(request, acceptUntagged, options) {
-        return this.breakIdle().then(() => {
-            return this.client.enqueueCommand(request, acceptUntagged, options);
-        }).then((response) => {
+        this.breakIdle();
+        return this.client.enqueueCommand(request, acceptUntagged, options).then((response) => {
             if (response && response.capability) {
                 this._capability = response.capability;
             }
@@ -850,7 +849,7 @@
      */
     Client.prototype.breakIdle = function() {
         if (!this._enteredIdle) {
-            return Promise.resolve();
+            return;
         }
 
         clearTimeout(this._idleTimeout);
@@ -859,9 +858,6 @@
             this.logger.debug('Idle terminated');
         }
         this._enteredIdle = false;
-
-
-        return Promise.resolve();
     };
 
     /**
