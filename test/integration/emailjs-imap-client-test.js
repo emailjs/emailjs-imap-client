@@ -83,7 +83,7 @@
                 insecureServer.close(done);
             });
 
-            it('should use STARTTLS by default', () => {
+            it('should use STARTTLS by default', (done) => {
                 imap = new ImapClient('127.0.0.1', port, {
                     auth: {
                         user: "testuser",
@@ -93,14 +93,14 @@
                 });
                 imap.logLevel = imap.LOG_LEVEL_NONE;
 
-                return imap.connect().then(() => {
+                imap.connect().then(() => {
                     expect(imap.client.secureMode).to.be.true;
                 }).then(() => {
                     return imap.close();
-                });
+                }).then(() => done()).catch(done);
             });
 
-            it('should ignore STARTTLS', () => {
+            it('should ignore STARTTLS', (done) => {
                 imap = new ImapClient('127.0.0.1', port, {
                     auth: {
                         user: "testuser",
@@ -115,7 +115,7 @@
                     expect(imap.client.secureMode).to.be.false;
                 }).then(() => {
                     return imap.close();
-                });
+                }).then(() => done()).catch(done);
             });
 
             it('should fail connecting to non-STARTTLS host', (done) => {
