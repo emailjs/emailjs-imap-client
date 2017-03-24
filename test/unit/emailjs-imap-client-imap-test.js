@@ -251,8 +251,8 @@
                     command: 'test'
                 });
 
-              expect(client._sendRequest.callCount).to.equal(0);
-              expect(client._globalAcceptUntagged.TEST.withArgs({
+                expect(client._sendRequest.callCount).to.equal(0);
+                expect(client._globalAcceptUntagged.TEST.withArgs({
                     tag: '*',
                     command: 'test'
                 }).callCount).to.equal(1);
