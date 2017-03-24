@@ -545,5 +545,99 @@
                 });
             });
         });
+
+        describe('#getPreviouslyQueued', () => {
+            const ctx = {};
+
+            it('should return undefined with empty queue and no current command', () => {
+                client._currentCommand = undefined;
+                client._clientQueue = [];
+
+                expect(testAndGetAttribute()).to.be.undefined;
+            });
+
+            it('should return undefined with empty queue and non-SELECT current command', () => {
+                client._currentCommand = createCommand('TEST');
+                client._clientQueue = [];
+
+                expect(testAndGetAttribute()).to.be.undefined;
+            });
+
+            it('should return current command with empty queue and SELECT current command', () => {
+                client._currentCommand = createCommand('SELECT', 'ATTR');
+                client._clientQueue = [];
+
+                expect(testAndGetAttribute()).to.equal('ATTR');
+            });
+
+            it('should return current command with non-SELECT commands in queue and SELECT current command', () => {
+                client._currentCommand = createCommand('SELECT', 'ATTR');
+                client._clientQueue = [
+                    createCommand('TEST01'),
+                    createCommand('TEST02')
+                ];
+
+                expect(testAndGetAttribute()).to.equal('ATTR');
+            });
+
+            it('should return last SELECT before ctx with multiple SELECT commands in queue (1)', () => {
+                client._currentCommand = createCommand('SELECT', 'ATTR01');
+                client._clientQueue = [
+                    createCommand('SELECT', 'ATTR'),
+                    createCommand('TEST'),
+                    ctx,
+                    createCommand('SELECT', 'ATTR03')
+                ];
+
+                expect(testAndGetAttribute()).to.equal('ATTR');
+
+            });
+
+            it('should return last SELECT before ctx with multiple SELECT commands in queue (2)', () => {
+                client._clientQueue = [
+                    createCommand('SELECT', 'ATTR02'),
+                    createCommand('SELECT', 'ATTR'),
+                    ctx,
+                    createCommand('SELECT', 'ATTR03')
+                ];
+
+                expect(testAndGetAttribute()).to.equal('ATTR');
+            });
+
+            it('should return last SELECT before ctx with multiple SELECT commands in queue (3)', () => {
+                client._clientQueue = [
+                    createCommand('SELECT', 'ATTR02'),
+                    createCommand('SELECT', 'ATTR'),
+                    createCommand('TEST'),
+                    ctx,
+                    createCommand('SELECT', 'ATTR03')
+                ];
+
+                expect(testAndGetAttribute()).to.equal('ATTR');
+            });
+
+            function testAndGetAttribute() {
+                const data = client.getPreviouslyQueued(['SELECT'], ctx);
+                if (data) {
+                    return data.request.attributes[0].value;
+                }
+            }
+
+            function createCommand(command, attribute) {
+                const attributes = [];
+                const data = {
+                    request: { command, attributes }
+                };
+
+                if (attribute) {
+                    data.request.attributes.push({
+                        type: 'STRING',
+                        value: attribute
+                    });
+                }
+
+                return data;
+            }
+        });
     });
 }));
