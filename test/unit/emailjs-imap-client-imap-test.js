@@ -219,6 +219,7 @@
         describe('#_handleResponse', () => {
             it('should invoke global handler by default', () => {
                 sinon.stub(client, '_processResponse');
+                sinon.stub(client, '_sendRequest');
 
                 client._globalAcceptUntagged.TEST = () => {};
                 sinon.stub(client._globalAcceptUntagged, 'TEST');
@@ -229,6 +230,7 @@
                     command: 'test'
                 });
 
+                expect(client._sendRequest.callCount).to.equal(1);
                 expect(client._globalAcceptUntagged.TEST.withArgs({
                     tag: '*',
                     command: 'test'
@@ -239,6 +241,7 @@
                 sinon.stub(client, '_processResponse');
                 client._globalAcceptUntagged.TEST = () => {};
                 sinon.stub(client._globalAcceptUntagged, 'TEST');
+                sinon.stub(client, '_sendRequest');
 
                 client._currentCommand = {
                     payload: {}
@@ -248,7 +251,8 @@
                     command: 'test'
                 });
 
-                expect(client._globalAcceptUntagged.TEST.withArgs({
+              expect(client._sendRequest.callCount).to.equal(0);
+              expect(client._globalAcceptUntagged.TEST.withArgs({
                     tag: '*',
                     command: 'test'
                 }).callCount).to.equal(1);
