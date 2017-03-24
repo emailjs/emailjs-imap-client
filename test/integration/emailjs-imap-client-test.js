@@ -393,8 +393,8 @@
                     });
                 });
 
-                it('should send precheck commands in correct order on concurrent calls', () => {
-                    return Promise.all([
+                it('should send precheck commands in correct order on concurrent calls', (done) => {
+                    Promise.all([
                         imap.setFlags('[Gmail]/A', '1', ['\\Seen']),
                         imap.setFlags('[Gmail]/B', '1', ['\\Seen'])
                     ]).then(() => {
@@ -407,7 +407,7 @@
                     }).then((messages) => {
                         expect(messages.length).to.equal(1);
                         expect(messages[0].flags).to.deep.equal(['\\Seen']);
-                    });
+                    }).then(done).catch(done);
                 });
             });
         });
