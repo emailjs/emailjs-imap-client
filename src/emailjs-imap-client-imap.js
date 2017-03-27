@@ -18,7 +18,6 @@
     var MESSAGE_DEFLATE = 'deflate';
     var MESSAGE_DEFLATED_DATA_READY = 'deflated_ready';
 
-    var COMMAND_REGEX = /(\{(\d+)(\+)?\})?\r?\n/;
     var EOL = '\r\n';
 
     /**
@@ -65,8 +64,9 @@
         //
 
         // As the server sends data in chunks, it needs to be split into separate lines. Helps parsing the input.
-        this._incomingBuffer = '';
-        this._command = '';
+        this._incomingBuffers = [];
+        this._incomingBuffersOffset = 0;
+        this._command = [];
         this._literalRemaining = 0;
 
         //
@@ -394,44 +394,64 @@
         clearTimeout(this._socketTimeoutTimer); // clear the timeout, the socket is still up
         this._socketTimeoutTimer = null;
 
-        this._incomingBuffer += mimecodec.fromTypedArray(evt.data); // append to the incoming buffer
+        this._incomingBuffers.push(new DataView(evt.data)); // append to the incoming buffer
         this._parseIncomingCommands(this._iterateIncomingBuffer()); // Consume the incoming buffer
     };
 
-    Imap.prototype._iterateIncomingBuffer = function* () {
-        var match;
-        // The input is interesting as long as there are complete lines
-        while ((match = this._incomingBuffer.match(COMMAND_REGEX))) {
-            if (this._literalRemaining && this._literalRemaining > this._incomingBuffer.length) {
-                // we're expecting more incoming literal data than available, wait for the next chunk
-                return;
+    Imap.prototype._iterateIncomingBuffer = function*() {
+        const self = this;
+        let value;
+
+        if (this._literalRemaining > 0) {
+            readLiteral();
+        }
+
+        while ((value = readBuffer())) {
+            if (value === 123) { // literal remaining starts with {
+                this._literalRemainingBuffer = [];
+            } else if (this._literalRemainingBuffer) {
+                if (value >= 48 && value <= 57) { // value is a digit
+                    this._literalRemainingBuffer.push(value);
+                } else {
+                    const text = String.fromCharCode(...this._literalRemainingBuffer);
+                    this._literalRemaining = Number(text) + 2; // +2 to cover the initial CRLF
+                    readLiteral();
+                    delete this._literalRemainingBuffer;
+                }
+            } else if (this._literalRemaining === 0 && value === 10) { // value is LF
+                this._command.pop(); // remove the CR
+                this._command.pop(); // remove the LF
+
+                yield this._command.map((ascii) => String.fromCharCode(ascii)).join('');
+                this._command = [];
+            }
+        }
+
+        function readLiteral() {
+            while (self._literalRemaining > 0 && (value = readBuffer())) {
+                self._literalRemaining--;
+            }
+        }
+
+        function readBuffer() {
+            if (self._incomingBuffers.length === 0) {
+                return false;
             }
 
-            if (this._literalRemaining) {
-                // we're expecting incoming literal data:
-                // take portion of pending literal data from the chunk, parse the remaining buffer in the next iteration
-                this._command += this._incomingBuffer.substr(0, this._literalRemaining);
-                this._incomingBuffer = this._incomingBuffer.substr(this._literalRemaining);
-                this._literalRemaining = 0;
-                continue;
+            if (self._incomingBuffersOffset >= self._incomingBuffers[0].byteLength) {
+                self._incomingBuffers.shift();
+                self._incomingBuffersOffset = 0;
+
+                if (self._incomingBuffers.length === 0) {
+                    return false;
+                }
             }
 
-            if (match[2]) {
-                // we have a literal data command:
-                // take command portion (match.index) including the literal data octet count (match[0].length)
-                // from the chunk, parse the literal data in the next iteration
-                this._literalRemaining = Number(match[2]);
-                this._command += this._incomingBuffer.substr(0, match.index + match[0].length);
-                this._incomingBuffer = this._incomingBuffer.substr(match.index + match[0].length);
-                continue;
-            }
+            const value = self._incomingBuffers[0].getUint8(self._incomingBuffersOffset);
+            self._command.push(value);
+            self._incomingBuffersOffset++;
 
-            // we have a complete command, pass on to processing
-            this._command += this._incomingBuffer.substr(0, match.index);
-            this._incomingBuffer = this._incomingBuffer.substr(match.index + match[0].length);
-            yield this._command;
-
-            this._command = ''; // clear for next iteration
+            return value;
         }
     };
 
