@@ -413,7 +413,11 @@
                 if (value >= 48 && value <= 57) { // value is a digit
                     this._literalRemainingBuffer.push(value);
                 } else {
-                    const text = String.fromCharCode(...this._literalRemainingBuffer);
+                    const chars = [];
+                    for (let asciiCode of this._literalRemainingBuffer) {
+                        chars.push(String.fromCharCode(asciiCode));
+                    }
+                    const text = chars.join('');
                     this._literalRemaining = Number(text) + 2; // +2 to cover the initial CRLF
                     readLiteral();
                     delete this._literalRemainingBuffer;
