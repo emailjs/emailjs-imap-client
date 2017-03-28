@@ -6,7 +6,7 @@ IMAP client library written with ES2015 (ES6).
 
 ## StringEncoding API
 
-This module requires `TextEncoder` and `TextDecoder` to exist as part of the StringEncoding API (see: [MDN](https://developer.mozilla.org/en-US/docs/WebAPI/Encoding_API) [whatwg.org](http://encoding.spec.whatwg.org/#api)). This is supported by Firefox, Chrome and Opera. For other browser environments [there is a polyfill](https://github.com/emailjs/emailjs-tringencoding).
+This module requires `TextEncoder` and `TextDecoder` to exist as part of the StringEncoding API (see: [MDN](https://developer.mozilla.org/en-US/docs/WebAPI/Encoding_API) [whatwg.org](http://encoding.spec.whatwg.org/#api)). This is supported by Firefox, Chrome and Opera. For other browser environments [there is a polyfill](https://github.com/emailjs/emailjs-stringencoding).
 
 ## TCPSocket API
 
