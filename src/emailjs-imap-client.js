@@ -1849,7 +1849,7 @@
     Client.prototype.createLogger = function() {
         var createLogger = (tag) => {
             var log = (level, messages) => {
-
+                messages = messages.map(msg => typeof msg === 'function' ? msg() : msg);
                 var logMessage = '[' + new Date().toISOString() + '][' + tag + '][' +
                     this.options.auth.user + '][' + this.client.host  + '] ' + messages.join(' ');
                 if (level === this.LOG_LEVEL_DEBUG) {

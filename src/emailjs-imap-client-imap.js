@@ -472,7 +472,7 @@
             var response;
             try {
                 response = imapHandler.parser(command.trim());
-                this.logger.debug('S:', imapHandler.compiler(response, false, true));
+                this.logger.debug('S:', () => imapHandler.compiler(response, false, true));
             } catch (e) {
                 this.logger.error('Error parsing imap command!', response);
                 return this._onError(e);
@@ -572,7 +572,7 @@
 
         try {
             this._currentCommand.data = imapHandler.compiler(this._currentCommand.request, true);
-            this.logger.debug('C:', imapHandler.compiler(this._currentCommand.request, false, true)); // excludes passwords etc.
+            this.logger.debug('C:', () => imapHandler.compiler(this._currentCommand.request, false, true)); // excludes passwords etc.
         } catch (e) {
             this.logger.error('Error compiling imap command!', this._currentCommand.request);
             return this._onError(new Error('Error compiling imap command!'));
