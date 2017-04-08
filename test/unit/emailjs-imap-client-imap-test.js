@@ -133,7 +133,7 @@
 
         describe('#_iterateIncomingBuffer', () => {
             it('should iterate chunked input', () => {
-                client._incomingBuffer = '* 1 FETCH (UID 1)\r\n* 2 FETCH (UID 2)\r\n* 3 FETCH (UID 3)\r\n';
+                setIncomingBuffers('* 1 FETCH (UID 1)\r\n* 2 FETCH (UID 2)\r\n* 3 FETCH (UID 3)\r\n');
                 var iterator = client._iterateIncomingBuffer();
 
                 expect(iterator.next().value).to.equal('* 1 FETCH (UID 1)');
@@ -143,14 +143,34 @@
             });
 
             it('chould process chunked literals', () => {
-                client._incomingBuffer = '* 1 FETCH (UID {1}\r\n1)\r\n* 2 FETCH (UID {4}\r\n2345)\r\n* 3 FETCH (UID {4}\r\n3789)\r\n';
+                setIncomingBuffers('* 1 FETCH (UID {1}\r\n1)\r\n* 2 FETCH (UID {4}\r\n2345)\r\n* 3 FETCH (UID {6}\r\n3789\r\n)\r\n');
                 var iterator = client._iterateIncomingBuffer();
 
                 expect(iterator.next().value).to.equal('* 1 FETCH (UID {1}\r\n1)');
                 expect(iterator.next().value).to.equal('* 2 FETCH (UID {4}\r\n2345)');
-                expect(iterator.next().value).to.equal('* 3 FETCH (UID {4}\r\n3789)');
+                expect(iterator.next().value).to.equal('* 3 FETCH (UID {6}\r\n3789\r\n)');
                 expect(iterator.next().value).to.be.undefined;
             });
+
+            it('should process literal when literal count arrives in 2 parts', () => {
+                setIncomingBuffers('* 1 FETCH (UID {');
+                var iterator1 = client._iterateIncomingBuffer();
+                expect(iterator1.next().value).to.be.undefined;
+
+                setIncomingBuffers('2}\r\n12)\r\n');
+                var iterator2 = client._iterateIncomingBuffer();
+                expect(iterator2.next().value).to.equal('* 1 FETCH (UID {2}\r\n12)');
+                expect(iterator2.next().value).to.be.undefined;
+            });
+
+            function setIncomingBuffers(content) {
+                const buffer = new ArrayBuffer(content.length);
+                const view = new DataView(buffer);
+                for (var i = 0; i < content.length; i++) {
+                    view.setUint8(i, content.codePointAt(i));
+                }
+                client._incomingBuffers = [view];
+            }
         });
 
         describe('#_parseIncomingCommands', () => {
