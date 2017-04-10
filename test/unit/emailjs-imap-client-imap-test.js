@@ -133,7 +133,7 @@
 
         describe('#_iterateIncomingBuffer', () => {
             it('should iterate chunked input', () => {
-                client._incomingBuffer = '* 1 FETCH (UID 1)\r\n* 2 FETCH (UID 2)\r\n* 3 FETCH (UID 3)\r\n';
+                appendIncomingBuffer('* 1 FETCH (UID 1)\r\n* 2 FETCH (UID 2)\r\n* 3 FETCH (UID 3)\r\n');
                 var iterator = client._iterateIncomingBuffer();
 
                 expect(iterator.next().value).to.equal('* 1 FETCH (UID 1)');
@@ -143,7 +143,7 @@
             });
 
             it('chould process chunked literals', () => {
-                client._incomingBuffer = '* 1 FETCH (UID {1}\r\n1)\r\n* 2 FETCH (UID {4}\r\n2345)\r\n* 3 FETCH (UID {4}\r\n3789)\r\n';
+                appendIncomingBuffer('* 1 FETCH (UID {1}\r\n1)\r\n* 2 FETCH (UID {4}\r\n2345)\r\n* 3 FETCH (UID {4}\r\n3789)\r\n');
                 var iterator = client._iterateIncomingBuffer();
 
                 expect(iterator.next().value).to.equal('* 1 FETCH (UID {1}\r\n1)');
@@ -151,6 +151,105 @@
                 expect(iterator.next().value).to.equal('* 3 FETCH (UID {4}\r\n3789)');
                 expect(iterator.next().value).to.be.undefined;
             });
+
+            it('chould process chunked literals 2', () => {
+                appendIncomingBuffer('* 1 FETCH (UID 1)\r\n* 2 FETCH (UID {4}\r\n2345)\r\n');
+                var iterator = client._iterateIncomingBuffer();
+
+                expect(iterator.next().value).to.equal('* 1 FETCH (UID 1)');
+                expect(iterator.next().value).to.equal('* 2 FETCH (UID {4}\r\n2345)');
+                expect(iterator.next().value).to.be.undefined;
+            });
+
+            it('chould process chunked literals 3', () => {
+                appendIncomingBuffer('* 1 FETCH (UID {1}\r\n1)\r\n* 2 FETCH (UID 4)\r\n');
+                var iterator = client._iterateIncomingBuffer();
+
+                expect(iterator.next().value).to.equal('* 1 FETCH (UID {1}\r\n1)');
+                expect(iterator.next().value).to.equal('* 2 FETCH (UID 4)');
+                expect(iterator.next().value).to.be.undefined;
+            });
+
+            it('chould process chunked literals 4', () => {
+                appendIncomingBuffer('* SEARCH {1}\r\n1 {1}\r\n2\r\n');
+                var iterator = client._iterateIncomingBuffer();
+                expect(iterator.next().value).to.equal('* SEARCH {1}\r\n1 {1}\r\n2');
+            });
+
+            it('should process two commands when CRLF arrives in 2 parts', () => {
+                appendIncomingBuffer('* 1 FETCH (UID 1)\r');
+                var iterator1 = client._iterateIncomingBuffer();
+                expect(iterator1.next().value).to.be.undefined;
+
+                appendIncomingBuffer('\n* 2 FETCH (UID 2)\r\n');
+                var iterator2 = client._iterateIncomingBuffer();
+                expect(iterator2.next().value).to.equal('* 1 FETCH (UID 1)');
+                expect(iterator2.next().value).to.equal('* 2 FETCH (UID 2)');
+                expect(iterator2.next().value).to.be.undefined;
+            });
+
+            it('should process literal when literal count arrives in 2 parts', () => {
+                appendIncomingBuffer('* 1 FETCH (UID {');
+                var iterator1 = client._iterateIncomingBuffer();
+                expect(iterator1.next().value).to.be.undefined;
+
+                appendIncomingBuffer('2}\r\n12)\r\n');
+                var iterator2 = client._iterateIncomingBuffer();
+                expect(iterator2.next().value).to.equal('* 1 FETCH (UID {2}\r\n12)');
+                expect(iterator2.next().value).to.be.undefined;
+            });
+
+            it('should process literal when literal count arrives in 2 parts 2', () => {
+                appendIncomingBuffer('* 1 FETCH (UID {1');
+                var iterator1 = client._iterateIncomingBuffer();
+                expect(iterator1.next().value).to.be.undefined;
+
+                appendIncomingBuffer('0}\r\n0123456789)\r\n');
+                var iterator2 = client._iterateIncomingBuffer();
+                expect(iterator2.next().value).to.equal('* 1 FETCH (UID {10}\r\n0123456789)');
+                expect(iterator2.next().value).to.be.undefined;
+            });
+
+            it('should process literal when literal count arrives in 2 parts 3', () => {
+                appendIncomingBuffer('* 1 FETCH (UID {');
+                var iterator1 = client._iterateIncomingBuffer();
+                expect(iterator1.next().value).to.be.undefined;
+
+                appendIncomingBuffer('10}\r\n1234567890)\r\n');
+                var iterator2 = client._iterateIncomingBuffer();
+                expect(iterator2.next().value).to.equal('* 1 FETCH (UID {10}\r\n1234567890)');
+                expect(iterator2.next().value).to.be.undefined;
+            });
+
+            it('should process literal when literal count arrives in 3 parts', () => {
+                appendIncomingBuffer('* 1 FETCH (UID {');
+                var iterator1 = client._iterateIncomingBuffer();
+                expect(iterator1.next().value).to.be.undefined;
+
+                appendIncomingBuffer('1');
+                var iterator2 = client._iterateIncomingBuffer();
+                expect(iterator2.next().value).to.be.undefined;
+
+                appendIncomingBuffer('}\r\n1)\r\n');
+                var iterator3 = client._iterateIncomingBuffer();
+                expect(iterator3.next().value).to.equal('* 1 FETCH (UID {1}\r\n1)');
+                expect(iterator3.next().value).to.be.undefined;
+            });
+
+            it('should process SEARCH response when it arrives in 2 parts', () => {
+                appendIncomingBuffer('* SEARCH 1 2');
+                var iterator1 = client._iterateIncomingBuffer();
+                expect(iterator1.next().value).to.be.undefined;
+
+                appendIncomingBuffer(' 3 4\r\n');
+                var iterator2 = client._iterateIncomingBuffer();
+                expect(iterator2.next().value).to.equal('* SEARCH 1 2 3 4');
+                expect(iterator2.next().value).to.be.undefined;
+            });
+
+            function appendIncomingBuffer(content) {
+                client._incomingBuffers.push(mimefuncs.toTypedArray(content));
+            }
         });
 
         describe('#_parseIncomingCommands', () => {

@@ -18,8 +18,10 @@
     var MESSAGE_DEFLATE = 'deflate';
     var MESSAGE_DEFLATED_DATA_READY = 'deflated_ready';
 
-    var COMMAND_REGEX = /(\{(\d+)(\+)?\})?\r?\n/;
     var EOL = '\r\n';
+    var LINE_FEED = 10;
+    var LEFT_CURLY_BRACKET = 123;
+    var RIGHT_CURLY_BRACKET = 125;
 
     /**
      * Creates a connection object to an IMAP server. Call `connect` method to inititate
@@ -65,8 +67,7 @@
         //
 
         // As the server sends data in chunks, it needs to be split into separate lines. Helps parsing the input.
-        this._incomingBuffer = '';
-        this._command = '';
+        this._incomingBuffers = [];
         this._literalRemaining = 0;
 
         //
@@ -394,44 +395,97 @@
         clearTimeout(this._socketTimeoutTimer); // clear the timeout, the socket is still up
         this._socketTimeoutTimer = null;
 
-        this._incomingBuffer += mimecodec.fromTypedArray(evt.data); // append to the incoming buffer
+        this._incomingBuffers.push(new Uint8Array(evt.data)); // append to the incoming buffer
         this._parseIncomingCommands(this._iterateIncomingBuffer()); // Consume the incoming buffer
     };
 
-    Imap.prototype._iterateIncomingBuffer = function* () {
-        var match;
-        // The input is interesting as long as there are complete lines
-        while ((match = this._incomingBuffer.match(COMMAND_REGEX))) {
-            if (this._literalRemaining && this._literalRemaining > this._incomingBuffer.length) {
-                // we're expecting more incoming literal data than available, wait for the next chunk
-                return;
-            }
+    Imap.prototype._iterateIncomingBuffer = function*() {
+        let buf = this._incomingBuffers[this._incomingBuffers.length-1];
+        let i = 0;
 
-            if (this._literalRemaining) {
-                // we're expecting incoming literal data:
-                // take portion of pending literal data from the chunk, parse the remaining buffer in the next iteration
-                this._command += this._incomingBuffer.substr(0, this._literalRemaining);
-                this._incomingBuffer = this._incomingBuffer.substr(this._literalRemaining);
-                this._literalRemaining = 0;
-                continue;
-            }
+        // loop invariant:
+        //   this._incomingBuffers starts with the beginning of incoming command.
+        //   buf is shorthand for last element of this._incomingBuffers.
+        //   buf[0..i-1] is part of incoming command.
+        while (i < buf.length) {
+          if (this._literalRemaining === 0) {
+              let numBuf;
+              if (this._numBuf) {
+                  const rightIdx = buf.indexOf(RIGHT_CURLY_BRACKET, i);
+                  const end = rightIdx > -1 ? rightIdx : buf.length;
+                  const tmpNum = new Uint8Array(this._numBuf.length + end-i);
+                  tmpNum.set(this._numBuf, 0);
+                  tmpNum.set(buf.subarray(i, end), this._numBuf.length);
+                  if (rightIdx > -1) {
+                      delete this._numBuf;
+                      numBuf = tmpNum;
+                      i = rightIdx + 1;
+                  } else {
+                      this._numBuf = tmpNum;
+                      return;
+                  }
+              } else {
+                  const leftIdx = buf.indexOf(LEFT_CURLY_BRACKET, i);
+                  if (leftIdx > -1) {
+                      const leftOfLeftCurly = new Uint8Array(buf.buffer, i, leftIdx-i);
+                      if (leftOfLeftCurly.indexOf(LINE_FEED) === -1) {
+                          const rightIdx = buf.indexOf(RIGHT_CURLY_BRACKET, leftIdx+2);
+                          if (rightIdx > -1) {
+                              numBuf = new Uint8Array(buf.buffer, leftIdx+1, rightIdx-leftIdx-1);
+                              i = rightIdx + 1;
+                          } else {
+                              this._numBuf = new Uint8Array(buf.buffer, leftIdx+1);
+                              return;
+                          }
+                      }
+                  }
+              }
+              if (numBuf) {
+                  const remaining = Number(mimecodec.fromTypedArray(numBuf))+2; // 2 for CRLF
+                  if (isNaN(remaining)) {
+                      throw Error("error parsing literal length");
+                  } else {
+                      this._literalRemaining = remaining;
+                  }
+              }
+          }
 
-            if (match[2]) {
-                // we have a literal data command:
-                // take command portion (match.index) including the literal data octet count (match[0].length)
-                // from the chunk, parse the literal data in the next iteration
-                this._literalRemaining = Number(match[2]);
-                this._command += this._incomingBuffer.substr(0, match.index + match[0].length);
-                this._incomingBuffer = this._incomingBuffer.substr(match.index + match[0].length);
-                continue;
-            }
+          const diff = Math.min(buf.length-i, this._literalRemaining);
+          if (diff) {
+              this._literalRemaining -= diff;
+              i += diff;
+              if (this._literalRemaining === 0) {
+                  continue; // find another literal
+              }
+          }
 
-            // we have a complete command, pass on to processing
-            this._command += this._incomingBuffer.substr(0, match.index);
-            this._incomingBuffer = this._incomingBuffer.substr(match.index + match[0].length);
-            yield this._command;
-
-            this._command = ''; // clear for next iteration
+          if (!this._numBuf && this._literalRemaining === 0 && i < buf.length) {
+              const LFidx = buf.indexOf(LINE_FEED, i);
+              if (LFidx > -1) {
+                  if (LFidx < buf.length-1) {
+                      this._incomingBuffers[this._incomingBuffers.length-1] = new Uint8Array(buf.buffer, 0, LFidx+1);
+                  }
+                  const commandLen = this._incomingBuffers.reduce((prev, curr) => prev + curr.length, 0) - 2; // 2 for CRLF
+                  const command = new Array(commandLen);
+                  let k = 0;
+                  while (this._incomingBuffers.length > 0) {
+                      const b = this._incomingBuffers.shift();
+                      for (let j = 0; j<b.length && k < commandLen; j ++) {
+                          command[k++] = String.fromCharCode(b[j]);
+                      }
+                  }
+                  yield command.join(''); // TODO: yield Uint8Array and pass on to emailjs-imap-handler
+                  if (LFidx < buf.length-1) {
+                      buf = new Uint8Array(buf.subarray(LFidx+1));
+                      this._incomingBuffers.push(buf);
+                      i = 0;
+                  } else {
+                      return;
+                  }
+              } else {
+                  return;
+              }
+          }
         }
     };
 

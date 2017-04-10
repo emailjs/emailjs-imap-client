@@ -1,6 +1,6 @@
 {
   "name": "emailjs-imap-client",
-  "version": "2.0.5",
+  "version": "2.0.6-beta.1",
   "homepage": "https://github.com/emailjs/emailjs-imap-client",
   "description": "JavaScript IMAP client",
   "author": "Andris Reinman <andris@kreata.ee>",
