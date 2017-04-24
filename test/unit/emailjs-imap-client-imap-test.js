@@ -142,7 +142,7 @@
                 expect(iterator.next().value).to.be.undefined;
             });
 
-            it('chould process chunked literals', () => {
+            it('should process chunked literals', () => {
                 appendIncomingBuffer('* 1 FETCH (UID {1}\r\n1)\r\n* 2 FETCH (UID {4}\r\n2345)\r\n* 3 FETCH (UID {4}\r\n3789)\r\n');
                 var iterator = client._iterateIncomingBuffer();
 
@@ -152,7 +152,7 @@
                 expect(iterator.next().value).to.be.undefined;
             });
 
-            it('chould process chunked literals 2', () => {
+            it('should process chunked literals 2', () => {
                 appendIncomingBuffer('* 1 FETCH (UID 1)\r\n* 2 FETCH (UID {4}\r\n2345)\r\n');
                 var iterator = client._iterateIncomingBuffer();
 
@@ -161,7 +161,7 @@
                 expect(iterator.next().value).to.be.undefined;
             });
 
-            it('chould process chunked literals 3', () => {
+            it('should process chunked literals 3', () => {
                 appendIncomingBuffer('* 1 FETCH (UID {1}\r\n1)\r\n* 2 FETCH (UID 4)\r\n');
                 var iterator = client._iterateIncomingBuffer();
 
@@ -170,10 +170,22 @@
                 expect(iterator.next().value).to.be.undefined;
             });
 
-            it('chould process chunked literals 4', () => {
+            it('should process chunked literals 4', () => {
                 appendIncomingBuffer('* SEARCH {1}\r\n1 {1}\r\n2\r\n');
                 var iterator = client._iterateIncomingBuffer();
                 expect(iterator.next().value).to.equal('* SEARCH {1}\r\n1 {1}\r\n2');
+            });
+
+            it('should process CRLF literal', () => {
+                appendIncomingBuffer('* 1 FETCH (UID 20 BODY[HEADER.FIELDS (REFERENCES LIST-ID)] {2}\r\n\r\n)\r\n');
+                var iterator = client._iterateIncomingBuffer();
+                expect(iterator.next().value).to.equal('* 1 FETCH (UID 20 BODY[HEADER.FIELDS (REFERENCES LIST-ID)] {2}\r\n\r\n)');
+            });
+
+            it('should process CRLF literal 2', () => {
+                appendIncomingBuffer('* 1 FETCH (UID 1 ENVELOPE ("string with {parenthesis}") BODY[HEADER.FIELDS (REFERENCES LIST-ID)] {2}\r\n\r\n)\r\n');
+                var iterator = client._iterateIncomingBuffer();
+                expect(iterator.next().value).to.equal('* 1 FETCH (UID 1 ENVELOPE ("string with {parenthesis}") BODY[HEADER.FIELDS (REFERENCES LIST-ID)] {2}\r\n\r\n)');
             });
 
             it('should process two commands when CRLF arrives in 2 parts', () => {
@@ -245,6 +257,18 @@
                 var iterator2 = client._iterateIncomingBuffer();
                 expect(iterator2.next().value).to.equal('* SEARCH 1 2 3 4');
                 expect(iterator2.next().value).to.be.undefined;
+            });
+
+            it('should not process {} in string as literal 1', () => {
+                appendIncomingBuffer('* 1 FETCH (UID 1 ENVELOPE ("string with {parenthesis}"))\r\n');
+                var iterator = client._iterateIncomingBuffer();
+                expect(iterator.next().value).to.equal('* 1 FETCH (UID 1 ENVELOPE ("string with {parenthesis}"))');
+            });
+
+            it('should not process {} in string as literal 2', () => {
+                appendIncomingBuffer('* 1 FETCH (UID 1 ENVELOPE ("string with number in parenthesis {123}"))\r\n');
+                var iterator = client._iterateIncomingBuffer();
+                expect(iterator.next().value).to.equal('* 1 FETCH (UID 1 ENVELOPE ("string with number in parenthesis {123}"))');
             });
 
             function appendIncomingBuffer(content) {

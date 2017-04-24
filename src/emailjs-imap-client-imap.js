@@ -20,6 +20,7 @@
 
     var EOL = '\r\n';
     var LINE_FEED = 10;
+    var CARRIAGE_RETURN = 13;
     var LEFT_CURLY_BRACKET = 123;
     var RIGHT_CURLY_BRACKET = 125;
 
@@ -400,7 +401,19 @@
     };
 
     Imap.prototype._iterateIncomingBuffer = function*() {
-        let buf = this._incomingBuffers[this._incomingBuffers.length-1];
+        let buf;
+        if (this._concatLastTwoBuffers) {
+            // allocate new buffer for the sake of simpler parsing
+            delete this._concatLastTwoBuffers;
+            const latest = this._incomingBuffers.pop();
+            const prevBuf = this._incomingBuffers[this._incomingBuffers.length-1];
+            buf = new Uint8Array(prevBuf.length + latest.length);
+            buf.set(prevBuf);
+            buf.set(latest, prevBuf.length);
+            this._incomingBuffers[this._incomingBuffers.length-1] = buf;
+        } else {
+            buf = this._incomingBuffers[this._incomingBuffers.length-1];
+        }
         let i = 0;
 
         // loop invariant:
@@ -409,43 +422,30 @@
         //   buf[0..i-1] is part of incoming command.
         while (i < buf.length) {
           if (this._literalRemaining === 0) {
-              let numBuf;
-              if (this._numBuf) {
-                  const rightIdx = buf.indexOf(RIGHT_CURLY_BRACKET, i);
-                  const end = rightIdx > -1 ? rightIdx : buf.length;
-                  const tmpNum = new Uint8Array(this._numBuf.length + end-i);
-                  tmpNum.set(this._numBuf, 0);
-                  tmpNum.set(buf.subarray(i, end), this._numBuf.length);
-                  if (rightIdx > -1) {
-                      delete this._numBuf;
-                      numBuf = tmpNum;
-                      i = rightIdx + 1;
-                  } else {
-                      this._numBuf = tmpNum;
-                      return;
-                  }
-              } else {
-                  const leftIdx = buf.indexOf(LEFT_CURLY_BRACKET, i);
-                  if (leftIdx > -1) {
-                      const leftOfLeftCurly = new Uint8Array(buf.buffer, i, leftIdx-i);
-                      if (leftOfLeftCurly.indexOf(LINE_FEED) === -1) {
-                          const rightIdx = buf.indexOf(RIGHT_CURLY_BRACKET, leftIdx+2);
-                          if (rightIdx > -1) {
-                              numBuf = new Uint8Array(buf.buffer, leftIdx+1, rightIdx-leftIdx-1);
-                              i = rightIdx + 1;
-                          } else {
-                              this._numBuf = new Uint8Array(buf.buffer, leftIdx+1);
-                              return;
-                          }
+              const leftIdx = buf.indexOf(LEFT_CURLY_BRACKET, i);
+              if (leftIdx > -1) {
+                  const leftOfLeftCurly = new Uint8Array(buf.buffer, i, leftIdx-i);
+                  if (leftOfLeftCurly.indexOf(LINE_FEED) === -1) {
+                      let j = leftIdx + 1;
+                      while (buf[j] >= 48 && buf[j] <= 57) { // digits
+                          j++;
                       }
-                  }
-              }
-              if (numBuf) {
-                  const remaining = Number(mimecodec.fromTypedArray(numBuf))+2; // 2 for CRLF
-                  if (isNaN(remaining)) {
-                      throw Error("error parsing literal length");
-                  } else {
-                      this._literalRemaining = remaining;
+                      if (j >= buf.length-1) {
+                          // not enough info to determine if this is literal length
+                          this._concatLastTwoBuffers = true;
+                          return;
+                      }
+                      if (j > leftIdx + 1 &&
+                              buf[j] === RIGHT_CURLY_BRACKET &&
+                              buf[j+1] === CARRIAGE_RETURN &&
+                              buf[j+2] === LINE_FEED) {
+                          const numBuf = buf.subarray(leftIdx+1, j);
+                          this._literalRemaining = Number(mimecodec.fromTypedArray(numBuf));
+                          i = j + 3;
+                      } else {
+                          i = j;
+                          continue; // not a literal but there might still be one
+                      }
                   }
               }
           }
@@ -459,7 +459,7 @@
               }
           }
 
-          if (!this._numBuf && this._literalRemaining === 0 && i < buf.length) {
+          if (this._literalRemaining === 0 && i < buf.length) {
               const LFidx = buf.indexOf(LINE_FEED, i);
               if (LFidx > -1) {
                   if (LFidx < buf.length-1) {
