@@ -233,6 +233,15 @@
                 expect(iterator2.next().value).to.be.undefined;
             });
 
+            it('should process literal when literal count arrives in 2 parts 4', () => {
+                appendIncomingBuffer('* 1 FETCH (UID 1 BODY[HEADER.FIELDS (REFERENCES LIST-ID)] {2}\r');
+                var iterator1 = client._iterateIncomingBuffer();
+                expect(iterator1.next().value).to.be.undefined;
+                appendIncomingBuffer('\nXX)\r\n');
+                var iterator2 = client._iterateIncomingBuffer();
+                expect(iterator2.next().value).to.equal('* 1 FETCH (UID 1 BODY[HEADER.FIELDS (REFERENCES LIST-ID)] {2}\r\nXX)');
+            });
+
             it('should process literal when literal count arrives in 3 parts', () => {
                 appendIncomingBuffer('* 1 FETCH (UID {');
                 var iterator1 = client._iterateIncomingBuffer();

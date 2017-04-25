@@ -430,7 +430,7 @@
                       while (buf[j] >= 48 && buf[j] <= 57) { // digits
                           j++;
                       }
-                      if (j >= buf.length-1) {
+                      if (j+3 >= buf.length) {
                           // not enough info to determine if this is literal length
                           this._concatLastTwoBuffers = true;
                           return;
