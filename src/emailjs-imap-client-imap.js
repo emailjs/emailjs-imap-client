@@ -479,7 +479,6 @@
                           uint8Array = uint8Array.subarray(0, -excessLength);
 
                           if (this._incomingBuffers.length > 0) {
-                              console.log('cutting', this._incomingBuffers);
                               this._incomingBuffers = [];
                           }
                       }
