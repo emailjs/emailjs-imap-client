@@ -10,14 +10,6 @@
     var expect = chai.expect;
     chai.config.includeStack = true;
 
-    function toUint8Array(command) {
-        var asciiArray = [command.length];
-        for (var i = 0; i < command.length; i++) {
-            asciiArray[i] = command.charCodeAt(i);
-        }
-        return new Uint8Array(asciiArray);
-    }
-
     var host = 'localhost';
     var port = 10000;
 
@@ -298,7 +290,7 @@
                 client.onready = sinon.stub();
                 sinon.stub(client, '_handleResponse');
 
-                function* gen() { yield toUint8Array('OK Hello world!'); }
+                function* gen() { yield mimefuncs.toTypedArray('OK Hello world!'); }
 
                 client._parseIncomingCommands(gen());
 
@@ -316,7 +308,7 @@
             it('should process an untagged item from the queue', () => {
                 sinon.stub(client, '_handleResponse');
 
-                function* gen() { yield toUint8Array('* 1 EXISTS'); }
+                function* gen() { yield mimefuncs.toTypedArray('* 1 EXISTS'); }
 
                 client._parseIncomingCommands(gen());
 
@@ -331,7 +323,7 @@
             it('should process a plus tagged item from the queue', () => {
                 sinon.stub(client, 'send');
 
-                function* gen() { yield toUint8Array('+ Please continue'); }
+                function* gen() { yield mimefuncs.toTypedArray('+ Please continue'); }
                 client._currentCommand = {
                     data: ['literal data']
                 };
@@ -344,7 +336,7 @@
             it('should process an XOAUTH2 error challenge', () => {
                 sinon.stub(client, 'send');
 
-                function* gen() { yield toUint8Array('+ FOOBAR'); }
+                function* gen() { yield mimefuncs.toTypedArray('+ FOOBAR'); }
                 client._currentCommand = {
                     data: [],
                     errorResponseExpectsEmptyLine: true

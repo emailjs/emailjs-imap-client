@@ -1110,12 +1110,7 @@
             } else if (item) {
                 try {
                     // parse the value as a fake command, use only the attributes block
-                    var command = '* Z ' + item;
-                    var asciiArray = [command.length];
-                    for (var i = 0; i < command.length; i++) {
-                        asciiArray[i] = command.charCodeAt(i);
-                    }
-                    cmd = imapHandler.parser(new Uint8Array(asciiArray));
+                    cmd = imapHandler.parser(mimefuncs.toTypedArray('* Z ' + item));
                     query = query.concat(cmd.attributes || []);
                 } catch (E) {
                     // if parse failed, use the original string as one entity
