@@ -136,9 +136,9 @@
                 appendIncomingBuffer('* 1 FETCH (UID 1)\r\n* 2 FETCH (UID 2)\r\n* 3 FETCH (UID 3)\r\n');
                 var iterator = client._iterateIncomingBuffer();
 
-                expect(iterator.next().value).to.equal('* 1 FETCH (UID 1)');
-                expect(iterator.next().value).to.equal('* 2 FETCH (UID 2)');
-                expect(iterator.next().value).to.equal('* 3 FETCH (UID 3)');
+                expect(String.fromCharCode.apply(null, iterator.next().value)).to.equal ('* 1 FETCH (UID 1)');
+                expect(String.fromCharCode.apply(null, iterator.next().value)).to.equal ('* 2 FETCH (UID 2)');
+                expect(String.fromCharCode.apply(null, iterator.next().value)).to.equal ('* 3 FETCH (UID 3)');
                 expect(iterator.next().value).to.be.undefined;
             });
 
@@ -146,9 +146,9 @@
                 appendIncomingBuffer('* 1 FETCH (UID {1}\r\n1)\r\n* 2 FETCH (UID {4}\r\n2345)\r\n* 3 FETCH (UID {4}\r\n3789)\r\n');
                 var iterator = client._iterateIncomingBuffer();
 
-                expect(iterator.next().value).to.equal('* 1 FETCH (UID {1}\r\n1)');
-                expect(iterator.next().value).to.equal('* 2 FETCH (UID {4}\r\n2345)');
-                expect(iterator.next().value).to.equal('* 3 FETCH (UID {4}\r\n3789)');
+                expect(String.fromCharCode.apply(null, iterator.next().value)).to.equal ('* 1 FETCH (UID {1}\r\n1)');
+                expect(String.fromCharCode.apply(null, iterator.next().value)).to.equal ('* 2 FETCH (UID {4}\r\n2345)');
+                expect(String.fromCharCode.apply(null, iterator.next().value)).to.equal ('* 3 FETCH (UID {4}\r\n3789)');
                 expect(iterator.next().value).to.be.undefined;
             });
 
@@ -156,8 +156,8 @@
                 appendIncomingBuffer('* 1 FETCH (UID 1)\r\n* 2 FETCH (UID {4}\r\n2345)\r\n');
                 var iterator = client._iterateIncomingBuffer();
 
-                expect(iterator.next().value).to.equal('* 1 FETCH (UID 1)');
-                expect(iterator.next().value).to.equal('* 2 FETCH (UID {4}\r\n2345)');
+                expect(String.fromCharCode.apply(null, iterator.next().value)).to.equal ('* 1 FETCH (UID 1)');
+                expect(String.fromCharCode.apply(null, iterator.next().value)).to.equal ('* 2 FETCH (UID {4}\r\n2345)');
                 expect(iterator.next().value).to.be.undefined;
             });
 
@@ -165,27 +165,27 @@
                 appendIncomingBuffer('* 1 FETCH (UID {1}\r\n1)\r\n* 2 FETCH (UID 4)\r\n');
                 var iterator = client._iterateIncomingBuffer();
 
-                expect(iterator.next().value).to.equal('* 1 FETCH (UID {1}\r\n1)');
-                expect(iterator.next().value).to.equal('* 2 FETCH (UID 4)');
+                expect(String.fromCharCode.apply(null, iterator.next().value)).to.equal ('* 1 FETCH (UID {1}\r\n1)');
+                expect(String.fromCharCode.apply(null, iterator.next().value)).to.equal ('* 2 FETCH (UID 4)');
                 expect(iterator.next().value).to.be.undefined;
             });
 
             it('should process chunked literals 4', () => {
                 appendIncomingBuffer('* SEARCH {1}\r\n1 {1}\r\n2\r\n');
                 var iterator = client._iterateIncomingBuffer();
-                expect(iterator.next().value).to.equal('* SEARCH {1}\r\n1 {1}\r\n2');
+                expect(String.fromCharCode.apply(null, iterator.next().value)).to.equal ('* SEARCH {1}\r\n1 {1}\r\n2');
             });
 
             it('should process CRLF literal', () => {
                 appendIncomingBuffer('* 1 FETCH (UID 20 BODY[HEADER.FIELDS (REFERENCES LIST-ID)] {2}\r\n\r\n)\r\n');
                 var iterator = client._iterateIncomingBuffer();
-                expect(iterator.next().value).to.equal('* 1 FETCH (UID 20 BODY[HEADER.FIELDS (REFERENCES LIST-ID)] {2}\r\n\r\n)');
+                expect(String.fromCharCode.apply(null, iterator.next().value)).to.equal ('* 1 FETCH (UID 20 BODY[HEADER.FIELDS (REFERENCES LIST-ID)] {2}\r\n\r\n)');
             });
 
             it('should process CRLF literal 2', () => {
                 appendIncomingBuffer('* 1 FETCH (UID 1 ENVELOPE ("string with {parenthesis}") BODY[HEADER.FIELDS (REFERENCES LIST-ID)] {2}\r\n\r\n)\r\n');
                 var iterator = client._iterateIncomingBuffer();
-                expect(iterator.next().value).to.equal('* 1 FETCH (UID 1 ENVELOPE ("string with {parenthesis}") BODY[HEADER.FIELDS (REFERENCES LIST-ID)] {2}\r\n\r\n)');
+                expect(String.fromCharCode.apply(null, iterator.next().value)).to.equal ('* 1 FETCH (UID 1 ENVELOPE ("string with {parenthesis}") BODY[HEADER.FIELDS (REFERENCES LIST-ID)] {2}\r\n\r\n)');
             });
 
             it('should process two commands when CRLF arrives in 2 parts', () => {
@@ -195,8 +195,8 @@
 
                 appendIncomingBuffer('\n* 2 FETCH (UID 2)\r\n');
                 var iterator2 = client._iterateIncomingBuffer();
-                expect(iterator2.next().value).to.equal('* 1 FETCH (UID 1)');
-                expect(iterator2.next().value).to.equal('* 2 FETCH (UID 2)');
+                expect(String.fromCharCode.apply(null, iterator2.next().value)).to.equal('* 1 FETCH (UID 1)');
+                expect(String.fromCharCode.apply(null, iterator2.next().value)).to.equal('* 2 FETCH (UID 2)');
                 expect(iterator2.next().value).to.be.undefined;
             });
 
@@ -207,7 +207,7 @@
 
                 appendIncomingBuffer('2}\r\n12)\r\n');
                 var iterator2 = client._iterateIncomingBuffer();
-                expect(iterator2.next().value).to.equal('* 1 FETCH (UID {2}\r\n12)');
+                expect(String.fromCharCode.apply(null, iterator2.next().value)).to.equal('* 1 FETCH (UID {2}\r\n12)');
                 expect(iterator2.next().value).to.be.undefined;
             });
 
@@ -218,7 +218,7 @@
 
                 appendIncomingBuffer('0}\r\n0123456789)\r\n');
                 var iterator2 = client._iterateIncomingBuffer();
-                expect(iterator2.next().value).to.equal('* 1 FETCH (UID {10}\r\n0123456789)');
+                expect(String.fromCharCode.apply(null, iterator2.next().value)).to.equal('* 1 FETCH (UID {10}\r\n0123456789)');
                 expect(iterator2.next().value).to.be.undefined;
             });
 
@@ -229,7 +229,7 @@
 
                 appendIncomingBuffer('10}\r\n1234567890)\r\n');
                 var iterator2 = client._iterateIncomingBuffer();
-                expect(iterator2.next().value).to.equal('* 1 FETCH (UID {10}\r\n1234567890)');
+                expect(String.fromCharCode.apply(null, iterator2.next().value)).to.equal('* 1 FETCH (UID {10}\r\n1234567890)');
                 expect(iterator2.next().value).to.be.undefined;
             });
 
@@ -239,7 +239,7 @@
                 expect(iterator1.next().value).to.be.undefined;
                 appendIncomingBuffer('\nXX)\r\n');
                 var iterator2 = client._iterateIncomingBuffer();
-                expect(iterator2.next().value).to.equal('* 1 FETCH (UID 1 BODY[HEADER.FIELDS (REFERENCES LIST-ID)] {2}\r\nXX)');
+                expect(String.fromCharCode.apply(null, iterator2.next().value)).to.equal('* 1 FETCH (UID 1 BODY[HEADER.FIELDS (REFERENCES LIST-ID)] {2}\r\nXX)');
             });
 
             it('should process literal when literal count arrives in 3 parts', () => {
@@ -253,7 +253,7 @@
 
                 appendIncomingBuffer('}\r\n1)\r\n');
                 var iterator3 = client._iterateIncomingBuffer();
-                expect(iterator3.next().value).to.equal('* 1 FETCH (UID {1}\r\n1)');
+                expect(String.fromCharCode.apply(null, iterator3.next().value)).to.equal('* 1 FETCH (UID {1}\r\n1)');
                 expect(iterator3.next().value).to.be.undefined;
             });
 
@@ -264,20 +264,20 @@
 
                 appendIncomingBuffer(' 3 4\r\n');
                 var iterator2 = client._iterateIncomingBuffer();
-                expect(iterator2.next().value).to.equal('* SEARCH 1 2 3 4');
+                expect(String.fromCharCode.apply(null, iterator2.next().value)).to.equal('* SEARCH 1 2 3 4');
                 expect(iterator2.next().value).to.be.undefined;
             });
 
             it('should not process {} in string as literal 1', () => {
                 appendIncomingBuffer('* 1 FETCH (UID 1 ENVELOPE ("string with {parenthesis}"))\r\n');
                 var iterator = client._iterateIncomingBuffer();
-                expect(iterator.next().value).to.equal('* 1 FETCH (UID 1 ENVELOPE ("string with {parenthesis}"))');
+                expect(String.fromCharCode.apply(null, iterator.next().value)).to.equal ('* 1 FETCH (UID 1 ENVELOPE ("string with {parenthesis}"))');
             });
 
             it('should not process {} in string as literal 2', () => {
                 appendIncomingBuffer('* 1 FETCH (UID 1 ENVELOPE ("string with number in parenthesis {123}"))\r\n');
                 var iterator = client._iterateIncomingBuffer();
-                expect(iterator.next().value).to.equal('* 1 FETCH (UID 1 ENVELOPE ("string with number in parenthesis {123}"))');
+                expect(String.fromCharCode.apply(null, iterator.next().value)).to.equal ('* 1 FETCH (UID 1 ENVELOPE ("string with number in parenthesis {123}"))');
             });
 
             function appendIncomingBuffer(content) {
@@ -290,7 +290,7 @@
                 client.onready = sinon.stub();
                 sinon.stub(client, '_handleResponse');
 
-                function* gen() { yield 'OK Hello world!'; }
+                function* gen() { yield mimefuncs.toTypedArray('OK Hello world!'); }
 
                 client._parseIncomingCommands(gen());
 
@@ -308,7 +308,7 @@
             it('should process an untagged item from the queue', () => {
                 sinon.stub(client, '_handleResponse');
 
-                function* gen() { yield '* 1 EXISTS'; }
+                function* gen() { yield mimefuncs.toTypedArray('* 1 EXISTS'); }
 
                 client._parseIncomingCommands(gen());
 
@@ -323,7 +323,7 @@
             it('should process a plus tagged item from the queue', () => {
                 sinon.stub(client, 'send');
 
-                function* gen() { yield '+ Please continue'; }
+                function* gen() { yield mimefuncs.toTypedArray('+ Please continue'); }
                 client._currentCommand = {
                     data: ['literal data']
                 };
@@ -336,7 +336,7 @@
             it('should process an XOAUTH2 error challenge', () => {
                 sinon.stub(client, 'send');
 
-                function* gen() { yield '+ FOOBAR'; }
+                function* gen() { yield mimefuncs.toTypedArray('+ FOOBAR'); }
                 client._currentCommand = {
                     data: [],
                     errorResponseExpectsEmptyLine: true

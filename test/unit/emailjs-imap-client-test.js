@@ -2,11 +2,11 @@
 
 (function(factory) {
     if (typeof define === 'function' && define.amd) {
-        define(['chai', 'emailjs-imap-client', 'emailjs-imap-handler', './fixtures/mime-torture-bodystructure', './fixtures/envelope'], factory.bind(null, sinon));
+        define(['chai', 'emailjs-imap-client', 'emailjs-imap-handler', 'emailjs-mime-codec', './fixtures/mime-torture-bodystructure', './fixtures/envelope'], factory.bind(null, sinon));
     } else if (typeof exports === 'object') {
-        module.exports = factory(require('sinon'), require('chai'), require('../../src/emailjs-imap-client'), require('emailjs-imap-handler'), require('./fixtures/mime-torture-bodystructure'), require('./fixtures/envelope'));
+        module.exports = factory(require('sinon'), require('chai'), require('../../src/emailjs-imap-client'), require('emailjs-imap-handler'), require('emailjs-mime-codec'), require('./fixtures/mime-torture-bodystructure'), require('./fixtures/envelope'));
     }
-}(function(sinon, chai, ImapClient, imapHandler, mimeTorture, testEnvelope) {
+}(function(sinon, chai, ImapClient, imapHandler, mimefuncs, mimeTorture, testEnvelope) {
     var expect = chai.expect;
     chai.config.includeStack = true;
 
@@ -516,7 +516,7 @@
                 }).returns(Promise.resolve({
                     payload: {
                         LIST: [
-                            imapHandler.parser('* LIST (\\NoInferiors) NIL "INBOX"')
+                            imapHandler.parser(mimefuncs.toTypedArray('* LIST (\\NoInferiors) NIL "INBOX"'))
                         ]
                     }
                 }));
@@ -527,7 +527,7 @@
                 }).returns(Promise.resolve({
                     payload: {
                         LSUB: [
-                            imapHandler.parser('* LSUB (\\NoInferiors) NIL "INBOX"')
+                            imapHandler.parser(mimefuncs.toTypedArray('* LSUB (\\NoInferiors) NIL "INBOX"'))
                         ]
                     }
                 }));
@@ -1288,7 +1288,7 @@
                         NAMESPACE: [
                             // This specific value is returned by yahoo.co.jp's
                             // imapgate version 0.7.68_11_1.61475 IMAP server
-                            imapHandler.parser('* NAMESPACE (("" NIL)) NIL NIL')
+                            imapHandler.parser(mimefuncs.toTypedArray('* NAMESPACE (("" NIL)) NIL NIL'))
                         ]
                     }
                 })).to.deep.equal({

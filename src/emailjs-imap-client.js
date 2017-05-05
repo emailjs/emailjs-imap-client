@@ -1110,7 +1110,7 @@
             } else if (item) {
                 try {
                     // parse the value as a fake command, use only the attributes block
-                    cmd = imapHandler.parser('* Z ' + item);
+                    cmd = imapHandler.parser(mimefuncs.toTypedArray('* Z ' + item));
                     query = query.concat(cmd.attributes || []);
                 } catch (E) {
                     // if parse failed, use the original string as one entity
