@@ -24,6 +24,8 @@
     var LEFT_CURLY_BRACKET = 123;
     var RIGHT_CURLY_BRACKET = 125;
 
+    var ASCII_PLUS = 43;
+
     /**
      * Creates a connection object to an IMAP server. Call `connect` method to inititate
      * the actual connection, the constructor only defines the properties but does not actually connect.
@@ -465,16 +467,26 @@
                   if (LFidx < buf.length-1) {
                       this._incomingBuffers[this._incomingBuffers.length-1] = new Uint8Array(buf.buffer, 0, LFidx+1);
                   }
-                  const commandLen = this._incomingBuffers.reduce((prev, curr) => prev + curr.length, 0) - 2; // 2 for CRLF
-                  const command = new Array(commandLen);
-                  let k = 0;
+                  const commandLength = this._incomingBuffers.reduce((prev, curr) => prev + curr.length, 0) - 2; // 2 for CRLF
+                  const command = new Uint8Array(commandLength);
+                  let index = 0;
                   while (this._incomingBuffers.length > 0) {
-                      const b = this._incomingBuffers.shift();
-                      for (let j = 0; j<b.length && k < commandLen; j ++) {
-                          command[k++] = String.fromCharCode(b[j]);
+                      let uint8Array = this._incomingBuffers.shift();
+
+                      const remainingLength = commandLength - index;
+                      if (uint8Array.length > remainingLength) {
+                          const excessLength = uint8Array.length - remainingLength;
+                          uint8Array = uint8Array.subarray(0, -excessLength);
+
+                          if (this._incomingBuffers.length > 0) {
+                              console.log('cutting', this._incomingBuffers);
+                              this._incomingBuffers = [];
+                          }
                       }
+                      command.set(uint8Array, index);
+                      index += uint8Array.length;
                   }
-                  yield command.join(''); // TODO: yield Uint8Array and pass on to emailjs-imap-handler
+                  yield command;
                   if (LFidx < buf.length-1) {
                       buf = new Uint8Array(buf.subarray(LFidx+1));
                       this._incomingBuffers.push(buf);
@@ -511,7 +523,7 @@
              *   https://tools.ietf.org/html/rfc3501#section-2.2.1
              */
             //
-            if (/^\+/.test(command)) {
+            if (command[0] === ASCII_PLUS) {
                 if (this._currentCommand.data.length) {
                     // feed the next chunk of data
                     var chunk = this._currentCommand.data.shift();
@@ -525,7 +537,7 @@
 
             var response;
             try {
-                response = imapHandler.parser(command.trim());
+                response = imapHandler.parser(command);
                 this.logger.debug('S:', () => imapHandler.compiler(response, false, true));
             } catch (e) {
                 this.logger.error('Error parsing imap command!', response);

@@ -10,6 +10,14 @@
     var expect = chai.expect;
     chai.config.includeStack = true;
 
+    function toUint8Array(command) {
+        var asciiArray = [command.length];
+        for (var i = 0; i < command.length; i++) {
+            asciiArray[i] = command.charCodeAt(i);
+        }
+        return new Uint8Array(asciiArray);
+    }
+
     describe('browserbox unit tests', () => {
         var br;
 
@@ -516,7 +524,7 @@
                 }).returns(Promise.resolve({
                     payload: {
                         LIST: [
-                            imapHandler.parser('* LIST (\\NoInferiors) NIL "INBOX"')
+                            imapHandler.parser(toUint8Array('* LIST (\\NoInferiors) NIL "INBOX"'))
                         ]
                     }
                 }));
@@ -527,7 +535,7 @@
                 }).returns(Promise.resolve({
                     payload: {
                         LSUB: [
-                            imapHandler.parser('* LSUB (\\NoInferiors) NIL "INBOX"')
+                            imapHandler.parser(toUint8Array('* LSUB (\\NoInferiors) NIL "INBOX"'))
                         ]
                     }
                 }));
@@ -1288,7 +1296,7 @@
                         NAMESPACE: [
                             // This specific value is returned by yahoo.co.jp's
                             // imapgate version 0.7.68_11_1.61475 IMAP server
-                            imapHandler.parser('* NAMESPACE (("" NIL)) NIL NIL')
+                            imapHandler.parser(toUint8Array('* NAMESPACE (("" NIL)) NIL NIL'))
                         ]
                     }
                 })).to.deep.equal({
