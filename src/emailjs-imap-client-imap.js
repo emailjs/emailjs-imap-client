@@ -103,6 +103,11 @@
      */
     Imap.prototype.TIMEOUT_SOCKET_MULTIPLIER = 0.1;
 
+    /**
+     * Timeout used in _onData, max packet size is 4096 bytes.
+     */
+    Imap.prototype.ON_DATA_TIMEOUT = Imap.prototype.TIMEOUT_SOCKET_LOWER_BOUND + Math.floor(4096 * Imap.prototype.TIMEOUT_SOCKET_MULTIPLIER);
+
     // PUBLIC METHODS
 
     /**
@@ -395,8 +400,8 @@
      * @param {Event} evt
      */
     Imap.prototype._onData = function(evt) {
-        clearTimeout(this._socketTimeoutTimer); // clear the timeout, the socket is still up
-        this._socketTimeoutTimer = null;
+        clearTimeout(this._socketTimeoutTimer); // reset the timeout on each data packet
+        this._socketTimeoutTimer = setTimeout(() => this._onError(new Error(this.options.sessionId + ' Socket timed out!')), this.ON_DATA_TIMEOUT);
 
         this._incomingBuffers.push(new Uint8Array(evt.data)); // append to the incoming buffer
         this._parseIncomingCommands(this._iterateIncomingBuffer()); // Consume the incoming buffer
@@ -533,6 +538,9 @@
                 }
                 continue;
             }
+
+            clearTimeout(this._socketTimeoutTimer); // clear the timeout when an entire command has arrived
+            this._socketTimeoutTimer = null;
 
             var response;
             try {
