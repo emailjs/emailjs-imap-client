@@ -496,6 +496,10 @@
                       this._incomingBuffers.push(buf);
                       i = 0;
                   } else {
+                      // clear the timeout when an entire command has arrived
+                      // and not waiting on more data for next command
+                      clearTimeout(this._socketTimeoutTimer);
+                      this._socketTimeoutTimer = null;
                       return;
                   }
               } else {
@@ -538,9 +542,6 @@
                 }
                 continue;
             }
-
-            clearTimeout(this._socketTimeoutTimer); // clear the timeout when an entire command has arrived
-            this._socketTimeoutTimer = null;
 
             var response;
             try {
