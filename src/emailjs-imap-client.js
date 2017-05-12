@@ -94,38 +94,38 @@
      * @returns {Promise} Promise when login procedure is complete
      */
     Client.prototype.connect = function() {
-        return new Promise((resolve, reject) => {
-            var connectionTimeout = setTimeout(() => reject(new Error('Timeout connecting to server')), this.TIMEOUT_CONNECTION);
+        return new Promise((finalResolve, suddenDeath) => {
             this.logger.debug('Connecting to', this.client.host, ':',  this.client.port);
             this._changeState(this.STATE_CONNECTING);
-            this.client.connect().then(() => {
-                this.logger.debug('Socket opened, waiting for greeting from the server...');
-
-                this.client.onready = () => {
-                    clearTimeout(connectionTimeout);
-                    resolve();
-                };
-
-                this.client.onerror = (err) => {
-                    clearTimeout(connectionTimeout);
-                    reject(err);
-                };
-            }).catch(reject);
-        }).then(() => {
-            this._changeState(this.STATE_NOT_AUTHENTICATED);
-            return this.updateCapability();
-        }).then(() => {
-            return this.upgradeConnection();
-        }).then(() => {
-            return this.updateId(this.options.id)
-            .catch(err => this.logger.warn('Failed to update id', err));
-        }).then(() => {
-            return this.login(this.options.auth);
-        }).then(() => {
-            return this.compressConnection();
-        }).then(() => {
-            this.logger.debug('Connection established, ready to roll!');
-            this.client.onerror = this._onError.bind(this);
+            return this.client.connect().then(() => {
+                return new Promise((resolve, reject) => {
+                    var connectionTimeout = setTimeout(() => reject(new Error('Timeout connecting to server')), this.TIMEOUT_CONNECTION);
+                    this.logger.debug('Socket opened, waiting for greeting from the server...');
+                    this.client.onready = () => {
+                        clearTimeout(connectionTimeout);
+                        resolve();
+                    };
+                    this.client.onerror = err => {
+                        clearTimeout(connectionTimeout);
+                        suddenDeath(err);
+                    };
+                });
+            }).then(() => {
+                this._changeState(this.STATE_NOT_AUTHENTICATED);
+                return this.updateCapability();
+            }).then(() => {
+                return this.upgradeConnection();
+            }).then(() => {
+                return this.updateId(this.options.id)
+                .catch(err => this.logger.warn('Failed to update id', err));
+            }).then(() => {
+                return this.login(this.options.auth);
+            }).then(() => {
+                return this.compressConnection();
+            }).then(() => {
+                this.logger.debug('Connection established, ready to roll!');
+                this.client.onerror = this._onError.bind(this);
+            }).then(finalResolve);
         }).catch((err) => {
             this.logger.error('Could not connect to server', err);
             this.close(err); // we don't really care whether this works or not
