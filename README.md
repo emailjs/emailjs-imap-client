@@ -325,7 +325,7 @@ IMAP Commands: [FETCH](http://tools.ietf.org/html/rfc3501#section-6.4.5), [CHANG
 Example
 
 ```javascript
-client.listMessages('1:10', ['uid', 'flags', 'body[]']).then((messages) => {
+client.listMessages('INBOX', '1:10', ['uid', 'flags', 'body[]']).then((messages) => {
     messages.forEach((message) => console.log('Flags for ' + message.uid + ': ' + message.flags.join(', ')));
 });
 ```
