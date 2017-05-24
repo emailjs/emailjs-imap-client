@@ -419,18 +419,31 @@
      * @param {String} sequence Sequence set, eg 1:* for all messages
      * @param {Object} [items] Message data item names or macro
      * @param {Object} [options] Query modifiers
+     * @param {Object} [selectoptions] Query modifiers
      * @returns {Promise} Promise with the fetched message info
      */
-    Client.prototype.listMessages = function(path, sequence, items, options) {
+    Client.prototype.listMessages = function(path, sequence, items, options, selectoptions) {
         items = items || [{
             fast: true
         }];
         options = options || {};
+        selectoptions = selectoptions || {};
 
         this.logger.debug('Fetching messages', sequence, 'from', path, '...');
         var command = this._buildFETCHCommand(sequence, items, options);
         return this.exec(command, 'FETCH', {
-            precheck: (ctx) => this._shouldSelectMailbox(path, ctx) ? this.selectMailbox(path, { ctx }) : Promise.resolve()
+            precheck: (ctx) => {
+                if(this._shouldSelectMailbox(path, ctx))
+                {
+                    var selectOptionsCtx = { ctx: ctx };
+                    Object.assign(selectOptionsCtx, selectoptions);
+                    return this.selectMailbox(path, selectOptionsCtx);
+                }
+                else
+                {
+                    return Promise.resolve();
+                }
+            }
         }).then((response) => this._parseFETCH(response));
     };
 
