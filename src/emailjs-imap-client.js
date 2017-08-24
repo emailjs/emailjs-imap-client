@@ -66,7 +66,7 @@
 
         // Activate logging
         this.createLogger();
-        this.logLevel = this.LOG_LEVEL_ALL;
+        this.logLevel = options.logLevel ? options.logLevel : this.LOG_LEVEL_ALL;
     }
 
     /**
