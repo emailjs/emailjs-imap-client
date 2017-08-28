@@ -71,6 +71,7 @@
 
         // As the server sends data in chunks, it needs to be split into separate lines. Helps parsing the input.
         this._incomingBuffers = [];
+        this._literalFound = false;
         this._literalRemaining = 0;
 
         //
@@ -448,6 +449,7 @@
                               buf[j+2] === LINE_FEED) {
                           const numBuf = buf.subarray(leftIdx+1, j);
                           this._literalRemaining = Number(mimecodec.fromTypedArray(numBuf));
+                          this._literalFound = true;
                           i = j + 3;
                       } else {
                           i = j;
@@ -458,10 +460,11 @@
           }
 
           const diff = Math.min(buf.length-i, this._literalRemaining);
-          if (diff) {
+          if (diff || this._literalFound) {
               this._literalRemaining -= diff;
               i += diff;
               if (this._literalRemaining === 0) {
+                  this._literalFound = false;
                   continue; // find another literal
               }
           }
