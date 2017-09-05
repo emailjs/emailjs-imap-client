@@ -132,6 +132,20 @@
         });
 
         describe('#_iterateIncomingBuffer', () => {
+            it('should ignore incomplete literals with line feeds', () => {
+                appendIncomingBuffer('* 1 FETCH (UID {1024}\r\nThis is a partial literal.');
+                appendIncomingBuffer('It should return undefined\r\nsince it is not complete.');
+                var iterator = client._iterateIncomingBuffer();
+
+                expect(iterator.next().value).to.be.undefined;
+            });
+
+            it('should parse multiple zero-length literals', () => {
+                appendIncomingBuffer('* 126015 FETCH (UID 585599 BODY[1.2] {0}\r\n BODY[1.1] {0}\r\n)\r\n');
+                var iterator = client._iterateIncomingBuffer();
+                expect(String.fromCharCode.apply(null, iterator.next().value)).to.equal ('* 126015 FETCH (UID 585599 BODY[1.2] {0}\r\n BODY[1.1] {0}\r\n)');
+            });
+
             it('should iterate chunked input', () => {
                 appendIncomingBuffer('* 1 FETCH (UID 1)\r\n* 2 FETCH (UID 2)\r\n* 3 FETCH (UID 3)\r\n');
                 var iterator = client._iterateIncomingBuffer();
@@ -281,7 +295,10 @@
             });
 
             function appendIncomingBuffer(content) {
-                client._incomingBuffers.push(mimefuncs.toTypedArray(content));
+                const prevBuf = client._incomingBuffer;
+                client._incomingBuffer = new Uint8Array(prevBuf.length + content.length);
+                client._incomingBuffer.set(prevBuf);
+                client._incomingBuffer.set(mimefuncs.toTypedArray(content), prevBuf.length);
             }
         });
 

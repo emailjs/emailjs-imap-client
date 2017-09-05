@@ -21,6 +21,12 @@
     var EOL = '\r\n';
     var LINE_FEED = 10;
     var CARRIAGE_RETURN = 13;
+    var DOUBLE_QUOTE = 34;
+    var LEFT_PAREN = 40;
+    var RIGHT_PAREN = 41;
+    var ZERO = 48;
+    var NINE = 57;
+    var BACKSLASH = 92;
     var LEFT_CURLY_BRACKET = 123;
     var RIGHT_CURLY_BRACKET = 125;
 
@@ -70,8 +76,7 @@
         //
 
         // As the server sends data in chunks, it needs to be split into separate lines. Helps parsing the input.
-        this._incomingBuffers = [];
-        this._literalRemaining = 0;
+        this._incomingBuffer = new Uint8Array(0);
 
         //
         // Event placeholders, may be overriden with callback functions
@@ -403,113 +408,143 @@
         clearTimeout(this._socketTimeoutTimer); // reset the timeout on each data packet
         this._socketTimeoutTimer = setTimeout(() => this._onError(new Error(this.options.sessionId + ' Socket timed out!')), this.ON_DATA_TIMEOUT);
 
-        this._incomingBuffers.push(new Uint8Array(evt.data)); // append to the incoming buffer
+        // Append new data to existing data buffer for simpler parsing.
+        const prevBuf = this._incomingBuffer;
+        this._incomingBuffer = new Uint8Array(prevBuf.length + (evt.data.length || evt.data.byteLength));
+        this._incomingBuffer.set(prevBuf);
+        this._incomingBuffer.set(new Uint8Array(evt.data), prevBuf.length);
         this._parseIncomingCommands(this._iterateIncomingBuffer()); // Consume the incoming buffer
     };
 
     Imap.prototype._iterateIncomingBuffer = function*() {
-        let buf;
-        if (this._concatLastTwoBuffers) {
-            // allocate new buffer for the sake of simpler parsing
-            delete this._concatLastTwoBuffers;
-            const latest = this._incomingBuffers.pop();
-            const prevBuf = this._incomingBuffers[this._incomingBuffers.length-1];
-            buf = new Uint8Array(prevBuf.length + latest.length);
-            buf.set(prevBuf);
-            buf.set(latest, prevBuf.length);
-            this._incomingBuffers[this._incomingBuffers.length-1] = buf;
-        } else {
-            buf = this._incomingBuffers[this._incomingBuffers.length-1];
+        let buf = this._incomingBuffer;
+        let isQuoted = false, prevBS = false, prevCR = false, parenDepth = 0;
+        let literalExpect = "OPEN"; // "DIGIT" | "DIGIT OR CLOSE" | "CR" | "LF"
+
+        // Iterate over the server response, where each item to be returned is
+        // identified by '\r\n' that is not part of a literal, not quoted, and
+        // not inside nested parentheses.
+        for (let i = 0; i < buf.length; i++)
+        {
+            // Any unquoted left paren increases paren depth.
+            if ((buf[i] === LEFT_PAREN) &&
+                !isQuoted)
+            {
+                parenDepth++;
+            }
+            // Any unquoted right paren decreases paren depth.
+            else if ((buf[i] === RIGHT_PAREN) &&
+                !isQuoted)
+            {
+                parenDepth--;
+            }
+            // Any unquoted double quote starts a quoted string.
+            else if ((buf[i] === DOUBLE_QUOTE) &&
+                !isQuoted)
+            {
+                isQuoted = true;
+            }
+            // Any non-escaped double quote ends a quoted string.
+            else if ((buf[i] === DOUBLE_QUOTE) &&
+                isQuoted &&
+                !prevBS)
+            {
+                isQuoted = false;
+            }
+            // If the current character is a linefeed, the previous character was a
+            // carriage return, there is no nested parens, and this linefeed isn't
+            // expected to finish a literal size declaration, then this must be the
+            // end of a server response line.
+            else if ((buf[i] === LINE_FEED) &&
+                prevCR &&
+                !isQuoted &&
+                !parenDepth &&
+                (literalExpect !== "LF"))
+            {
+                // Consume and yield server response line, but do not include carriage
+                // return and line feed.
+                const command = buf.slice(0, i - 1);
+                this._incomingBuffer = buf = buf.slice(i + 1);
+                yield command;
+
+                // Reset all of our state.
+                i = 0;
+                isQuoted = false;
+                prevBS = false;
+                prevCR = false;
+                parenDepth = 0;
+                literalExpect = "OPEN";
+
+                if (!buf.length)
+                {
+                    // Clear the timeout when an entire command has arrived
+                    // and not waiting on more data for next command.
+                    clearTimeout(this._socketTimeoutTimer);
+                    this._socketTimeoutTimer = null;
+                    return;
+                }
+            }
+            // If the current character is a linefeed, the previous character was a
+            // carriage return, and the linefeed is expected to finish a literal
+            // size declaration, then read the literal size and skip past those bytes.
+            else if ((buf[i] === LINE_FEED) &&
+                prevCR &&
+                !isQuoted &&
+                (literalExpect === "LF"))
+            {
+                const numBuf = buf.subarray(buf.lastIndexOf(LEFT_CURLY_BRACKET, i) + 1, i - 2);
+                const literalSize = Number(mimecodec.fromTypedArray(numBuf));
+                i += literalSize;
+            }
+            // If expected, an unquoted left curly starts a literal size declaration
+            // and we start expecting some digits for the size.
+            else if ((buf[i] === LEFT_CURLY_BRACKET) &&
+                !isQuoted &&
+                (literalExpect === "OPEN"))
+            {
+                literalExpect = "DIGIT";
+            }
+            // If expected, a digit is part of the literal size declaration and we start
+            // expecting more digits or a close curly.
+            else if (((literalExpect === "DIGIT") || (literalExpect === "DIGIT OR CLOSE")) &&
+                (buf[i] >= ZERO) &&
+                (buf[i] <= NINE))
+            {
+                literalExpect = "DIGIT OR CLOSE";
+            }
+            // If expected, a right curly ends a literal size declaration and we start
+            // expecting a carriage return.
+            else if ((literalExpect === "DIGIT OR CLOSE") &&
+                (buf[i] === RIGHT_CURLY_BRACKET))
+            {
+                literalExpect = "CR";
+            }
+            // If expected, a carriage return nearly completes a literal size declaration
+            // and we start expecting a line feed.
+            else if ((literalExpect === "CR") &&
+                (buf[i] === CARRIAGE_RETURN))
+            {
+                literalExpect = "LF";
+            }
+            // If we were expecting anything else for a literal size declaration and didn't get
+            // it, then reset our expectations.
+            else if (literalExpect !== "OPEN")
+            {
+                literalExpect = "OPEN";
+            }
+
+            // Remember if last character was a carriage return.
+            prevCR = (buf[i] === CARRIAGE_RETURN);
+
+            // Remember if last character was a backslash, which is only
+            // true in a quoted string and the previous character wasn't
+            // also a backslash.
+            prevBS = isQuoted && !prevBS && (buf[i] === BACKSLASH);
         }
-        let i = 0;
 
-        // loop invariant:
-        //   this._incomingBuffers starts with the beginning of incoming command.
-        //   buf is shorthand for last element of this._incomingBuffers.
-        //   buf[0..i-1] is part of incoming command.
-        while (i < buf.length) {
-          if (this._literalRemaining === 0) {
-              const leftIdx = buf.indexOf(LEFT_CURLY_BRACKET, i);
-              if (leftIdx > -1) {
-                  const leftOfLeftCurly = new Uint8Array(buf.buffer, i, leftIdx-i);
-                  if (leftOfLeftCurly.indexOf(LINE_FEED) === -1) {
-                      let j = leftIdx + 1;
-                      while (buf[j] >= 48 && buf[j] <= 57) { // digits
-                          j++;
-                      }
-                      if (j+3 >= buf.length) {
-                          // not enough info to determine if this is literal length
-                          this._concatLastTwoBuffers = true;
-                          return;
-                      }
-                      if (j > leftIdx + 1 &&
-                              buf[j] === RIGHT_CURLY_BRACKET &&
-                              buf[j+1] === CARRIAGE_RETURN &&
-                              buf[j+2] === LINE_FEED) {
-                          const numBuf = buf.subarray(leftIdx+1, j);
-                          this._literalRemaining = Number(mimecodec.fromTypedArray(numBuf));
-                          i = j + 3;
-                      } else {
-                          i = j;
-                          continue; // not a literal but there might still be one
-                      }
-                  }
-              }
-          }
-
-          const diff = Math.min(buf.length-i, this._literalRemaining);
-          if (diff) {
-              this._literalRemaining -= diff;
-              i += diff;
-              if (this._literalRemaining === 0) {
-                  continue; // find another literal
-              }
-          }
-
-          if (this._literalRemaining === 0 && i < buf.length) {
-              const LFidx = buf.indexOf(LINE_FEED, i);
-              if (LFidx > -1) {
-                  if (LFidx < buf.length-1) {
-                      this._incomingBuffers[this._incomingBuffers.length-1] = new Uint8Array(buf.buffer, 0, LFidx+1);
-                  }
-                  const commandLength = this._incomingBuffers.reduce((prev, curr) => prev + curr.length, 0) - 2; // 2 for CRLF
-                  const command = new Uint8Array(commandLength);
-                  let index = 0;
-                  while (this._incomingBuffers.length > 0) {
-                      let uint8Array = this._incomingBuffers.shift();
-
-                      const remainingLength = commandLength - index;
-                      if (uint8Array.length > remainingLength) {
-                          const excessLength = uint8Array.length - remainingLength;
-                          uint8Array = uint8Array.subarray(0, -excessLength);
-
-                          if (this._incomingBuffers.length > 0) {
-                              this._incomingBuffers = [];
-                          }
-                      }
-                      command.set(uint8Array, index);
-                      index += uint8Array.length;
-                  }
-                  yield command;
-                  if (LFidx < buf.length-1) {
-                      buf = new Uint8Array(buf.subarray(LFidx+1));
-                      this._incomingBuffers.push(buf);
-                      i = 0;
-                  } else {
-                      // clear the timeout when an entire command has arrived
-                      // and not waiting on more data for next command
-                      clearTimeout(this._socketTimeoutTimer);
-                      this._socketTimeoutTimer = null;
-                      return;
-                  }
-              } else {
-                  return;
-              }
-          }
-        }
+        // Not enough data to parse a complete command, so simply return undefined.
+        return undefined;
     };
-
-
 
     // PRIVATE METHODS
 
