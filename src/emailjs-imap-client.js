@@ -1577,6 +1577,12 @@
                                 value: param
                             };
                             break;
+                        case 'keyword':
+                            param = {
+                                type: "atom",
+                                value: param
+                            };
+                            break;
                         default:
                             param = escapeParam(param);
                     }

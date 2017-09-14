@@ -1630,6 +1630,7 @@
                     not: {
                         seen: true
                     },
+                    keyword: '$transferred',
                     sentbefore: new Date(2011, 1, 3, 12, 0, 0),
                     since: new Date(2011, 11, 23, 12, 0, 0),
                     uid: '1:*',
@@ -1664,6 +1665,12 @@
                     }, {
                         'type': 'atom',
                         'value': 'SEEN'
+                    }, {
+                        'type': 'atom',
+                        'value': 'KEYWORD'
+                    }, {
+                        'type': 'atom',
+                        'value': '$transferred'
                     }, {
                         'type': 'atom',
                         'value': 'SENTBEFORE'
