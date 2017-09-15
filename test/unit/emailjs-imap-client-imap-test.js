@@ -295,10 +295,7 @@
             });
 
             function appendIncomingBuffer(content) {
-                const prevBuf = client._incomingBuffer;
-                client._incomingBuffer = new Uint8Array(prevBuf.length + content.length);
-                client._incomingBuffer.set(prevBuf);
-                client._incomingBuffer.set(mimefuncs.toTypedArray(content), prevBuf.length);
+                client._incomingBuffers.push(mimefuncs.toTypedArray(content));
             }
         });
 

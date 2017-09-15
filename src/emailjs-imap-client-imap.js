@@ -76,7 +76,7 @@
         //
 
         // As the server sends data in chunks, it needs to be split into separate lines. Helps parsing the input.
-        this._incomingBuffer = new Uint8Array(0);
+        this._incomingBuffers = [];
 
         //
         // Event placeholders, may be overriden with callback functions
@@ -409,43 +409,120 @@
         this._socketTimeoutTimer = setTimeout(() => this._onError(new Error(this.options.sessionId + ' Socket timed out!')), this.ON_DATA_TIMEOUT);
 
         // Append new data to existing data buffer for simpler parsing.
-        const prevBuf = this._incomingBuffer;
-        this._incomingBuffer = new Uint8Array(prevBuf.length + (evt.data.length || evt.data.byteLength));
-        this._incomingBuffer.set(prevBuf);
-        this._incomingBuffer.set(new Uint8Array(evt.data), prevBuf.length);
+        this._incomingBuffers.push(new Uint8Array(evt.data));
         this._parseIncomingCommands(this._iterateIncomingBuffer()); // Consume the incoming buffer
     };
 
     Imap.prototype._iterateIncomingBuffer = function*() {
-        let buf = this._incomingBuffer;
         let isQuoted = false, prevBS = false, prevCR = false, parenDepth = 0;
         let literalExpect = "OPEN"; // "DIGIT" | "DIGIT OR CLOSE" | "CR" | "LF"
+        let literalCoord;
+
+        let coord = { "row": 0, "col": 0 };
+
+        // Helper function to get the byte associated with the coordinate.
+        let getByte = function(incomingBuffers, coord) {
+            if ((coord.row >= incomingBuffers.length) ||
+                (coord.col >= incomingBuffers[coord.row].length))
+            {
+                return -1;
+            }
+            return incomingBuffers[coord.row][coord.col];
+        };
+
+        // Helper function to advance the coordinate by a specified number
+        // of bytes (1 by default).
+        let advanceBuffer = function advanceBuffer(incomingBuffers, coord, len = 1) {
+            if (coord.row < incomingBuffers.length)
+            {
+                coord.col += len;
+                if (coord.col >= incomingBuffers[coord.row].length)
+                {
+                    let overflow = coord.col - incomingBuffers[coord.row].length;
+                    coord.col = 0;
+                    coord.row++;
+                    if (overflow)
+                    {
+                        advanceBuffer(incomingBuffers, coord, overflow);
+                    }
+                }
+            }
+        };
+
+        // Helper function to consume and create a single command out of the
+        // bytes up to the supplied coordinate.
+        let constructCommand = function(incomingBuffers, to) {
+            let bufs = [];
+
+            // Remove all complete incoming buffer rows that are part of
+            // the command; do this backwards so we don't mess up our index
+            // as we remove incoming buffers out of the buffer array.
+            for (let row = to.row - 1; row >= 0; row--)
+            {
+                bufs.unshift(incomingBuffers[row]);
+                incomingBuffers.splice(row, 1);
+            }
+
+            // The final buffer row (which should now be the first remaining buffer)
+            // needs to be split at the passed in column.
+            let tail = incomingBuffers[0];
+            // Up to the specified column is part of the command, but remove
+            // the carriage return, which may be in the previous buffer.
+            if (to.col)
+            {
+                bufs.push(tail.slice(0, to.col - 1));
+            }
+            else
+            {
+                bufs[bufs.length - 1] = bufs[bufs.length - 1].slice(0, bufs[bufs.length - 1].length - 1);
+            }
+            // The remainder of the buffer rows needs to be kept for the next command
+            // (except for the line feed), unless there isn't any bytes left.
+            incomingBuffers[0] = tail.slice(to.col + 1);
+            if (!incomingBuffers[0].length)
+            {
+                incomingBuffers.splice(0, 1);
+            }
+
+            // Create complete command out of all buffer rows.
+            let len = bufs.reduce((prev, curr) => prev + curr.length, 0);
+            let command = new Uint8Array(len);
+            let index = 0;
+            for (let i = 0; i < bufs.length; i++)
+            {
+                command.set(bufs[i], index);
+                index += bufs[i].length;
+            }
+            return command;
+        };
 
         // Iterate over the server response, where each item to be returned is
         // identified by '\r\n' that is not part of a literal, not quoted, and
         // not inside nested parentheses.
-        for (let i = 0; i < buf.length; i++)
+        for (let b = getByte(this._incomingBuffers, coord);
+            b >= 0;
+            b = getByte(this._incomingBuffers, coord))
         {
             // Any unquoted left paren increases paren depth.
-            if ((buf[i] === LEFT_PAREN) &&
+            if ((b === LEFT_PAREN) &&
                 !isQuoted)
             {
                 parenDepth++;
             }
             // Any unquoted right paren decreases paren depth.
-            else if ((buf[i] === RIGHT_PAREN) &&
+            else if ((b === RIGHT_PAREN) &&
                 !isQuoted)
             {
                 parenDepth--;
             }
             // Any unquoted double quote starts a quoted string.
-            else if ((buf[i] === DOUBLE_QUOTE) &&
+            else if ((b === DOUBLE_QUOTE) &&
                 !isQuoted)
             {
                 isQuoted = true;
             }
             // Any non-escaped double quote ends a quoted string.
-            else if ((buf[i] === DOUBLE_QUOTE) &&
+            else if ((b === DOUBLE_QUOTE) &&
                 isQuoted &&
                 !prevBS)
             {
@@ -455,7 +532,7 @@
             // carriage return, there is no nested parens, and this linefeed isn't
             // expected to finish a literal size declaration, then this must be the
             // end of a server response line.
-            else if ((buf[i] === LINE_FEED) &&
+            else if ((b === LINE_FEED) &&
                 prevCR &&
                 !isQuoted &&
                 !parenDepth &&
@@ -463,19 +540,18 @@
             {
                 // Consume and yield server response line, but do not include carriage
                 // return and line feed.
-                const command = buf.slice(0, i - 1);
-                this._incomingBuffer = buf = buf.slice(i + 1);
+                const command = constructCommand(this._incomingBuffers, coord);
                 yield command;
 
                 // Reset all of our state.
-                i = 0;
+                coord = { "col": 0, "row": 0};
                 isQuoted = false;
                 prevBS = false;
                 prevCR = false;
                 parenDepth = 0;
                 literalExpect = "OPEN";
 
-                if (!buf.length)
+                if (!this._incomingBuffers.length)
                 {
                     // Clear the timeout when an entire command has arrived
                     // and not waiting on more data for next command.
@@ -487,42 +563,53 @@
             // If the current character is a linefeed, the previous character was a
             // carriage return, and the linefeed is expected to finish a literal
             // size declaration, then read the literal size and skip past those bytes.
-            else if ((buf[i] === LINE_FEED) &&
+            else if ((b === LINE_FEED) &&
                 prevCR &&
                 !isQuoted &&
                 (literalExpect === "LF"))
             {
-                const numBuf = buf.subarray(buf.lastIndexOf(LEFT_CURLY_BRACKET, i) + 1, i - 2);
-                const literalSize = Number(mimecodec.fromTypedArray(numBuf));
-                i += literalSize;
+                // Grab the bytes that correspond to the literal size declaration.
+                let arr = [];
+                while ((literalCoord.row !== coord.row) || (literalCoord.col !== coord.col))
+                {
+                    arr.push(String.fromCharCode(getByte(this._incomingBuffers, literalCoord)));
+                    advanceBuffer(this._incomingBuffers, literalCoord);
+                }
+
+                // Don't include opening/closing curlies, CR, or LF.
+                arr = arr.slice(1, arr.length - 2);
+
+                const literalSize = Number(arr.join(''));
+                advanceBuffer(this._incomingBuffers, coord, literalSize);
             }
             // If expected, an unquoted left curly starts a literal size declaration
             // and we start expecting some digits for the size.
-            else if ((buf[i] === LEFT_CURLY_BRACKET) &&
+            else if ((b === LEFT_CURLY_BRACKET) &&
                 !isQuoted &&
                 (literalExpect === "OPEN"))
             {
+                literalCoord = { "row": coord.row, "col": coord.col };
                 literalExpect = "DIGIT";
             }
             // If expected, a digit is part of the literal size declaration and we start
             // expecting more digits or a close curly.
             else if (((literalExpect === "DIGIT") || (literalExpect === "DIGIT OR CLOSE")) &&
-                (buf[i] >= ZERO) &&
-                (buf[i] <= NINE))
+                (b >= ZERO) &&
+                (b <= NINE))
             {
                 literalExpect = "DIGIT OR CLOSE";
             }
             // If expected, a right curly ends a literal size declaration and we start
             // expecting a carriage return.
             else if ((literalExpect === "DIGIT OR CLOSE") &&
-                (buf[i] === RIGHT_CURLY_BRACKET))
+                (b === RIGHT_CURLY_BRACKET))
             {
                 literalExpect = "CR";
             }
             // If expected, a carriage return nearly completes a literal size declaration
             // and we start expecting a line feed.
             else if ((literalExpect === "CR") &&
-                (buf[i] === CARRIAGE_RETURN))
+                (b === CARRIAGE_RETURN))
             {
                 literalExpect = "LF";
             }
@@ -530,16 +617,19 @@
             // it, then reset our expectations.
             else if (literalExpect !== "OPEN")
             {
+                literalCoord = undefined;
                 literalExpect = "OPEN";
             }
 
             // Remember if last character was a carriage return.
-            prevCR = (buf[i] === CARRIAGE_RETURN);
+            prevCR = (b === CARRIAGE_RETURN);
 
             // Remember if last character was a backslash, which is only
             // true in a quoted string and the previous character wasn't
             // also a backslash.
-            prevBS = isQuoted && !prevBS && (buf[i] === BACKSLASH);
+            prevBS = isQuoted && !prevBS && (b === BACKSLASH);
+
+            advanceBuffer(this._incomingBuffers, coord);
         }
 
         // Not enough data to parse a complete command, so simply return undefined.
