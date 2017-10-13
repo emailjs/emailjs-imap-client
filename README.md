@@ -479,7 +479,7 @@ query = {unseen: true, not: {seen: true}}
 ### Example
 
 ```javascript
-client.search({unseen: true}, {byUid: true}).then((result) => {
+client.search('INBOX', {unseen: true}, {byUid: true}).then((result) => {
     result.forEach((uid) => console.log('Message ' + uid + ' is unread'));
 });
 ```
