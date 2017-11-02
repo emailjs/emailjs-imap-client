@@ -66,7 +66,7 @@
 
         // Activate logging
         this.createLogger();
-        this.logLevel = this.LOG_LEVEL_ALL;
+        this.logLevel = this.options.hasOwnProperty('logLevel')? this.options.logLevel : Client.LOG_LEVEL_ALL;
     }
 
     /**
@@ -1839,12 +1839,12 @@
         return name;
     };
 
-    Client.prototype.LOG_LEVEL_NONE = 1000;
-    Client.prototype.LOG_LEVEL_ERROR = 40;
-    Client.prototype.LOG_LEVEL_WARN = 30;
-    Client.prototype.LOG_LEVEL_INFO = 20;
-    Client.prototype.LOG_LEVEL_DEBUG = 10;
-    Client.prototype.LOG_LEVEL_ALL = 0;
+    Client.LOG_LEVEL_NONE = 1000;
+    Client.LOG_LEVEL_ERROR = 40;
+    Client.LOG_LEVEL_WARN = 30;
+    Client.LOG_LEVEL_INFO = 20;
+    Client.LOG_LEVEL_DEBUG = 10;
+    Client.LOG_LEVEL_ALL = 0;
 
     Client.prototype.createLogger = function() {
         var createLogger = (tag) => {
@@ -1852,23 +1852,23 @@
                 messages = messages.map(msg => typeof msg === 'function' ? msg() : msg);
                 var logMessage = '[' + new Date().toISOString() + '][' + tag + '][' +
                     this.options.auth.user + '][' + this.client.host  + '] ' + messages.join(' ');
-                if (level === this.LOG_LEVEL_DEBUG) {
+                if (level === Client.LOG_LEVEL_DEBUG) {
                    console.log('[DEBUG]' + logMessage);
-                } else if (level === this.LOG_LEVEL_INFO) {
+                } else if (level === Client.LOG_LEVEL_INFO) {
                    console.info('[INFO]' + logMessage);
-                } else if (level === this.LOG_LEVEL_WARN) {
+                } else if (level === Client.LOG_LEVEL_WARN) {
                    console.warn('[WARN]' + logMessage);
-                } else if (level === this.LOG_LEVEL_ERROR) {
+                } else if (level === Client.LOG_LEVEL_ERROR) {
                    console.error('[ERROR]' + logMessage);
                 }
             };
 
             return {
                 // this could become way nicer when node supports the rest operator...
-                debug: function(msgs){ log(this.LOG_LEVEL_DEBUG, msgs); }.bind(this),
-                info: function(msgs){ log(this.LOG_LEVEL_INFO, msgs); }.bind(this),
-                warn: function(msgs){ log(this.LOG_LEVEL_WARN, msgs); }.bind(this),
-                error: function(msgs){ log(this.LOG_LEVEL_ERROR, msgs); }.bind(this)
+                debug: function(msgs){ log(Client.LOG_LEVEL_DEBUG, msgs); }.bind(this),
+                info: function(msgs){ log(Client.LOG_LEVEL_INFO, msgs); }.bind(this),
+                warn: function(msgs){ log(Client.LOG_LEVEL_WARN, msgs); }.bind(this),
+                error: function(msgs){ log(Client.LOG_LEVEL_ERROR, msgs); }.bind(this)
             };
         };
 
@@ -1876,22 +1876,22 @@
         this.logger = this.client.logger = {
             // this could become way nicer when node supports the rest operator...
             debug: function() {
-                if (this.LOG_LEVEL_DEBUG >= this.logLevel) {
+                if (Client.LOG_LEVEL_DEBUG >= this.logLevel) {
                     logger.debug(Array.prototype.slice.call(arguments));
                 }
             }.bind(this),
             info: function() {
-                if (this.LOG_LEVEL_INFO >= this.logLevel) {
+                if (Client.LOG_LEVEL_INFO >= this.logLevel) {
                     logger.info(Array.prototype.slice.call(arguments));
                 }
             }.bind(this),
             warn: function() {
-                if (this.LOG_LEVEL_WARN >= this.logLevel) {
+                if (Client.LOG_LEVEL_WARN >= this.logLevel) {
                     logger.warn(Array.prototype.slice.call(arguments));
                 }
             }.bind(this),
             error: function() {
-                if (this.LOG_LEVEL_ERROR >= this.logLevel) {
+                if (Client.LOG_LEVEL_ERROR >= this.logLevel) {
                     logger.error(Array.prototype.slice.call(arguments));
                 }
             }.bind(this)
