@@ -474,12 +474,14 @@ query = {unseen: true, header: ['subject', 'hello world']};
 query = {or: {unseen: true, seen: true}};
 // SEARCH UNSEEN NOT SEEN
 query = {unseen: true, not: {seen: true}}
+// SINCE 2011-11-23
+query = {since: new Date(2011, 11, 23, 0, 0, 0)}
 ```
 
 ### Example
 
 ```javascript
-client.search({unseen: true}, {byUid: true}).then((result) => {
+client.search('INBOX', {unseen: true}, {byUid: true}).then((result) => {
     result.forEach((uid) => console.log('Message ' + uid + ' is unread'));
 });
 ```
