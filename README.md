@@ -514,11 +514,11 @@ You can check the flags for a message or a range of messages with `listMessages`
 Where `arrFlags` is an array containing flag strings, ie. `['\\Seen', '$MyFlag']`
 
 ```javascript
-client.setFlags('INBOX', {set: ['\\Seen']}).then((messages) => { ... })
+client.setFlags('INBOX', '1:10', {set: ['\\Seen']}).then((messages) => { ... })
 
-client.setFlags('INBOX', {remove: ['\\Seen']}).then((messages) => { ... })
+client.setFlags('INBOX', '1:10', {remove: ['\\Seen']}).then((messages) => { ... })
 
-client.setFlags('INBOX', {add: ['\\Seen']}).then((messages) => { ... })
+client.setFlags('INBOX', '1:10', {add: ['\\Seen']}).then((messages) => { ... })
 ```
 
 ### Store Command
