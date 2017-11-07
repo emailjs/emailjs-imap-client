@@ -26,6 +26,12 @@
 
     var ASCII_PLUS = 43;
 
+    // State tracking when constructing an IMAP command from buffers.
+    var BUFFER_STATE_LITERAL = 'literal';
+    var BUFFER_STATE_POSSIBLY_LITERAL_LENGTH_1 = 'literal_length_1';
+    var BUFFER_STATE_POSSIBLY_LITERAL_LENGTH_2 = 'literal_length_2';
+    var BUFFER_STATE_DEFAULT = 'default';
+
     /**
      * Creates a connection object to an IMAP server. Call `connect` method to inititate
      * the actual connection, the constructor only defines the properties but does not actually connect.
@@ -71,6 +77,7 @@
 
         // As the server sends data in chunks, it needs to be split into separate lines. Helps parsing the input.
         this._incomingBuffers = [];
+        this._bufferState = BUFFER_STATE_DEFAULT;
         this._literalRemaining = 0;
 
         //
@@ -408,19 +415,7 @@
     };
 
     Imap.prototype._iterateIncomingBuffer = function*() {
-        let buf;
-        if (this._concatLastTwoBuffers) {
-            // allocate new buffer for the sake of simpler parsing
-            delete this._concatLastTwoBuffers;
-            const latest = this._incomingBuffers.pop();
-            const prevBuf = this._incomingBuffers[this._incomingBuffers.length-1];
-            buf = new Uint8Array(prevBuf.length + latest.length);
-            buf.set(prevBuf);
-            buf.set(latest, prevBuf.length);
-            this._incomingBuffers[this._incomingBuffers.length-1] = buf;
-        } else {
-            buf = this._incomingBuffers[this._incomingBuffers.length-1];
-        }
+        let buf = this._incomingBuffers[this._incomingBuffers.length-1];
         let i = 0;
 
         // loop invariant:
@@ -428,84 +423,104 @@
         //   buf is shorthand for last element of this._incomingBuffers.
         //   buf[0..i-1] is part of incoming command.
         while (i < buf.length) {
-          if (this._literalRemaining === 0) {
-              const leftIdx = buf.indexOf(LEFT_CURLY_BRACKET, i);
-              if (leftIdx > -1) {
-                  const leftOfLeftCurly = new Uint8Array(buf.buffer, i, leftIdx-i);
-                  if (leftOfLeftCurly.indexOf(LINE_FEED) === -1) {
-                      let j = leftIdx + 1;
-                      while (buf[j] >= 48 && buf[j] <= 57) { // digits
-                          j++;
-                      }
-                      if (j+3 >= buf.length) {
-                          // not enough info to determine if this is literal length
-                          this._concatLastTwoBuffers = true;
-                          return;
-                      }
-                      if (j > leftIdx + 1 &&
-                              buf[j] === RIGHT_CURLY_BRACKET &&
-                              buf[j+1] === CARRIAGE_RETURN &&
-                              buf[j+2] === LINE_FEED) {
-                          const numBuf = buf.subarray(leftIdx+1, j);
-                          this._literalRemaining = Number(mimecodec.fromTypedArray(numBuf));
-                          i = j + 3;
-                      } else {
-                          i = j;
-                          continue; // not a literal but there might still be one
-                      }
-                  }
-              }
-          }
+            switch (this._bufferState) {
+                case BUFFER_STATE_LITERAL:
+                    const diff = Math.min(buf.length-i, this._literalRemaining);
+                    this._literalRemaining -= diff;
+                    i += diff;
+                    if (this._literalRemaining === 0) {
+                        this._bufferState = BUFFER_STATE_DEFAULT;
+                    }
+                    continue;
 
-          const diff = Math.min(buf.length-i, this._literalRemaining);
-          if (diff) {
-              this._literalRemaining -= diff;
-              i += diff;
-              if (this._literalRemaining === 0) {
-                  continue; // find another literal
-              }
-          }
+                case BUFFER_STATE_POSSIBLY_LITERAL_LENGTH_2:
+                    if (i < buf.length) {
+                        if (buf[i] === CARRIAGE_RETURN) {
+                            this._literalRemaining = Number(mimecodec.fromTypedArray(this._lengthBuffer)) + 2; // for CRLF
+                            this._bufferState = BUFFER_STATE_LITERAL;
+                        } else {
+                            this._bufferState = BUFFER_STATE_DEFAULT;
+                        }
+                        delete this._lengthBuffer;
+                    }
+                    continue;
 
-          if (this._literalRemaining === 0 && i < buf.length) {
-              const LFidx = buf.indexOf(LINE_FEED, i);
-              if (LFidx > -1) {
-                  if (LFidx < buf.length-1) {
-                      this._incomingBuffers[this._incomingBuffers.length-1] = new Uint8Array(buf.buffer, 0, LFidx+1);
-                  }
-                  const commandLength = this._incomingBuffers.reduce((prev, curr) => prev + curr.length, 0) - 2; // 2 for CRLF
-                  const command = new Uint8Array(commandLength);
-                  let index = 0;
-                  while (this._incomingBuffers.length > 0) {
-                      let uint8Array = this._incomingBuffers.shift();
+                case BUFFER_STATE_POSSIBLY_LITERAL_LENGTH_1:
+                    const start = i;
+                    while (i < buf.length && buf[i] >= 48 && buf[i] <= 57) { // digits
+                        i++;
+                    }
+                    if (start !== i) {
+                        const latest = buf.subarray(start, i);
+                        const prevBuf = this._lengthBuffer;
+                        this._lengthBuffer = new Uint8Array(prevBuf.length + latest.length);
+                        this._lengthBuffer.set(prevBuf);
+                        this._lengthBuffer.set(latest, prevBuf.length);
+                    }
+                    if (i < buf.length) {
+                        if (this._lengthBuffer.length > 0 && buf[i] === RIGHT_CURLY_BRACKET) {
+                            this._bufferState = BUFFER_STATE_POSSIBLY_LITERAL_LENGTH_2;
+                        } else {
+                            delete this._lengthBuffer;
+                            this._bufferState = BUFFER_STATE_DEFAULT;
+                        }
+                        i++;
+                    }
+                    continue;
 
-                      const remainingLength = commandLength - index;
-                      if (uint8Array.length > remainingLength) {
-                          const excessLength = uint8Array.length - remainingLength;
-                          uint8Array = uint8Array.subarray(0, -excessLength);
+                default:
+                    // find literal length
+                    const leftIdx = buf.indexOf(LEFT_CURLY_BRACKET, i);
+                    if (leftIdx > -1) {
+                        const leftOfLeftCurly = new Uint8Array(buf.buffer, i, leftIdx-i);
+                        if (leftOfLeftCurly.indexOf(LINE_FEED) === -1) {
+                            i = leftIdx + 1;
+                            this._lengthBuffer = new Uint8Array(0);
+                            this._bufferState = BUFFER_STATE_POSSIBLY_LITERAL_LENGTH_1;
+                            continue;
+                        }
+                    }
 
-                          if (this._incomingBuffers.length > 0) {
-                              this._incomingBuffers = [];
-                          }
-                      }
-                      command.set(uint8Array, index);
-                      index += uint8Array.length;
-                  }
-                  yield command;
-                  if (LFidx < buf.length-1) {
-                      buf = new Uint8Array(buf.subarray(LFidx+1));
-                      this._incomingBuffers.push(buf);
-                      i = 0;
-                  } else {
-                      // clear the timeout when an entire command has arrived
-                      // and not waiting on more data for next command
-                      clearTimeout(this._socketTimeoutTimer);
-                      this._socketTimeoutTimer = null;
+                    // find end of command
+                    const LFidx = buf.indexOf(LINE_FEED, i);
+                    if (LFidx > -1) {
+                        if (LFidx < buf.length-1) {
+                            this._incomingBuffers[this._incomingBuffers.length-1] = new Uint8Array(buf.buffer, 0, LFidx+1);
+                        }
+                        const commandLength = this._incomingBuffers.reduce((prev, curr) => prev + curr.length, 0) - 2; // 2 for CRLF
+                        const command = new Uint8Array(commandLength);
+                        let index = 0;
+                        while (this._incomingBuffers.length > 0) {
+                            let uint8Array = this._incomingBuffers.shift();
+
+                            const remainingLength = commandLength - index;
+                            if (uint8Array.length > remainingLength) {
+                                const excessLength = uint8Array.length - remainingLength;
+                                uint8Array = uint8Array.subarray(0, -excessLength);
+
+                                if (this._incomingBuffers.length > 0) {
+                                    this._incomingBuffers = [];
+                                }
+                            }
+                            command.set(uint8Array, index);
+                            index += uint8Array.length;
+                        }
+                        yield command;
+                        if (LFidx < buf.length-1) {
+                            buf = new Uint8Array(buf.subarray(LFidx+1));
+                            this._incomingBuffers.push(buf);
+                            i = 0;
+                        } else {
+                            // clear the timeout when an entire command has arrived
+                            // and not waiting on more data for next command
+                            clearTimeout(this._socketTimeoutTimer);
+                            this._socketTimeoutTimer = null;
+                            return;
+                        }
+                    } else {
                       return;
-                  }
-              } else {
-                  return;
-              }
-          }
+                    }
+            }
         }
     };
 

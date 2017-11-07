@@ -188,6 +188,12 @@
                 expect(String.fromCharCode.apply(null, iterator.next().value)).to.equal ('* 1 FETCH (UID 1 ENVELOPE ("string with {parenthesis}") BODY[HEADER.FIELDS (REFERENCES LIST-ID)] {2}\r\n\r\n)');
             });
 
+            it('should parse multiple zero-length literals', () => {
+                appendIncomingBuffer('* 126015 FETCH (UID 585599 BODY[1.2] {0}\r\n BODY[1.1] {0}\r\n)\r\n');
+                var iterator = client._iterateIncomingBuffer();
+                expect(String.fromCharCode.apply(null, iterator.next().value)).to.equal('* 126015 FETCH (UID 585599 BODY[1.2] {0}\r\n BODY[1.1] {0}\r\n)');
+            });
+
             it('should process two commands when CRLF arrives in 2 parts', () => {
                 appendIncomingBuffer('* 1 FETCH (UID 1)\r');
                 var iterator1 = client._iterateIncomingBuffer();
