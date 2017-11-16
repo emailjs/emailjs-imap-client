@@ -1447,6 +1447,21 @@
                     }]
                 });
             });
+
+            it('should build FETCH with the valueAsString option', () => {
+                expect(br._buildFETCHCommand('1:*', ['body[]'], {valueAsString: false})).to.deep.equal({
+                    command: 'FETCH',
+                    attributes: [{
+                        type: 'SEQUENCE',
+                        value: '1:*'
+                    }, {
+                        type: 'ATOM',
+                        value: 'BODY',
+                        section: []
+                    }],
+                    valueAsString: false
+                });
+            });
         });
 
         describe('#_parseFETCH', () => {
