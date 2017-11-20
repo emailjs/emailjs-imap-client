@@ -516,6 +516,27 @@
                     client._clientQueue[0].callback({});
                 }, 0);
             });
+
+            it('should store valueAsString option in the command', (done) => {
+                sinon.stub(client, '_sendRequest');
+
+                client._tagCounter = 100;
+                client._clientQueue = [];
+                client._canSend = false;
+
+                client.enqueueCommand({
+                    command: 'abc',
+                    valueAsString: false
+                }, ['def'], {
+                    t: 1
+                }).then(() => {
+                    expect(client._clientQueue[0].request.valueAsString).to.equal(false);
+                }).then(done).catch(done);
+
+                setTimeout(() => {
+                    client._clientQueue[0].callback({});
+                }, 0);
+            });
         });
 
         describe('#_sendRequest', () => {

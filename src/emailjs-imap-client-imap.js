@@ -560,7 +560,8 @@
 
             var response;
             try {
-                response = imapHandler.parser(command);
+               const valueAsString = this._currentCommand.request && this._currentCommand.request.valueAsString;
+               response = imapHandler.parser(command, { valueAsString });
                 this.logger.debug('S:', () => imapHandler.compiler(response, false, true));
             } catch (e) {
                 this.logger.error('Error parsing imap command!', response);

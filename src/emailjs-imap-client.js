@@ -1095,6 +1095,11 @@
                 value: sequence
             }]
         };
+
+        if (options.valueAsString !== undefined) {
+            command.valueAsString = options.valueAsString;
+        }
+
         var query = [];
 
         items.forEach((item) => {

@@ -312,6 +312,7 @@ Where
   * **options** is an optional options object
     * **byUid** if `true` executes `UID FETCH` instead of `FETCH`
     * **changedSince** is the modseq filter. Only messages with higher modseq value will be returned
+    * **valueAsString** LITERAL and STRING values are returned as strings rather than Uint8Array objects. Defaults to true.
 
 Resolves with
 
