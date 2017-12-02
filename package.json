@@ -12,9 +12,9 @@
     "build": "./scripts/build.sh",
     "release": "./scripts/release.sh",
     "lint": "$(npm bin)/standard",
-    "test": "npm run lint && npm run unit",
+    "test": "npm run lint && npm run unit && npm run integration",
     "unit": "$(npm bin)/mocha './src/*-unit.js' --reporter spec --require babel-register --require babel-polyfill testutils.js",
-    "test-watch": "$(npm bin)/mocha './src/*-unit.js' --reporter spec --require babel-register --require babel-polyfill testutils.js --watch"
+    "integration": "$(npm bin)/mocha './src/*-integration.js' --reporter spec --require babel-register --require babel-polyfill testutils.js"
   },
   "repository": {
     "type": "git",

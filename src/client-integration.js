@@ -9,6 +9,8 @@ describe('browserbox integration tests', () => {
   let server
 
   beforeEach((done) => {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+
     // start imap test server
     var options = {
       // debug: true,
@@ -92,7 +94,7 @@ describe('browserbox integration tests', () => {
       }).then(() => done()).catch(done)
     })
 
-    it('should ignore STARTTLS', (done) => {
+    it('should ignore STARTTLS', () => {
       imap = new ImapClient('127.0.0.1', port, {
         auth: {
           user: 'testuser',
@@ -107,7 +109,7 @@ describe('browserbox integration tests', () => {
         expect(imap.client.secureMode).to.be.false
       }).then(() => {
         return imap.close()
-      }).then(() => done()).catch(done)
+      })
     })
 
     it('should fail connecting to non-STARTTLS host', (done) => {
