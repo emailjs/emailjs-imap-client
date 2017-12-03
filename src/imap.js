@@ -1,3 +1,4 @@
+import { propOr } from 'ramda'
 import TCPSocket from 'emailjs-tcp-socket'
 import { toTypedArray, fromTypedArray } from './common'
 import { parser, compiler } from 'emailjs-imap-handler'
@@ -268,7 +269,7 @@ Imap.prototype.enqueueCommand = function (request, acceptUntagged, options) {
       callback: (response) => {
         if (this.isError(response)) {
           return reject(response)
-        } else if (['NO', 'BAD'].indexOf((response && response.command || '').toString().toUpperCase().trim()) >= 0) {
+        } else if (['NO', 'BAD'].indexOf(propOr('', 'command')(response).toUpperCase().trim()) >= 0) {
           var error = new Error(response.humanReadable || 'Error')
           if (response.code) {
             error.code = response.code
@@ -281,9 +282,9 @@ Imap.prototype.enqueueCommand = function (request, acceptUntagged, options) {
     }
 
     // apply any additional options to the command
-    Object.keys(options || {}).forEach((key) => data[key] = options[key])
+    Object.keys(options || {}).forEach((key) => { data[key] = options[key] })
 
-    acceptUntagged.forEach((command) => data.payload[command] = [])
+    acceptUntagged.forEach((command) => { data.payload[command] = [] })
 
     // if we're in priority mode (i.e. we ran commands in a precheck),
     // queue any commands BEFORE the command that contianed the precheck,
@@ -338,8 +339,8 @@ Imap.prototype.getPreviouslyQueued = function (commands, ctx) {
  * @param {String} str Payload
  */
 Imap.prototype.send = function (str) {
-  var buffer = toTypedArray(str).buffer,
-    timeout = this.TIMEOUT_SOCKET_LOWER_BOUND + Math.floor(buffer.byteLength * this.TIMEOUT_SOCKET_MULTIPLIER)
+  const buffer = toTypedArray(str).buffer
+  const timeout = this.TIMEOUT_SOCKET_LOWER_BOUND + Math.floor(buffer.byteLength * this.TIMEOUT_SOCKET_MULTIPLIER)
 
   clearTimeout(this._socketTimeoutTimer) // clear pending timeouts
   this._socketTimeoutTimer = setTimeout(() => this._onError(new Error(this.options.sessionId + ' Socket timed out!')), timeout) // arm the next timeout
@@ -378,7 +379,7 @@ Imap.prototype._onError = function (evt) {
   } else if (evt && this.isError(evt.data)) {
     error = evt.data
   } else {
-    error = new Error(evt && evt.data && evt.data.message || evt.data || evt || 'Error')
+    error = new Error((evt && evt.data && evt.data.message) || evt.data || evt || 'Error')
   }
 
   this.logger.error(error)
@@ -576,7 +577,7 @@ Imap.prototype._parseIncomingCommands = function (commands) {
  * @param {Object} response Parsed command object
  */
 Imap.prototype._handleResponse = function (response) {
-  var command = (response && response.command || '').toUpperCase().trim()
+  var command = propOr('', 'command')(response).toUpperCase().trim()
 
   if (!this._currentCommand) {
     // unsolicited untagged response
@@ -634,7 +635,8 @@ Imap.prototype._sendRequest = function () {
     }).catch((err) => {
       // precheck failed, so we remove the initial command
       // from the queue, invoke its callback and resume normal operation
-      var cmd, index = this._clientQueue.indexOf(context)
+      let cmd
+      const index = this._clientQueue.indexOf(context)
       if (index >= 0) {
         cmd = this._clientQueue.splice(index, 1)[0]
       }
@@ -699,9 +701,9 @@ Imap.prototype._clearIdle = function () {
  * @param {Object} response Parsed response object
  */
 Imap.prototype._processResponse = function (response) {
-  var command = (response && response.command || '').toString().toUpperCase().trim(),
-    option,
-    key
+  let command = propOr('', 'command')(response).toUpperCase().trim()
+  let option
+  let key
 
   // no attributes
   if (!response || !response.attributes || !response.attributes.length) {
@@ -774,8 +776,8 @@ Imap.prototype.enableCompression = function () {
 
     this._compressionWorker = new Worker(this._workerPath)
     this._compressionWorker.onmessage = (e) => {
-      var message = e.data.message,
-        buffer = e.data.buffer
+      var message = e.data.message
+      var buffer = e.data.buffer
 
       switch (message) {
         case MESSAGE_INFLATED_DATA_READY:

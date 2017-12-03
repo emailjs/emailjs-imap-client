@@ -28,6 +28,7 @@
     "emailjs-mime-codec": "^2.0.2",
     "emailjs-tcp-socket": "^1.0.2",
     "emailjs-utf7": "^4.0.1",
+    "ramda": "^0.25.0",
     "sinon": "^4.1.2"
   },
   "devDependencies": {
@@ -52,7 +53,8 @@
       "after",
       "expect",
       "sinon",
-      "self"
+      "self",
+      "Worker"
     ],
     "ignore": [
       "dist",

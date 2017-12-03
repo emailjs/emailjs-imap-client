@@ -1,3 +1,4 @@
+import { propOr, pathOr } from 'ramda'
 import ImapClient from './imap'
 import { encode as encodeBase64 } from 'emailjs-base64'
 import { imapEncode, imapDecode } from 'emailjs-utf7'
@@ -6,15 +7,15 @@ import { encode, mimeWordEncode, mimeWordsDecode } from 'emailjs-mime-codec'
 import parseAddress from 'emailjs-addressparser'
 import { toTypedArray, fromTypedArray } from './common'
 
-var SPECIAL_USE_FLAGS = ['\\All', '\\Archive', '\\Drafts', '\\Flagged', '\\Junk', '\\Sent', '\\Trash']
-var SPECIAL_USE_BOXES = {
+let SPECIAL_USE_FLAGS = ['\\All', '\\Archive', '\\Drafts', '\\Flagged', '\\Junk', '\\Sent', '\\Trash']
+let SPECIAL_USE_BOXES = {
   '\\Sent': ['aika', 'bidaliak', 'bidalita', 'dihantar', 'e rometsweng', 'e tindami', 'elküldött', 'elküldöttek', 'enviadas', 'enviadas', 'enviados', 'enviats', 'envoyés', 'ethunyelweyo', 'expediate', 'ezipuru', 'gesendete', 'gestuur', 'gönderilmiş öğeler', 'göndərilənlər', 'iberilen', 'inviati', 'išsiųstieji', 'kuthunyelwe', 'lasa', 'lähetetyt', 'messages envoyés', 'naipadala', 'nalefa', 'napadala', 'nosūtītās ziņas', 'odeslané', 'padala', 'poslane', 'poslano', 'poslano', 'poslané', 'poslato', 'saadetud', 'saadetud kirjad', 'sendt', 'sendt', 'sent', 'sent items', 'sent messages', 'sända poster', 'sänt', 'terkirim', 'ti fi ranṣẹ', 'të dërguara', 'verzonden', 'vilivyotumwa', 'wysłane', 'đã gửi', 'σταλθέντα', 'жиберилген', 'жіберілгендер', 'изпратени', 'илгээсэн', 'ирсол шуд', 'испратено', 'надіслані', 'отправленные', 'пасланыя', 'юборилган', 'ուղարկված', 'נשלחו', 'פריטים שנשלחו', 'المرسلة', 'بھیجے گئے', 'سوزمژہ', 'لېګل شوی', 'موارد ارسال شده', 'पाठविले', 'पाठविलेले', 'प्रेषित', 'भेजा गया', 'প্রেরিত', 'প্রেরিত', 'প্ৰেৰিত', 'ਭੇਜੇ', 'મોકલેલા', 'ପଠାଗଲା', 'அனுப்பியவை', 'పంపించబడింది', 'ಕಳುಹಿಸಲಾದ', 'അയച്ചു', 'යැවු පණිවුඩ', 'ส่งแล้ว', 'გაგზავნილი', 'የተላኩ', 'បាន​ផ្ញើ', '寄件備份', '寄件備份', '已发信息', '送信済みﾒｰﾙ', '발신 메시지', '보낸 편지함'],
   '\\Trash': ['articole șterse', 'bin', 'borttagna objekt', 'deleted', 'deleted items', 'deleted messages', 'elementi eliminati', 'elementos borrados', 'elementos eliminados', 'gelöschte objekte', 'item dipadam', 'itens apagados', 'itens excluídos', 'mục đã xóa', 'odstraněné položky', 'pesan terhapus', 'poistetut', 'praht', 'prügikast', 'silinmiş öğeler', 'slettede beskeder', 'slettede elementer', 'trash', 'törölt elemek', 'usunięte wiadomości', 'verwijderde items', 'vymazané správy', 'éléments supprimés', 'видалені', 'жойылғандар', 'удаленные', 'פריטים שנמחקו', 'العناصر المحذوفة', 'موارد حذف شده', 'รายการที่ลบ', '已删除邮件', '已刪除項目', '已刪除項目'],
   '\\Junk': ['bulk mail', 'correo no deseado', 'courrier indésirable', 'istenmeyen', 'istenmeyen e-posta', 'junk', 'levélszemét', 'nevyžiadaná pošta', 'nevyžádaná pošta', 'no deseado', 'posta indesiderata', 'pourriel', 'roskaposti', 'skräppost', 'spam', 'spam', 'spamowanie', 'søppelpost', 'thư rác', 'спам', 'דואר זבל', 'الرسائل العشوائية', 'هرزنامه', 'สแปม', '‎垃圾郵件', '垃圾邮件', '垃圾電郵'],
   '\\Drafts': ['ba brouillon', 'borrador', 'borrador', 'borradores', 'bozze', 'brouillons', 'bản thảo', 'ciorne', 'concepten', 'draf', 'drafts', 'drög', 'entwürfe', 'esborranys', 'garalamalar', 'ihe edeturu', 'iidrafti', 'izinhlaka', 'juodraščiai', 'kladd', 'kladder', 'koncepty', 'koncepty', 'konsep', 'konsepte', 'kopie robocze', 'layihələr', 'luonnokset', 'melnraksti', 'meralo', 'mesazhe të padërguara', 'mga draft', 'mustandid', 'nacrti', 'nacrti', 'osnutki', 'piszkozatok', 'rascunhos', 'rasimu', 'skice', 'taslaklar', 'tsararrun saƙonni', 'utkast', 'vakiraoka', 'vázlatok', 'zirriborroak', 'àwọn àkọpamọ́', 'πρόχειρα', 'жобалар', 'нацрти', 'нооргууд', 'сиёҳнавис', 'хомаки хатлар', 'чарнавікі', 'чернетки', 'чернови', 'черновики', 'черновиктер', 'սևագրեր', 'טיוטות', 'مسودات', 'مسودات', 'موسودې', 'پیش نویسها', 'ڈرافٹ/', 'ड्राफ़्ट', 'प्रारूप', 'খসড়া', 'খসড়া', 'ড্ৰাফ্ট', 'ਡ੍ਰਾਫਟ', 'ડ્રાફ્ટસ', 'ଡ୍ରାଫ୍ଟ', 'வரைவுகள்', 'చిత్తు ప్రతులు', 'ಕರಡುಗಳು', 'കരടുകള്‍', 'කෙටුම් පත්', 'ฉบับร่าง', 'მონახაზები', 'ረቂቆች', 'សារព្រាង', '下書き', '草稿', '草稿', '草稿', '임시 보관함']
 }
-var SPECIAL_USE_BOX_FLAGS = Object.keys(SPECIAL_USE_BOXES)
-var SESSIONCOUNTER = 0
+let SPECIAL_USE_BOX_FLAGS = Object.keys(SPECIAL_USE_BOXES)
+let SESSIONCOUNTER = 0
 
 /**
  * emailjs IMAP client
@@ -91,7 +92,7 @@ Client.prototype._onError = function (err) {
  */
 Client.prototype.connect = function () {
   return new Promise((resolve, reject) => {
-    var connectionTimeout = setTimeout(() => reject(new Error('Timeout connecting to server')), this.TIMEOUT_CONNECTION)
+    let connectionTimeout = setTimeout(() => reject(new Error('Timeout connecting to server')), this.TIMEOUT_CONNECTION)
     this.logger.debug('Connecting to', this.client.host, ':', this.client.port)
     this._changeState(this.STATE_CONNECTING)
     this.client.connect().then(() => {
@@ -175,7 +176,7 @@ Client.prototype.updateId = function (id) {
     return Promise.resolve()
   }
 
-  var attributes = [
+  let attributes = [
     []
   ]
   if (id) {
@@ -203,12 +204,12 @@ Client.prototype.updateId = function (id) {
 
     this.serverId = {}
 
-    var key;
+    let key;
     [].concat([].concat(response.payload.ID.shift().attributes || []).shift() || []).forEach((val, i) => {
       if (i % 2 === 0) {
-        key = (val && val.value || '').toString().toLowerCase().trim()
+        key = propOr('', 'value')(val).toLowerCase().trim()
       } else {
-        this.serverId[key] = (val && val.value || '').toString()
+        this.serverId[key] = propOr('', 'value')(val)
       }
     })
 
@@ -247,7 +248,7 @@ Client.prototype._shouldSelectMailbox = function (path, ctx) {
 Client.prototype.selectMailbox = function (path, options) {
   options = options || {}
 
-  var query = {
+  let query = {
     command: options.readOnly ? 'EXAMINE' : 'SELECT',
     attributes: [{
       type: 'STRING',
@@ -274,9 +275,9 @@ Client.prototype.selectMailbox = function (path, options) {
 
     this._selectedMailbox = path
 
-    var mailboxInfo = this._parseSELECT(response)
+    let mailboxInfo = this._parseSELECT(response)
 
-    var maybePromise = this.onselectmailbox && this.onselectmailbox(path, mailboxInfo)
+    let maybePromise = this.onselectmailbox && this.onselectmailbox(path, mailboxInfo)
     if (maybePromise && typeof maybePromise.then === 'function') {
       return maybePromise.then(() => mailboxInfo)
     } else {
@@ -315,7 +316,7 @@ Client.prototype.listNamespaces = function () {
  * @returns {Promise} Promise with list of mailboxes
  */
 Client.prototype.listMailboxes = function () {
-  var tree
+  let tree
 
   this.logger.debug('Listing mailboxes...')
   return this.exec({
@@ -335,7 +336,7 @@ Client.prototype.listMailboxes = function () {
       if (!item || !item.attributes || item.attributes.length < 3) {
         return
       }
-      var branch = this._ensurePath(tree, (item.attributes[2].value || '').toString(), (item.attributes[1] ? item.attributes[1].value : '/').toString())
+      let branch = this._ensurePath(tree, (item.attributes[2].value || '').toString(), (item.attributes[1] ? item.attributes[1].value : '/').toString())
       branch.flags = [].concat(item.attributes[0] || []).map((flag) => (flag.value || '').toString())
       branch.listed = true
       this._checkSpecialUse(branch)
@@ -354,7 +355,7 @@ Client.prototype.listMailboxes = function () {
       if (!item || !item.attributes || item.attributes.length < 3) {
         return
       }
-      var branch = this._ensurePath(tree, (item.attributes[2].value || '').toString(), (item.attributes[1] ? item.attributes[1].value : '/').toString());
+      let branch = this._ensurePath(tree, (item.attributes[2].value || '').toString(), (item.attributes[1] ? item.attributes[1].value : '/').toString());
       [].concat(item.attributes[0] || []).map((flag) => {
         flag = (flag.value || '').toString()
         if (!branch.flags || branch.flags.indexOf(flag) < 0) {
@@ -421,7 +422,7 @@ Client.prototype.listMessages = function (path, sequence, items, options) {
   options = options || {}
 
   this.logger.debug('Fetching messages', sequence, 'from', path, '...')
-  var command = this._buildFETCHCommand(sequence, items, options)
+  let command = this._buildFETCHCommand(sequence, items, options)
   return this.exec(command, 'FETCH', {
     precheck: (ctx) => this._shouldSelectMailbox(path, ctx) ? this.selectMailbox(path, { ctx }) : Promise.resolve()
   }).then((response) => this._parseFETCH(response))
@@ -442,7 +443,7 @@ Client.prototype.search = function (path, query, options) {
   options = options || {}
 
   this.logger.debug('Searching in', path, '...')
-  var command = this._buildSEARCHCommand(query, options)
+  let command = this._buildSEARCHCommand(query, options)
   return this.exec(command, 'SEARCH', {
     precheck: (ctx) => this._shouldSelectMailbox(path, ctx) ? this.selectMailbox(path, { ctx }) : Promise.resolve()
   }).then((response) => this._parseSEARCH(response))
@@ -461,8 +462,8 @@ Client.prototype.search = function (path, query, options) {
  * @returns {Promise} Promise with the array of matching seq. or uid numbers
  */
 Client.prototype.setFlags = function (path, sequence, flags, options) {
-  var key = ''
-  var list = []
+  let key = ''
+  let list = []
 
   if (Array.isArray(flags) || typeof flags !== 'object') {
     list = [].concat(flags || [])
@@ -498,7 +499,7 @@ Client.prototype.setFlags = function (path, sequence, flags, options) {
 Client.prototype.store = function (path, sequence, action, flags, options) {
   options = options || {}
 
-  var command = this._buildSTORECommand(sequence, action, flags, options)
+  let command = this._buildSTORECommand(sequence, action, flags, options)
   return this.exec(command, 'FETCH', {
     precheck: (ctx) => this._shouldSelectMailbox(path, ctx) ? this.selectMailbox(path, { ctx }) : Promise.resolve()
   }).then((response) => this._parseFETCH(response))
@@ -518,14 +519,14 @@ Client.prototype.store = function (path, sequence, action, flags, options) {
 Client.prototype.upload = function (destination, message, options) {
   options = options || {}
   options.flags = options.flags || ['\\Seen']
-  var flags = options.flags.map((flag) => {
+  let flags = options.flags.map((flag) => {
     return {
       type: 'atom',
       value: flag
     }
   })
 
-  var command = {
+  let command = {
     command: 'APPEND',
     attributes: [{
       type: 'atom',
@@ -569,7 +570,7 @@ Client.prototype.deleteMessages = function (path, sequence, options) {
   return this.setFlags(path, sequence, {
     add: '\\Deleted'
   }, options).then(() => {
-    var cmd
+    let cmd
     if (options.byUid && this._capability.indexOf('UIDPLUS') >= 0) {
       cmd = {
         command: 'UID EXPUNGE',
@@ -715,7 +716,8 @@ Client.prototype.compressConnection = function () {
  * @param {String} auth.xoauth2
  */
 Client.prototype.login = function (auth) {
-  var command, options = {}
+  let command
+  let options = {}
 
   if (!auth) {
     return Promise.reject(new Error('Authentication information not provided'))
@@ -929,7 +931,7 @@ Client.prototype._untaggedOkHandler = function (response) {
  * @param {Function} next Until called, server responses are not processed
  */
 Client.prototype._untaggedCapabilityHandler = function (response) {
-  this._capability = [].concat(response && response.attributes || []).map((capa) => (capa.value || '').toString().toUpperCase().trim())
+  this._capability = [].concat(propOr([], 'attributes')(response)).map((capa) => (capa.value || '').toString().toUpperCase().trim())
 }
 
 /**
@@ -983,13 +985,12 @@ Client.prototype._parseSELECT = function (response) {
     return
   }
 
-  var mailbox = {
-      readOnly: response.code === 'READ-ONLY'
-    },
-
-    existsResponse = response.payload.EXISTS && response.payload.EXISTS.pop(),
-    flagsResponse = response.payload.FLAGS && response.payload.FLAGS.pop(),
-    okResponse = response.payload.OK
+  let mailbox = {
+    readOnly: response.code === 'READ-ONLY'
+  }
+  let existsResponse = response.payload.EXISTS && response.payload.EXISTS.pop()
+  let flagsResponse = response.payload.FLAGS && response.payload.FLAGS.pop()
+  let okResponse = response.payload.OK
 
   if (existsResponse) {
     mailbox.exists = existsResponse.nr || 0
@@ -1033,7 +1034,7 @@ Client.prototype._parseNAMESPACE = function (response) {
     return false
   }
 
-  var attributes = [].concat(response.payload.NAMESPACE.pop().attributes || [])
+  let attributes = [].concat(response.payload.NAMESPACE.pop().attributes || [])
   if (!attributes.length) {
     return false
   }
@@ -1078,7 +1079,7 @@ Client.prototype._parseNAMESPACEElement = function (element) {
  * @returns {Object} Structured IMAP command
  */
 Client.prototype._buildFETCHCommand = function (sequence, items, options) {
-  var command = {
+  let command = {
     command: options.byUid ? 'UID FETCH' : 'FETCH',
     attributes: [{
       type: 'SEQUENCE',
@@ -1090,7 +1091,7 @@ Client.prototype._buildFETCHCommand = function (sequence, items, options) {
     command.valueAsString = options.valueAsString
   }
 
-  var query = []
+  let query = []
 
   items.forEach((item) => {
     item = item.toUpperCase().trim()
@@ -1146,13 +1147,13 @@ Client.prototype._parseFETCH = function (response) {
     return []
   }
 
-  var list = []
-  var messages = {};
+  let list = []
+  let messages = {};
 
   [].concat(response.payload.FETCH || []).forEach((item) => {
-    var params = [].concat([].concat(item.attributes || [])[0] || []) // ensure the first value is an array
-    var message
-    var i, len, key
+    let params = [].concat([].concat(item.attributes || [])[0] || []) // ensure the first value is an array
+    let message
+    let i, len, key
 
     if (messages[item.nr]) {
       // same sequence number is already used, so merge values instead of creating a new message object
@@ -1229,7 +1230,7 @@ Client.prototype._parseFetchValue = function (key, value) {
  * @param {Object} Envelope object
  */
 Client.prototype._parseENVELOPE = function (value) {
-  var envelope = {}
+  let envelope = {}
 
   /*
    * ENVELOPE lists addresses as [name-part, source-route, username, hostname]
@@ -1239,11 +1240,11 @@ Client.prototype._parseENVELOPE = function (value) {
    * to addressparser and uses resulting values instead of the
    * pre-parsed addresses
    */
-  var processAddresses = (list) => {
+  let processAddresses = (list) => {
     return [].concat(list || []).map((addr) => {
-      var name = (addr[0] && addr[0].value || '').trim()
-      var address = (addr[2] && addr[2].value || '') + '@' + (addr[3] && addr[3].value || '')
-      var formatted
+      let name = (pathOr('', ['0', 'value'])(addr)).trim()
+      let address = (pathOr('', ['2', 'value'])(addr)) + '@' + (pathOr('', ['3', 'value'])(addr))
+      let formatted
 
       if (!name) {
         formatted = address
@@ -1251,7 +1252,7 @@ Client.prototype._parseENVELOPE = function (value) {
         formatted = this._encodeAddressName(name) + ' <' + address + '>'
       }
 
-      var parsed = parseAddress(formatted).shift() // there should bu just a single address
+      let parsed = parseAddress(formatted).shift() // there should bu just a single address
       parsed.name = mimeWordsDecode(parsed.name)
       return parsed
     })
@@ -1309,12 +1310,11 @@ Client.prototype._parseENVELOPE = function (value) {
  * @param {Object} Envelope object
  */
 Client.prototype._parseBODYSTRUCTURE = function (value) {
-  var processNode = (node, path) => {
-    path = path || []
-
-    var curNode = {},
-      i = 0,
-      key, part = 0
+  let processNode = (node, path = []) => {
+    let curNode = {}
+    let i = 0
+    let key
+    let part = 0
 
     if (path.length) {
       curNode.part = path.join('.')
@@ -1339,9 +1339,9 @@ Client.prototype._parseBODYSTRUCTURE = function (value) {
           curNode.parameters = {};
           [].concat(node[i] || []).forEach((val, j) => {
             if (j % 2) {
-              curNode.parameters[key] = mimeWordsDecode((val && val.value || '').toString())
+              curNode.parameters[key] = mimeWordsDecode(propOr('', 'value')(val))
             } else {
-              key = (val && val.value || '').toString().toLowerCase()
+              key = propOr('', 'value')(val).toLowerCase()
             }
           })
         }
@@ -1358,9 +1358,9 @@ Client.prototype._parseBODYSTRUCTURE = function (value) {
         curNode.parameters = {};
         [].concat(node[i] || []).forEach((val, j) => {
           if (j % 2) {
-            curNode.parameters[key] = mimeWordsDecode((val && val.value || '').toString())
+            curNode.parameters[key] = mimeWordsDecode(propOr('', 'value')(val))
           } else {
-            key = (val && val.value || '').toString().toLowerCase()
+            key = propOr('', 'value')(val).toLowerCase()
           }
         })
       }
@@ -1446,9 +1446,9 @@ Client.prototype._parseBODYSTRUCTURE = function (value) {
           curNode.dispositionParameters = {};
           [].concat(node[i][1] || []).forEach((val, j) => {
             if (j % 2) {
-              curNode.dispositionParameters[key] = mimeWordsDecode((val && val.value || '').toString())
+              curNode.dispositionParameters[key] = mimeWordsDecode(propOr('', 'value')(val))
             } else {
-              key = (val && val.value || '').toString().toLowerCase()
+              key = propOr('', 'value')(val).toLowerCase()
             }
           })
         }
@@ -1459,7 +1459,7 @@ Client.prototype._parseBODYSTRUCTURE = function (value) {
     // body language
     if (i < node.length - 1) {
       if (node[i]) {
-        curNode.language = [].concat(node[i] || []).map((val) => (val && val.value || '').toString().toLowerCase())
+        curNode.language = [].concat(node[i] || []).map((val) => propOr('', 'value')(val).toLowerCase())
       }
       i++
     }
@@ -1497,19 +1497,19 @@ Client.prototype._parseBODYSTRUCTURE = function (value) {
  * @return {Object} IMAP command object
  */
 Client.prototype._buildSEARCHCommand = function (query, options) {
-  var command = {
+  let command = {
     command: options.byUid ? 'UID SEARCH' : 'SEARCH'
   }
 
-  var isAscii = true
+  let isAscii = true
 
-  var buildTerm = (query) => {
-    var list = []
+  let buildTerm = (query) => {
+    let list = []
 
     Object.keys(query).forEach((key) => {
-      var params = []
-      var formatDate = (date) => date.toUTCString().replace(/^\w+, 0?(\d+) (\w+) (\d+).*/, '$1-$2-$3')
-      var escapeParam = (param) => {
+      let params = []
+      let formatDate = (date) => date.toUTCString().replace(/^\w+, 0?(\d+) (\w+) (\d+).*/, '$1-$2-$3')
+      let escapeParam = (param) => {
         if (typeof param === 'number') {
           return {
             type: 'number',
@@ -1609,9 +1609,9 @@ Client.prototype._buildSEARCHCommand = function (query, options) {
  *     keeping haystack ordered.
  */
 Client.prototype._binSearch = function (haystack, needle, comparator) {
-  var mid, cmp
-  var low = 0
-  var high = haystack.length - 1
+  let mid, cmp
+  let low = 0
+  let high = haystack.length - 1
 
   while (low <= high) {
     // Note that "(low + high) >>> 1" may overflow, and results in
@@ -1644,8 +1644,8 @@ Client.prototype._binSearch = function (haystack, needle, comparator) {
  * @param {Array} Sorted Seq./UID number list
  */
 Client.prototype._parseSEARCH = function (response) {
-  var cmp = (a, b) => (a - b)
-  var list = []
+  let cmp = (a, b) => (a - b)
+  let list = []
 
   if (!response || !response.payload || !response.payload.SEARCH || !response.payload.SEARCH.length) {
     return []
@@ -1653,8 +1653,8 @@ Client.prototype._parseSEARCH = function (response) {
 
   [].concat(response.payload.SEARCH || []).forEach((result) => {
     [].concat(result.attributes || []).forEach((nr) => {
-      nr = Number(nr && nr.value || nr || 0) || 0
-      var idx = this._binSearch(list, nr, cmp)
+      nr = Number(propOr(nr || 0, 'value')(nr)) || 0
+      let idx = this._binSearch(list, nr, cmp)
       if (idx < 0) {
         list.splice(-idx - 1, 0, nr)
       }
@@ -1668,7 +1668,7 @@ Client.prototype._parseSEARCH = function (response) {
  * Creates an IMAP STORE command from the selected arguments
  */
 Client.prototype._buildSTORECommand = function (sequence, action, flags, options) {
-  var command = {
+  let command = {
     command: options.byUid ? 'UID STORE' : 'STORE',
     attributes: [{
       type: 'sequence',
@@ -1721,9 +1721,9 @@ Client.prototype._changeState = function (newState) {
  * @return {Object} branch for used path
  */
 Client.prototype._ensurePath = function (tree, path, delimiter) {
-  var names = path.split(delimiter)
-  var branch = tree
-  var i, j, found
+  let names = path.split(delimiter)
+  let branch = tree
+  let i, j, found
 
   for (i = 0; i < names.length; i++) {
     found = false
@@ -1765,7 +1765,7 @@ Client.prototype._compareMailboxNames = function (a, b) {
  * @return {String} Special use flag (if detected)
  */
 Client.prototype._checkSpecialUse = function (mailbox) {
-  var i, type
+  let i, type
 
   if (mailbox.flags) {
     for (i = 0; i < SPECIAL_USE_FLAGS.length; i++) {
@@ -1782,8 +1782,9 @@ Client.prototype._checkSpecialUse = function (mailbox) {
 }
 
 Client.prototype._checkSpecialUseByName = function (mailbox) {
-  var name = (mailbox.name || '').toLowerCase().trim(),
-    i, type
+  let name = propOr('', 'name')(mailbox).toLowerCase().trim()
+  let i
+  let type
 
   for (i = 0; i < SPECIAL_USE_BOX_FLAGS.length; i++) {
     type = SPECIAL_USE_BOX_FLAGS[i]
@@ -1804,7 +1805,7 @@ Client.prototype._checkSpecialUseByName = function (mailbox) {
  * @return {String} Base64 formatted login token
  */
 Client.prototype._buildXOAuth2Token = function (user, token) {
-  var authData = [
+  let authData = [
     'user=' + (user || ''),
     'auth=Bearer ' + token,
     '',
@@ -1838,10 +1839,10 @@ Client.prototype.LOG_LEVEL_DEBUG = 10
 Client.prototype.LOG_LEVEL_ALL = 0
 
 Client.prototype.createLogger = function () {
-  var createLogger = (tag) => {
-    var log = (level, messages) => {
+  let createLogger = (tag) => {
+    let log = (level, messages) => {
       messages = messages.map(msg => typeof msg === 'function' ? msg() : msg)
-      var logMessage = '[' + new Date().toISOString() + '][' + tag + '][' +
+      let logMessage = '[' + new Date().toISOString() + '][' + tag + '][' +
         this.options.auth.user + '][' + this.client.host + '] ' + messages.join(' ')
       if (level === this.LOG_LEVEL_DEBUG) {
         console.log('[DEBUG]' + logMessage)
@@ -1863,7 +1864,7 @@ Client.prototype.createLogger = function () {
     }
   }
 
-  var logger = this.options.logger || createLogger(this.options.sessionId || 1)
+  let logger = this.options.logger || createLogger(this.options.sessionId || 1)
   this.logger = this.client.logger = {
     // this could become way nicer when node supports the rest operator...
     debug: function () {
