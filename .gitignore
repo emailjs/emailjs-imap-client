@@ -1,4 +1,10 @@
 node_modules/
 npm-debug.log
 .DS_Store
-test/lib
+package-lock.json
+
+# VIM Swap Files
+[._]*.s[a-v][a-z]
+[._]*.sw[a-p]
+[._]s[a-v][a-z]
+[._]sw[a-p]

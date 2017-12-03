@@ -1,41 +1,22 @@
 # emailjs-imap-client
 
-[![Greenkeeper badge](https://badges.greenkeeper.io/emailjs/emailjs-imap-client.svg)](https://greenkeeper.io/)
+[![Greenkeeper badge](https://badges.greenkeeper.io/emailjs/emailjs-imap-client.svg)](https://greenkeeper.io/) [![Build Status](https://travis-ci.org/emailjs/emailjs-imap-client.png?branch=master)](https://travis-ci.org/emailjs/emailjs-imap-client) [![JavaScript Style Guide](https://img.shields.io/badge/code_style-standard-brightgreen.svg)](https://standardjs.com)  [![ES6+](https://camo.githubusercontent.com/567e52200713e0f0c05a5238d91e1d096292b338/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f65732d362b2d627269676874677265656e2e737667)](https://kangax.github.io/compat-table/es6/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-IMAP client library written with ES2015 (ES6).
+Low-level IMAP client for all your JS needs.
 
-[![Build Status](https://travis-ci.org/emailjs/emailjs-imap-client.png?branch=master)](https://travis-ci.org/emailjs/emailjs-imap-client)
+NB: This README is for v3.0.0 and higher. For others, [please go here](https://github.com/emailjs/emailjs-imap-client/blob/25bbf7bfb554ffe9b14c5a6fe65f010bc76cd231/README.md)
 
-## StringEncoding API
+```bash
+npm install --save emailjs-imap-client
+```
 
-This module requires `TextEncoder` and `TextDecoder` to exist as part of the StringEncoding API (see: [MDN](https://developer.mozilla.org/en-US/docs/WebAPI/Encoding_API) [whatwg.org](http://encoding.spec.whatwg.org/#api)). This is supported by Firefox, Chrome and Opera. For other browser environments [there is a polyfill](https://github.com/emailjs/emailjs-stringencoding).
-
-## TCPSocket API
-
-There is a [shim](https://github.com/emailjs/emailjs-tcp-socket) that brings [Mozilla-flavored](https://developer.mozilla.org/en-US/docs/WebAPI/TCP_Socket) version of the [Raw Socket API](http://www.w3.org/TR/raw-sockets/) to other platforms.
-
-If you are on a platform that uses forge instead of a native TLS implementation (e.g. chrome.socket), you have to set the .oncert(pemEncodedCertificate) handler that passes the TLS certificate that the server presents. It can be used on a trust-on-first-use basis for subsequent connection.
-
-If forge is used to handle TLS traffic, you may choose to handle the TLS-related load in a Web Worker. Please use tlsWorkerPath to point to `tcp-socket-tls-worker.js`!
-
-Please take a look at the [tcp-socket documentation](https://github.com/emailjs/emailjs-tcp-socket) for more information!
-
-## Installation
-
-### [npm](https://www.npmjs.org/):
-
-    npm install emailjs-imap-client
-
-## Usage
-
-### AMD
-
-Require [emailjs-imap-client.js](src/emailjs-imap-client.js) as `ImapClient`
+```javascript
+import ImapClient from 'emailjs-imap-client'
+```
 
 ## API
 
-```
-var ImapClient = require('emailjs-imap-client')
+```javascript
 var client = new ImapClient(host[, port][, options])
 ```
 
@@ -52,12 +33,9 @@ Where
       * **xoauth2** is the OAuth2 access token to be used instead of password
     * **id** (optional) is the identification object for [RFC2971](http://tools.ietf.org/html/rfc2971#section-3.3) (ex. `{name: 'myclient', version: '1'}`)
     * **useSecureTransport** (optional) enables TLS
-    * **ignoreTLS** – if set to true, do not call STARTTLS before authentication even if the host advertises support for it
-    * **requireTLS** – if set to true, always use STARTTLS before authentication even if the host does not advertise it. If STARTTLS fails, do not try to authenticate the user
+    * **ignoreTLS** – if set to true, *never uses STARTTLS before authentication* even if the host advertises support for it
+    * **requireTLS** – if set to true, *always uses STARTTLS before authentication* even if the host does not advertise it. If STARTTLS fails, do not try to authenticate the user
     * **enableCompression** - if set to true then use IMAP COMPRESS extension (rfc4978) if the server supports it (Gmail does). All data sent and received in this case is compressed with *deflate*
-    * **ca** (optional) (only in conjunction with the [TCPSocket shim](https://github.com/emailjs/emailjs-tcp-socket)) if you use TLS with forge, pin a PEM-encoded certificate as a string. Please refer to the [tcp-socket documentation](https://github.com/emailjs/emailjs-tcp-socket) for more information!
-    * **tlsWorkerPath** (optional) (only in conjunction with the [TCPSocket shim](https://github.com/emailjs/emailjs-tcp-socket)) if you use TLS with forge, this path indicates where the file for the TLS Web Worker is located. Please refer to the [tcp-socket documentation](https://github.com/emailjs/emailjs-tcp-socket) for more information!
-    * **compressionWorkerPath** (optional) offloads de-/compression computation to a web worker, this is the path to the browserified emailjs-imap-client-compressor-worker.js
 
 Default STARTTLS support is opportunistic – if the server advertises STARTTLS capability, the client tries to use it. If STARTTLS is not advertised, the clients sends passwords in the plain. You can use `ignoreTLS` and `requireTLS` to change this behavior by explicitly enabling or disabling STARTTLS usage.
 
@@ -74,7 +52,7 @@ var client = new ImapClient('localhost', 143, {
 
 **Use of web workers with compression**: If you use compression, we can spin up a Web Worker to handle the TLS-related computation off the main thread. To do this, you need to **browserify** `emailjs-imap-client-compressor-worker.js`, specify the path via `options.compressionWorkerPath`
 
-```
+```javascript
 client.onerror = function(error){}
 ```
 
@@ -314,6 +292,7 @@ Where
   * **options** is an optional options object
     * **byUid** if `true` executes `UID FETCH` instead of `FETCH`
     * **changedSince** is the modseq filter. Only messages with higher modseq value will be returned
+    * **valueAsString** LITERAL and STRING values are returned as strings rather than Uint8Array objects. Defaults to true.
 
 Resolves with
 
@@ -476,12 +455,14 @@ query = {unseen: true, header: ['subject', 'hello world']};
 query = {or: {unseen: true, seen: true}};
 // SEARCH UNSEEN NOT SEEN
 query = {unseen: true, not: {seen: true}}
+// SINCE 2011-11-23
+query = {since: new Date(2011, 11, 23, 0, 0, 0)}
 ```
 
 ### Example
 
 ```javascript
-client.search({unseen: true}, {byUid: true}).then((result) => {
+client.search('INBOX', {unseen: true}, {byUid: true}).then((result) => {
     result.forEach((uid) => console.log('Message ' + uid + ' is unread'));
 });
 ```
@@ -516,11 +497,11 @@ You can check the flags for a message or a range of messages with `listMessages`
 Where `arrFlags` is an array containing flag strings, ie. `['\\Seen', '$MyFlag']`
 
 ```javascript
-client.setFlags('INBOX', {set: ['\\Seen']}).then((messages) => { ... })
+client.setFlags('INBOX', '1:10', {set: ['\\Seen']}).then((messages) => { ... })
 
-client.setFlags('INBOX', {remove: ['\\Seen']}).then((messages) => { ... })
+client.setFlags('INBOX', '1:10', {remove: ['\\Seen']}).then((messages) => { ... })
 
-client.setFlags('INBOX', {add: ['\\Seen']}).then((messages) => { ... })
+client.setFlags('INBOX', '1:10', {add: ['\\Seen']}).then((messages) => { ... })
 ```
 
 ### Store Command
@@ -685,10 +666,6 @@ The IMAP client has several events you can attach to by setting a listener
 ### Handling fatal error event
 
 The invocation of `onerror` indicates an irrecoverable error. When `onerror` is fired, the connection is already closed, hence there's no need for further cleanup.
-
-### TCP-Socket related events
-
-Should you be using the TCP-Socket shim on a platform that has no native support for TLS, the certificate of the remote host is propagated via the `oncert` event. The only argument is the PEM-encoded X.501 TLS certificate, however this doesn't include the whole certificate chain.
 
 ## Get your hands dirty
 

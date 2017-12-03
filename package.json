@@ -1,6 +1,6 @@
 {
   "name": "emailjs-imap-client",
-  "version": "2.0.8",
+  "version": "3.0.0",
   "homepage": "https://github.com/emailjs/emailjs-imap-client",
   "description": "JavaScript IMAP client",
   "author": "Andris Reinman <andris@kreata.ee>",
@@ -9,30 +9,57 @@
   ],
   "license": "MIT",
   "scripts": {
-    "test": "grunt"
-  },
-  "engines": {
-    "node": ">=4.0.0"
+    "build": "./scripts/build.sh",
+    "release": "./scripts/release.sh",
+    "lint": "$(npm bin)/standard",
+    "test": "npm run lint && npm run unit && npm run integration",
+    "unit": "$(npm bin)/mocha './src/*-unit.js' --reporter spec --require babel-register --require babel-polyfill testutils.js",
+    "integration": "$(npm bin)/mocha './src/*-integration.js' --reporter spec --require babel-register --require babel-polyfill testutils.js"
   },
   "repository": {
     "type": "git",
     "url": "git://github.com/emailjs/emailjs-imap-client.git"
   },
-  "main": "src/emailjs-imap-client",
+  "main": "dist/client",
   "dependencies": {
-    "emailjs-addressparser": "^1.0.1",
-    "emailjs-imap-handler": "^2.0.0",
-    "emailjs-mime-codec": "^1.0.1",
-    "emailjs-tcp-socket": "^1.0.1",
-    "emailjs-utf7": "^3.0.1"
+    "emailjs-addressparser": "^2.0.2",
+    "emailjs-base64": "^1.1.2",
+    "emailjs-imap-handler": "^3.0.2",
+    "emailjs-mime-codec": "^2.0.2",
+    "emailjs-tcp-socket": "^1.0.2",
+    "emailjs-utf7": "^4.0.1",
+    "ramda": "^0.25.0",
+    "sinon": "^4.1.2"
   },
   "devDependencies": {
-    "chai": "^4.1.1",
-    "grunt": "^1.0.1",
-    "grunt-contrib-jshint": "^1.1.0",
-    "grunt-mocha-test": "^0.13.2",
-    "hoodiecrow-imap": "^2.0.0",
-    "mocha": "^3.5.0",
-    "sinon": "^3.1.0"
+    "babel-cli": "^6.26.0",
+    "babel-polyfill": "^6.26.0",
+    "babel-preset-env": "^1.6.1",
+    "babel-register": "^6.26.0",
+    "chai": "^4.1.2",
+    "hoodiecrow-imap": "^2.1.0",
+    "mocha": "^4.0.1",
+    "nodemon": "^1.12.1",
+    "pre-commit": "^1.2.2",
+    "standard": "^10.0.3"
+  },
+  "standard": {
+    "globals": [
+      "describe",
+      "it",
+      "before",
+      "beforeEach",
+      "afterEach",
+      "after",
+      "expect",
+      "sinon",
+      "self",
+      "Worker"
+    ],
+    "ignore": [
+      "dist",
+      "lib",
+      "res"
+    ]
   }
 }
