@@ -1,4 +1,4 @@
-import Compressor from './emailjs-imap-client-compression'
+import Compressor from './compression'
 
 const MESSAGE_INITIALIZE_WORKER = 'start'
 const MESSAGE_INFLATE = 'inflate'
@@ -10,7 +10,7 @@ const createMessage = (message, buffer) => ({ message, buffer })
 
 const inflatedReady = buffer => self.postMessage(createMessage(MESSAGE_INFLATED_DATA_READY, buffer), [buffer])
 const deflatedReady = buffer => self.postMessage(createMessage(MESSAGE_DEFLATED_DATA_READY, buffer), [buffer])
-var compressor = new Compressor(inflatedReady, deflatedReady)
+const compressor = new Compressor(inflatedReady, deflatedReady)
 
 self.onmessage = function (e) {
   const message = e.data.message

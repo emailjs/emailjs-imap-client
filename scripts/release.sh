@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 json_value() {
   KEY=$1
   num=$2

@@ -14,7 +14,8 @@
     "lint": "$(npm bin)/standard",
     "test": "npm run lint && npm run unit && npm run integration",
     "unit": "$(npm bin)/mocha './src/*-unit.js' --reporter spec --require babel-register --require babel-polyfill testutils.js",
-    "integration": "$(npm bin)/mocha './src/*-integration.js' --reporter spec --require babel-register --require babel-polyfill testutils.js"
+    "integration": "$(npm bin)/mocha './src/*-integration.js' --reporter spec --require babel-register --require babel-polyfill testutils.js",
+    "build-worker": "./scripts/worker.sh"
   },
   "repository": {
     "type": "git",
@@ -34,6 +35,10 @@
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",
+    "babel-core": "^6.26.0",
+    "babel-loader": "^7.1.2",
+    "babel-minify-webpack-plugin": "^0.2.0",
+    "babel-plugin-inline-import": "^2.0.6",
     "babel-polyfill": "^6.26.0",
     "babel-preset-env": "^1.6.1",
     "babel-register": "^6.26.0",
@@ -42,7 +47,9 @@
     "mocha": "^4.0.1",
     "nodemon": "^1.12.1",
     "pre-commit": "^1.2.2",
-    "standard": "^10.0.3"
+    "standard": "^10.0.3",
+    "uglifyjs-webpack-plugin": "^1.1.2",
+    "webpack": "^3.9.1"
   },
   "standard": {
     "globals": [
@@ -55,11 +62,12 @@
       "expect",
       "sinon",
       "self",
-      "Worker"
+      "Worker",
+      "URL",
+      "Blob"
     ],
     "ignore": [
       "dist",
-      "lib",
       "res"
     ]
   }

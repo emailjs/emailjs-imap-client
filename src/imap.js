@@ -3,6 +3,7 @@ import TCPSocket from 'emailjs-tcp-socket'
 import { toTypedArray, fromTypedArray } from './common'
 import { parser, compiler } from 'emailjs-imap-handler'
 import Compression from './compression'
+import CompressionBlob from '../res/compression.worker.blob'
 
 //
 // constants used for communication with the worker
@@ -39,8 +40,8 @@ const BUFFER_STATE_DEFAULT = 'default'
  * @param {Boolean} [options.useSecureTransport] Set to true, to use encrypted connection
  * @param {String} [options.compressionWorkerPath] offloads de-/compression computation to a web worker, this is the path to the browserified emailjs-compressor-worker.js
  */
-export default function Imap (host, port, options) {
-  this.options = options || {}
+export default function Imap (host, port, options = {}) {
+  this.options = options
 
   this.port = port || (this.options.useSecureTransport ? 993 : 143)
   this.host = host || 'localhost'
@@ -63,7 +64,6 @@ export default function Imap (host, port, options) {
   this._socketTimeoutTimer = false // Timer waiting to declare the socket dead starting from the last write
 
   this.compressed = false // Is the connection compressed and needs inflating/deflating
-  this._workerPath = this.options.compressionWorkerPath // The path for the compressor's worker script
 
   //
   // HELPERS
@@ -768,12 +768,12 @@ Imap.prototype.enableCompression = function () {
   this._socketOnData = this.socket.ondata
   this.compressed = true
 
-  if (typeof window !== 'undefined' && window.Worker && typeof this._workerPath === 'string') {
+  if (typeof window !== 'undefined' && window.Worker) {
     //
     // web worker support
     //
 
-    this._compressionWorker = new Worker(this._workerPath)
+    this._compressionWorker = new Worker(URL.createObjectURL(new Blob([CompressionBlob])))
     this._compressionWorker.onmessage = (e) => {
       var message = e.data.message
       var buffer = e.data.buffer
@@ -796,7 +796,7 @@ Imap.prototype.enableCompression = function () {
     }
 
     // first message starts the worker
-    this._compressionWorker.postMessage(this._createMessage(MESSAGE_INITIALIZE_WORKER))
+    this._compressionWorker.postMessage(createMessage(MESSAGE_INITIALIZE_WORKER))
   } else {
     //
     // without web worker support
@@ -815,7 +815,7 @@ Imap.prototype.enableCompression = function () {
 
     // inflate
     if (this._compressionWorker) {
-      this._compressionWorker.postMessage(this._createMessage(MESSAGE_INFLATE, evt.data), [evt.data])
+      this._compressionWorker.postMessage(createMessage(MESSAGE_INFLATE, evt.data), [evt.data])
     } else {
       this._compression.inflate(evt.data)
     }
@@ -849,15 +849,10 @@ Imap.prototype._disableCompression = function () {
 Imap.prototype._sendCompressed = function (buffer) {
   // deflate
   if (this._compressionWorker) {
-    this._compressionWorker.postMessage(this._createMessage(MESSAGE_DEFLATE, buffer), [buffer])
+    this._compressionWorker.postMessage(createMessage(MESSAGE_DEFLATE, buffer), [buffer])
   } else {
     this._compression.deflate(buffer)
   }
 }
 
-Imap.prototype._createMessage = function (message, buffer) {
-  return {
-    message: message,
-    buffer: buffer
-  }
-}
+const createMessage = (message, buffer) => ({ message, buffer })
