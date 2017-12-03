@@ -4,6 +4,8 @@
 
 Low-level IMAP client for all your JS needs.
 
+NB: This README is for v3.0.0 and higher. For others, [please go here](https://github.com/emailjs/emailjs-imap-client/blob/25bbf7bfb554ffe9b14c5a6fe65f010bc76cd231/README.md)
+
 ```bash
 npm install --save emailjs-imap-client
 ```

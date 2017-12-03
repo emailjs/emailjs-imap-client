@@ -1,56 +1,31 @@
-(function () {
-  'use strict'
+import Compressor from './emailjs-imap-client-compression'
 
-  //
-  // constants used for communication with the worker
-  //
-  var MESSAGE_START = 'start'
-  var MESSAGE_INFLATE = 'inflate'
-  var MESSAGE_INFLATED_DATA_READY = 'inflated_ready'
-  var MESSAGE_DEFLATE = 'deflate'
-  var MESSAGE_DEFLATED_DATA_READY = 'deflated_ready'
+const MESSAGE_INITIALIZE_WORKER = 'start'
+const MESSAGE_INFLATE = 'inflate'
+const MESSAGE_INFLATED_DATA_READY = 'inflated_ready'
+const MESSAGE_DEFLATE = 'deflate'
+const MESSAGE_DEFLATED_DATA_READY = 'deflated_ready'
 
-  // require the compressor
-  var Compressor = require('./emailjs-imap-client-compression')
+const createMessage = (message, buffer) => ({ message, buffer })
 
-  var compressor = new Compressor()
-  compressor.inflatedReady = inflatedReady
-  compressor.deflatedReady = deflatedReady
+var compressor = new Compressor()
+compressor.inflatedReady = buffer => self.postMessage(createMessage(MESSAGE_INFLATED_DATA_READY, buffer), [buffer])
+compressor.deflatedReady = buffer => self.postMessage(createMessage(MESSAGE_DEFLATED_DATA_READY, buffer), [buffer])
 
-  self.onmessage = function (e) {
-    const message = e.data.message
-    const buffer = e.data.buffer
+self.onmessage = function (e) {
+  const message = e.data.message
+  const buffer = e.data.buffer
 
-    switch (message) {
-      case MESSAGE_START:
-        // doesn't do much, just initiates the worker. a web
-        // worker needs some time to synchronously load the
-        // scripts, so better start it ahead of time
-        break
+  switch (message) {
+    case MESSAGE_INITIALIZE_WORKER:
+      break
 
-      case MESSAGE_INFLATE:
-        compressor.inflate(buffer)
-        break
+    case MESSAGE_INFLATE:
+      compressor.inflate(buffer)
+      break
 
-      case MESSAGE_DEFLATE:
-        compressor.deflate(buffer)
-        break
-    }
+    case MESSAGE_DEFLATE:
+      compressor.deflate(buffer)
+      break
   }
-
-  function inflatedReady (buffer) {
-    self.postMessage(createMessage(MESSAGE_INFLATED_DATA_READY, buffer), [buffer])
-  }
-
-  function deflatedReady (buffer) {
-    self.postMessage(createMessage(MESSAGE_DEFLATED_DATA_READY, buffer), [buffer])
-  }
-
-  // Helper function
-  function createMessage (message, buffer) {
-    return {
-      message: message,
-      buffer: buffer
-    }
-  }
-})()
+}
