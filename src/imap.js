@@ -64,7 +64,6 @@ export default function Imap (host, port, options) {
 
   this.compressed = false // Is the connection compressed and needs inflating/deflating
   this._workerPath = this.options.compressionWorkerPath // The path for the compressor's worker script
-  this._compression = new Compression()
 
   //
   // HELPERS
@@ -803,21 +802,9 @@ Imap.prototype.enableCompression = function () {
     // without web worker support
     //
 
-    this._compression.inflatedReady = (buffer) => {
-      // emit inflated data
-      this._socketOnData({
-        data: buffer
-      })
-    }
-
-    this._compression.deflatedReady = (buffer) => {
-      // write deflated data to socket
-      if (!this.compressed) {
-        return
-      }
-
-      this.waitDrain = this.socket.send(buffer)
-    }
+    const inflatedReady = (buffer) => { this._socketOnData({ data: buffer }) }
+    const deflatedReady = (buffer) => { this.waitDrain = this.socket.send(buffer) }
+    this._compression = new Compression(inflatedReady, deflatedReady)
   }
 
   // override data handler, decompress incoming data

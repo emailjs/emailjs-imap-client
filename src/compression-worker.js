@@ -8,9 +8,9 @@ const MESSAGE_DEFLATED_DATA_READY = 'deflated_ready'
 
 const createMessage = (message, buffer) => ({ message, buffer })
 
-var compressor = new Compressor()
-compressor.inflatedReady = buffer => self.postMessage(createMessage(MESSAGE_INFLATED_DATA_READY, buffer), [buffer])
-compressor.deflatedReady = buffer => self.postMessage(createMessage(MESSAGE_DEFLATED_DATA_READY, buffer), [buffer])
+const inflatedReady = buffer => self.postMessage(createMessage(MESSAGE_INFLATED_DATA_READY, buffer), [buffer])
+const deflatedReady = buffer => self.postMessage(createMessage(MESSAGE_DEFLATED_DATA_READY, buffer), [buffer])
+var compressor = new Compressor(inflatedReady, deflatedReady)
 
 self.onmessage = function (e) {
   const message = e.data.message

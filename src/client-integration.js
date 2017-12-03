@@ -3,14 +3,14 @@
 import hoodiecrow from 'hoodiecrow-imap'
 import ImapClient from './client'
 
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+
 describe('browserbox integration tests', () => {
   let imap
   const port = 10000
   let server
 
   beforeEach((done) => {
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
-
     // start imap test server
     var options = {
       // debug: true,
