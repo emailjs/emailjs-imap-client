@@ -7,25 +7,25 @@ import Compression from './compression'
 //
 // constants used for communication with the worker
 //
-var MESSAGE_START = 'start'
-var MESSAGE_INFLATE = 'inflate'
-var MESSAGE_INFLATED_DATA_READY = 'inflated_ready'
-var MESSAGE_DEFLATE = 'deflate'
-var MESSAGE_DEFLATED_DATA_READY = 'deflated_ready'
+const MESSAGE_INITIALIZE_WORKER = 'start'
+const MESSAGE_INFLATE = 'inflate'
+const MESSAGE_INFLATED_DATA_READY = 'inflated_ready'
+const MESSAGE_DEFLATE = 'deflate'
+const MESSAGE_DEFLATED_DATA_READY = 'deflated_ready'
 
-var EOL = '\r\n'
-var LINE_FEED = 10
-var CARRIAGE_RETURN = 13
-var LEFT_CURLY_BRACKET = 123
-var RIGHT_CURLY_BRACKET = 125
+const EOL = '\r\n'
+const LINE_FEED = 10
+const CARRIAGE_RETURN = 13
+const LEFT_CURLY_BRACKET = 123
+const RIGHT_CURLY_BRACKET = 125
 
-var ASCII_PLUS = 43
+const ASCII_PLUS = 43
 
 // State tracking when constructing an IMAP command from buffers.
-var BUFFER_STATE_LITERAL = 'literal'
-var BUFFER_STATE_POSSIBLY_LITERAL_LENGTH_1 = 'literal_length_1'
-var BUFFER_STATE_POSSIBLY_LITERAL_LENGTH_2 = 'literal_length_2'
-var BUFFER_STATE_DEFAULT = 'default'
+const BUFFER_STATE_LITERAL = 'literal'
+const BUFFER_STATE_POSSIBLY_LITERAL_LENGTH_1 = 'literal_length_1'
+const BUFFER_STATE_POSSIBLY_LITERAL_LENGTH_2 = 'literal_length_2'
+const BUFFER_STATE_DEFAULT = 'default'
 
 /**
  * Creates a connection object to an IMAP server. Call `connect` method to inititate
@@ -797,7 +797,7 @@ Imap.prototype.enableCompression = function () {
     }
 
     // first message starts the worker
-    this._compressionWorker.postMessage(this._createMessage(MESSAGE_START))
+    this._compressionWorker.postMessage(this._createMessage(MESSAGE_INITIALIZE_WORKER))
   } else {
     //
     // without web worker support
