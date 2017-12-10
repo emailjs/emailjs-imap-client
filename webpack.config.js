@@ -6,6 +6,7 @@ module.exports = {
     path: path.resolve(__dirname, 'res'),
     filename: 'compression.worker.js'
   },
+  node: false,
   module: {
     rules: [{
       exclude: /node_modules/,
