@@ -159,7 +159,9 @@ Client.prototype.close = function (err) {
   this._changeState(this.STATE_LOGOUT)
   clearTimeout(this._idleTimeout)
   this.logger.debug('Closing connection...')
-  return this.client.close(err)
+  return this.client.close(err).then(() => {
+    clearTimeout(this._idleTimeout)
+  })
 }
 
 /**
