@@ -29,6 +29,25 @@ const BUFFER_STATE_POSSIBLY_LITERAL_LENGTH_2 = 'literal_length_2'
 const BUFFER_STATE_DEFAULT = 'default'
 
 /**
+ * How much time to wait since the last response until the connection is considered idling
+ */
+const TIMEOUT_ENTER_IDLE = 1000
+
+/**
+ * Lower Bound for socket timeout to wait since the last data was written to a socket
+ */
+const TIMEOUT_SOCKET_LOWER_BOUND = 10000
+
+/**
+ * Multiplier for socket timeout:
+ *
+ * We assume at least a GPRS connection with 115 kb/s = 14,375 kB/s tops, so 10 KB/s to be on
+ * the safe side. We can timeout after a lower bound of 10s + (n KB / 10 KB/s). A 1 MB message
+ * upload would be 110 seconds to wait for the timeout. 10 KB/s === 0.1 s/B
+ */
+const TIMEOUT_SOCKET_MULTIPLIER = 0.1
+
+/**
  * Creates a connection object to an IMAP server. Call `connect` method to inititate
  * the actual connection, the constructor only defines the properties but does not actually connect.
  *
@@ -42,29 +61,10 @@ const BUFFER_STATE_DEFAULT = 'default'
  */
 export default class Imap {
   constructor (host, port, options = {}) {
-    /**
-     * How much time to wait since the last response until the connection is considered idling
-     */
-    this.TIMEOUT_ENTER_IDLE = 1000
-
-    /**
-     * Lower Bound for socket timeout to wait since the last data was written to a socket
-     */
-    this.TIMEOUT_SOCKET_LOWER_BOUND = 10000
-
-    /**
-     * Multiplier for socket timeout:
-     *
-     * We assume at least a GPRS connection with 115 kb/s = 14,375 kB/s tops, so 10 KB/s to be on
-     * the safe side. We can timeout after a lower bound of 10s + (n KB / 10 KB/s). A 1 MB message
-     * upload would be 110 seconds to wait for the timeout. 10 KB/s === 0.1 s/B
-     */
-    this.TIMEOUT_SOCKET_MULTIPLIER = 0.1
-
-    /**
-     * Timeout used in _onData, max packet size is 4096 bytes.
-     */
-    this.ON_DATA_TIMEOUT = this.TIMEOUT_SOCKET_LOWER_BOUND + Math.floor(4096 * this.TIMEOUT_SOCKET_MULTIPLIER)
+    this.timeoutEnterIdle = TIMEOUT_ENTER_IDLE
+    this.timeoutSocketLowerBound = TIMEOUT_SOCKET_LOWER_BOUND
+    this.timeoutSocketMultiplier = TIMEOUT_SOCKET_MULTIPLIER
+    this.onDataTimeout = this.timeoutSocketLowerBound + Math.floor(4096 * this.timeoutSocketMultiplier)
 
     this.options = options
 
@@ -337,7 +337,7 @@ export default class Imap {
    */
   send (str) {
     const buffer = toTypedArray(str).buffer
-    const timeout = this.TIMEOUT_SOCKET_LOWER_BOUND + Math.floor(buffer.byteLength * this.TIMEOUT_SOCKET_MULTIPLIER)
+    const timeout = this.timeoutSocketLowerBound + Math.floor(buffer.byteLength * this.timeoutSocketMultiplier)
 
     clearTimeout(this._socketTimeoutTimer) // clear pending timeouts
     this._socketTimeoutTimer = setTimeout(() => this._onError(new Error(this.options.sessionId + ' Socket timed out!')), timeout) // arm the next timeout
@@ -669,7 +669,7 @@ export default class Imap {
    */
   _enterIdle () {
     clearTimeout(this._idleTimer)
-    this._idleTimer = setTimeout(() => (this.onidle && this.onidle()), this.TIMEOUT_ENTER_IDLE)
+    this._idleTimer = setTimeout(() => (this.onidle && this.onidle()), this.timeoutEnterIdle)
   }
 
   /**

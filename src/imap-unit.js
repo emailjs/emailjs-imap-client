@@ -616,7 +616,7 @@ describe('browserbox imap unit tests', () => {
       client.onidle = () => {
         done()
       }
-      client.TIMEOUT_ENTER_IDLE = 1
+      client.timeoutEnterIdle = 1
 
       client._enterIdle()
     })

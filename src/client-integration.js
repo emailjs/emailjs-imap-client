@@ -434,8 +434,8 @@ describe('browserbox integration tests', () => {
       return imap.connect()
         .then(() => {
           // remove the ondata event to simulate 100% packet loss and make the socket time out after 10ms
-          imap.client.TIMEOUT_SOCKET_LOWER_BOUND = 10
-          imap.client.TIMEOUT_SOCKET_MULTIPLIER = 0
+          imap.client.timeoutSocketLowerBound = 10
+          imap.client.timeoutSocketMultiplier = 0
           imap.client.socket.ondata = () => { }
         })
     })
