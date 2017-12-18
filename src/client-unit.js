@@ -98,7 +98,7 @@ describe('browserbox unit tests', () => {
 
     it('should timeout', (done) => {
       br.client.connect.returns(Promise.resolve())
-      br.TIMEOUT_CONNECTION = 1
+      br.timeoutConnection = 1
 
       br.connect().catch((err) => {
         expect(err).to.exist
@@ -164,7 +164,7 @@ describe('browserbox unit tests', () => {
       })
 
       br._capability = []
-      br.TIMEOUT_NOOP = 1
+      br.timeoutNoop = 1
       br.enterIdle()
     })
 
@@ -178,7 +178,7 @@ describe('browserbox unit tests', () => {
       })
 
       br._capability = ['IDLE']
-      br.TIMEOUT_IDLE = 1
+      br.timeoutIdle = 1
       br.enterIdle()
     })
   })

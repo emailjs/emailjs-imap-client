@@ -17,6 +17,10 @@ export const STATE_AUTHENTICATED = 3
 export const STATE_SELECTED = 4
 export const STATE_LOGOUT = 5
 
+export const TIMEOUT_CONNECTION = 90 * 1000 // Milliseconds to wait for the IMAP greeting from the server
+export const TIMEOUT_NOOP = 60 * 1000 // Milliseconds between NOOP commands while idling
+export const TIMEOUT_IDLE = 60 * 1000 // Milliseconds until IDLE command is cancelled
+
 /**
  * emailjs IMAP client
  *
@@ -28,10 +32,9 @@ export const STATE_LOGOUT = 5
  */
 export default class Client {
   constructor (host, port, options) {
-    // Timeout constants
-    this.TIMEOUT_CONNECTION = 90 * 1000 // Milliseconds to wait for the IMAP greeting from the server
-    this.TIMEOUT_NOOP = 60 * 1000 // Milliseconds between NOOP commands while idling
-    this.TIMEOUT_IDLE = 60 * 1000 // Milliseconds until IDLE command is cancelled
+    this.timeoutConnection = TIMEOUT_CONNECTION
+    this.timeoutNoop = TIMEOUT_NOOP
+    this.timeoutIdle = TIMEOUT_IDLE
 
     // Logging
     this.LOG_LEVEL_NONE = 1000
@@ -106,7 +109,7 @@ export default class Client {
    */
   connect () {
     return new Promise((resolve, reject) => {
-      let connectionTimeout = setTimeout(() => reject(new Error('Timeout connecting to server')), this.TIMEOUT_CONNECTION)
+      let connectionTimeout = setTimeout(() => reject(new Error('Timeout connecting to server')), this.timeoutConnection)
       this.logger.debug('Connecting to', this.client.host, ':', this.client.port)
       this._changeState(STATE_CONNECTING)
       this.client.connect().then(() => {
@@ -821,7 +824,7 @@ export default class Client {
       this._idleTimeout = setTimeout(() => {
         this.logger.debug('Sending NOOP')
         this.exec('NOOP')
-      }, this.TIMEOUT_NOOP)
+      }, this.timeoutNoop)
     } else if (this._enteredIdle === 'IDLE') {
       this.client.enqueueCommand({
         command: 'IDLE'
@@ -830,7 +833,7 @@ export default class Client {
         this.client.send('DONE\r\n')
         this._enteredIdle = false
         this.logger.debug('Idle terminated')
-      }, this.TIMEOUT_IDLE)
+      }, this.timeoutIdle)
     }
   }
 
