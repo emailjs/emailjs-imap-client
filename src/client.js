@@ -11,6 +11,12 @@ import { SPECIAL_USE_FLAGS, SPECIAL_USE_BOXES, SPECIAL_USE_BOX_FLAGS } from './s
 
 let SESSIONCOUNTER = 0
 
+export const STATE_CONNECTING = 1
+export const STATE_NOT_AUTHENTICATED = 2
+export const STATE_AUTHENTICATED = 3
+export const STATE_SELECTED = 4
+export const STATE_LOGOUT = 5
+
 /**
  * emailjs IMAP client
  *
@@ -22,13 +28,6 @@ let SESSIONCOUNTER = 0
  */
 export default class Client {
   constructor (host, port, options) {
-    // State constants
-    this.STATE_CONNECTING = 1
-    this.STATE_NOT_AUTHENTICATED = 2
-    this.STATE_AUTHENTICATED = 3
-    this.STATE_SELECTED = 4
-    this.STATE_LOGOUT = 5
-
     // Timeout constants
     this.TIMEOUT_CONNECTION = 90 * 1000 // Milliseconds to wait for the IMAP greeting from the server
     this.TIMEOUT_NOOP = 60 * 1000 // Milliseconds between NOOP commands while idling
@@ -109,7 +108,7 @@ export default class Client {
     return new Promise((resolve, reject) => {
       let connectionTimeout = setTimeout(() => reject(new Error('Timeout connecting to server')), this.TIMEOUT_CONNECTION)
       this.logger.debug('Connecting to', this.client.host, ':', this.client.port)
-      this._changeState(this.STATE_CONNECTING)
+      this._changeState(STATE_CONNECTING)
       this.client.connect().then(() => {
         this.logger.debug('Socket opened, waiting for greeting from the server...')
 
@@ -124,7 +123,7 @@ export default class Client {
         }
       }).catch(reject)
     }).then(() => {
-      this._changeState(this.STATE_NOT_AUTHENTICATED)
+      this._changeState(STATE_NOT_AUTHENTICATED)
       return this.updateCapability()
     }).then(() => {
       return this.upgradeConnection()
@@ -158,7 +157,7 @@ export default class Client {
    * @returns {Promise} Resolves when server has closed the connection
    */
   logout () {
-    this._changeState(this.STATE_LOGOUT)
+    this._changeState(STATE_LOGOUT)
     this.logger.debug('Logging out...')
     return this.client.logout().then(() => {
       clearTimeout(this._idleTimeout)
@@ -171,7 +170,7 @@ export default class Client {
    * @returns {Promise} Resolves when socket is closed
    */
   close (err) {
-    this._changeState(this.STATE_LOGOUT)
+    this._changeState(STATE_LOGOUT)
     clearTimeout(this._idleTimeout)
     this.logger.debug('Closing connection...')
     return this.client.close(err).then(() => {
@@ -284,7 +283,7 @@ export default class Client {
     return this.exec(query, ['EXISTS', 'FLAGS', 'OK'], {
       ctx: options.ctx
     }).then((response) => {
-      this._changeState(this.STATE_SELECTED)
+      this._changeState(STATE_SELECTED)
 
       if (this._selectedMailbox && this._selectedMailbox !== path) {
         this.onclosemailbox && this.onclosemailbox(this._selectedMailbox)
@@ -769,7 +768,7 @@ export default class Client {
         return this.updateCapability(true)
       }
     }).then(() => {
-      this._changeState(this.STATE_AUTHENTICATED)
+      this._changeState(STATE_AUTHENTICATED)
       this._authenticated = true
       this.logger.debug('Login successful, post-auth capabilites updated!', this._capability)
     })
@@ -1703,7 +1702,7 @@ export default class Client {
     this.logger.debug('Entering state: ' + newState)
 
     // if a mailbox was opened, emit onclosemailbox and clear selectedMailbox value
-    if (this._state === this.STATE_SELECTED && this._selectedMailbox) {
+    if (this._state === STATE_SELECTED && this._selectedMailbox) {
       this.onclosemailbox && this.onclosemailbox(this._selectedMailbox)
       this._selectedMailbox = false
     }

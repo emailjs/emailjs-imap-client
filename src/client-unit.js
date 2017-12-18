@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-expressions */
 /* eslint-disable no-useless-escape */
 
-import ImapClient from './client'
+import ImapClient, { STATE_SELECTED, STATE_LOGOUT } from './client'
 import { parser } from 'emailjs-imap-handler'
 import mimeTorture from '../res/fixtures/mime-torture-bodystructure'
 import testEnvelope from '../res/fixtures/envelope'
@@ -122,7 +122,7 @@ describe('browserbox unit tests', () => {
       sinon.stub(br.client, 'close').returns(Promise.resolve())
 
       br.close().then(() => {
-        expect(br._state).to.equal(br.STATE_LOGOUT)
+        expect(br._state).to.equal(STATE_LOGOUT)
         expect(br.client.close.calledOnce).to.be.true
         done()
       })
@@ -861,7 +861,7 @@ describe('browserbox unit tests', () => {
       br.selectMailbox('[Gmail]/Trash').then(() => {
         expect(br.exec.callCount).to.equal(1)
         expect(br._parseSELECT.withArgs('abc').callCount).to.equal(1)
-        expect(br._state).to.equal(br.STATE_SELECTED)
+        expect(br._state).to.equal(STATE_SELECTED)
       }).then(done).catch(done)
     })
 
@@ -885,7 +885,7 @@ describe('browserbox unit tests', () => {
       }).then(() => {
         expect(br.exec.callCount).to.equal(1)
         expect(br._parseSELECT.withArgs('abc').callCount).to.equal(1)
-        expect(br._state).to.equal(br.STATE_SELECTED)
+        expect(br._state).to.equal(STATE_SELECTED)
       }).then(done).catch(done)
     })
 
@@ -1901,7 +1901,7 @@ describe('browserbox unit tests', () => {
 
     it('should emit onclosemailbox if mailbox was closed', () => {
       br.onclosemailbox = sinon.stub()
-      br._state = br.STATE_SELECTED
+      br._state = STATE_SELECTED
       br._selectedMailbox = 'aaa'
 
       br._changeState(12345)
