@@ -5,21 +5,41 @@ import { parser, compiler } from 'emailjs-imap-handler'
 import { encode, mimeWordEncode, mimeWordsDecode } from 'emailjs-mime-codec'
 import parseAddress from 'emailjs-addressparser'
 
+import createDefaultLogger from './logger'
 import ImapClient from './imap'
-import { toTypedArray, fromTypedArray } from './common'
-import { SPECIAL_USE_FLAGS, SPECIAL_USE_BOXES, SPECIAL_USE_BOX_FLAGS } from './special-use'
+import {
+  toTypedArray,
+  fromTypedArray,
+  LOG_LEVEL_ERROR,
+  LOG_LEVEL_WARN,
+  LOG_LEVEL_INFO,
+  LOG_LEVEL_DEBUG
+} from './common'
 
-let SESSIONCOUNTER = 0
+import {
+  SPECIAL_USE_FLAGS,
+  SPECIAL_USE_BOXES,
+  SPECIAL_USE_BOX_FLAGS
+} from './special-use'
+
+export {
+  LOG_LEVEL_NONE,
+  LOG_LEVEL_ERROR,
+  LOG_LEVEL_WARN,
+  LOG_LEVEL_INFO,
+  LOG_LEVEL_DEBUG,
+  LOG_LEVEL_ALL
+} from './common'
+
+export const TIMEOUT_CONNECTION = 90 * 1000 // Milliseconds to wait for the IMAP greeting from the server
+export const TIMEOUT_NOOP = 60 * 1000 // Milliseconds between NOOP commands while idling
+export const TIMEOUT_IDLE = 60 * 1000 // Milliseconds until IDLE command is cancelled
 
 export const STATE_CONNECTING = 1
 export const STATE_NOT_AUTHENTICATED = 2
 export const STATE_AUTHENTICATED = 3
 export const STATE_SELECTED = 4
 export const STATE_LOGOUT = 5
-
-export const TIMEOUT_CONNECTION = 90 * 1000 // Milliseconds to wait for the IMAP greeting from the server
-export const TIMEOUT_NOOP = 60 * 1000 // Milliseconds between NOOP commands while idling
-export const TIMEOUT_IDLE = 60 * 1000 // Milliseconds until IDLE command is cancelled
 
 /**
  * emailjs IMAP client
@@ -31,18 +51,10 @@ export const TIMEOUT_IDLE = 60 * 1000 // Milliseconds until IDLE command is canc
  * @param {Object} [options] Optional options object
  */
 export default class Client {
-  constructor (host, port, options) {
+  constructor (host, port, options = {}) {
     this.timeoutConnection = TIMEOUT_CONNECTION
     this.timeoutNoop = TIMEOUT_NOOP
     this.timeoutIdle = TIMEOUT_IDLE
-
-    // Logging
-    this.LOG_LEVEL_NONE = 1000
-    this.LOG_LEVEL_ERROR = 40
-    this.LOG_LEVEL_WARN = 30
-    this.LOG_LEVEL_INFO = 20
-    this.LOG_LEVEL_DEBUG = 10
-    this.LOG_LEVEL_ALL = 0
 
     this.serverId = false // RFC 2971 Server ID as key value pairs
 
@@ -56,8 +68,7 @@ export default class Client {
     // Internals
     //
 
-    this.options = options || {}
-    this.options.sessionId = this.options.sessionId || ++SESSIONCOUNTER // Session identifier (logging)
+    this.options = options
     this._state = false // Current state
     this._authenticated = false // Is the connection authenticated
     this._capability = [] // List of extensions the server supports
@@ -1832,55 +1843,12 @@ export default class Client {
     return name
   }
 
-  createLogger () {
-    let createLogger = (tag) => {
-      let log = (level, messages) => {
-        messages = messages.map(msg => typeof msg === 'function' ? msg() : msg)
-        let logMessage = '[' + new Date().toISOString() + '][' + tag + '][' +
-          this.options.auth.user + '][' + this.client.host + '] ' + messages.join(' ')
-        if (level === this.LOG_LEVEL_DEBUG) {
-          console.log('[DEBUG]' + logMessage)
-        } else if (level === this.LOG_LEVEL_INFO) {
-          console.info('[INFO]' + logMessage)
-        } else if (level === this.LOG_LEVEL_WARN) {
-          console.warn('[WARN]' + logMessage)
-        } else if (level === this.LOG_LEVEL_ERROR) {
-          console.error('[ERROR]' + logMessage)
-        }
-      }
-
-      return {
-        // this could become way nicer when node supports the rest operator...
-        debug: function (msgs) { log(this.LOG_LEVEL_DEBUG, msgs) }.bind(this),
-        info: function (msgs) { log(this.LOG_LEVEL_INFO, msgs) }.bind(this),
-        warn: function (msgs) { log(this.LOG_LEVEL_WARN, msgs) }.bind(this),
-        error: function (msgs) { log(this.LOG_LEVEL_ERROR, msgs) }.bind(this)
-      }
-    }
-
-    let logger = this.options.logger || createLogger(this.options.sessionId || 1)
+  createLogger (logger = createDefaultLogger()) {
     this.logger = this.client.logger = {
-      // this could become way nicer when node supports the rest operator...
-      debug: function () {
-        if (this.LOG_LEVEL_DEBUG >= this.logLevel) {
-          logger.debug(Array.prototype.slice.call(arguments))
-        }
-      }.bind(this),
-      info: function () {
-        if (this.LOG_LEVEL_INFO >= this.logLevel) {
-          logger.info(Array.prototype.slice.call(arguments))
-        }
-      }.bind(this),
-      warn: function () {
-        if (this.LOG_LEVEL_WARN >= this.logLevel) {
-          logger.warn(Array.prototype.slice.call(arguments))
-        }
-      }.bind(this),
-      error: function () {
-        if (this.LOG_LEVEL_ERROR >= this.logLevel) {
-          logger.error(Array.prototype.slice.call(arguments))
-        }
-      }.bind(this)
+      debug: (...msgs) => { if (LOG_LEVEL_DEBUG >= this.logLevel) { logger.debug(msgs) } },
+      info: (...msgs) => { if (LOG_LEVEL_INFO >= this.logLevel) { logger.info(msgs) } },
+      warn: (...msgs) => { if (LOG_LEVEL_WARN >= this.logLevel) { logger.warn(msgs) } },
+      error: (...msgs) => { if (LOG_LEVEL_ERROR >= this.logLevel) { logger.error(msgs) } }
     }
   }
 }

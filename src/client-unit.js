@@ -51,7 +51,7 @@ describe('browserbox unit tests', () => {
       sinon.stub(br, 'compressConnection')
     })
 
-    it('should connect', (done) => {
+    it('should connect', () => {
       br.client.connect.returns(Promise.resolve())
       br.updateCapability.returns(Promise.resolve())
       br.upgradeConnection.returns(Promise.resolve())
@@ -59,16 +59,15 @@ describe('browserbox unit tests', () => {
       br.login.returns(Promise.resolve())
       br.compressConnection.returns(Promise.resolve())
 
-      br.connect().then(() => {
+      setTimeout(() => br.client.onready(), 0)
+      return br.connect().then(() => {
         expect(br.client.connect.calledOnce).to.be.true
         expect(br.updateCapability.calledOnce).to.be.true
         expect(br.upgradeConnection.calledOnce).to.be.true
         expect(br.updateId.calledOnce).to.be.true
         expect(br.login.calledOnce).to.be.true
         expect(br.compressConnection.calledOnce).to.be.true
-      }).then(done).catch(done)
-
-      setTimeout(() => br.client.onready(), 0)
+      })
     })
 
     it('should fail to login', (done) => {
@@ -118,13 +117,12 @@ describe('browserbox unit tests', () => {
   })
 
   describe('#close', () => {
-    it('should force-close', (done) => {
+    it('should force-close', () => {
       sinon.stub(br.client, 'close').returns(Promise.resolve())
 
-      br.close().then(() => {
+      return br.close().then(() => {
         expect(br._state).to.equal(STATE_LOGOUT)
         expect(br.client.close.calledOnce).to.be.true
-        done()
       })
     })
   })
@@ -134,24 +132,24 @@ describe('browserbox unit tests', () => {
       sinon.stub(br, 'breakIdle')
     })
 
-    it('should send string command', (done) => {
+    it('should send string command', () => {
       sinon.stub(br.client, 'enqueueCommand').returns(Promise.resolve({}))
-      br.exec('TEST').then((res) => {
+      return br.exec('TEST').then((res) => {
         expect(res).to.deep.equal({})
         expect(br.client.enqueueCommand.args[0][0]).to.equal('TEST')
-      }).then(done).catch(done)
+      })
     })
 
-    it('should update capability from response', (done) => {
+    it('should update capability from response', () => {
       sinon.stub(br.client, 'enqueueCommand').returns(Promise.resolve({
         capability: ['A', 'B']
       }))
-      br.exec('TEST').then((res) => {
+      return br.exec('TEST').then((res) => {
         expect(res).to.deep.equal({
           capability: ['A', 'B']
         })
         expect(br._capability).to.deep.equal(['A', 'B'])
-      }).then(done).catch(done)
+      })
     })
   })
 
@@ -184,40 +182,39 @@ describe('browserbox unit tests', () => {
   })
 
   describe('#breakIdle', () => {
-    it('should send DONE to socket', (done) => {
+    it('should send DONE to socket', () => {
       sinon.stub(br.client.socket, 'send')
 
       br._enteredIdle = 'IDLE'
       br.breakIdle()
       expect([].slice.call(new Uint8Array(br.client.socket.send.args[0][0]))).to.deep.equal([0x44, 0x4f, 0x4e, 0x45, 0x0d, 0x0a])
-      done()
     })
   })
 
   describe('#upgradeConnection', () => {
-    it('should do nothing if already secured', (done) => {
+    it('should do nothing if already secured', () => {
       br.client.secureMode = true
       br._capability = ['starttls']
-      br.upgradeConnection().then(done).catch(done)
+      return br.upgradeConnection()
     })
 
-    it('should do nothing if STARTTLS not available', (done) => {
+    it('should do nothing if STARTTLS not available', () => {
       br.client.secureMode = false
       br._capability = []
-      br.upgradeConnection().then(done).catch(done)
+      return br.upgradeConnection()
     })
 
-    it('should run STARTTLS', (done) => {
+    it('should run STARTTLS', () => {
       sinon.stub(br.client, 'upgrade')
       sinon.stub(br, 'exec').withArgs('STARTTLS').returns(Promise.resolve())
       sinon.stub(br, 'updateCapability').returns(Promise.resolve())
 
       br._capability = ['STARTTLS']
 
-      br.upgradeConnection().then(() => {
+      return br.upgradeConnection().then(() => {
         expect(br.client.upgrade.callCount).to.equal(1)
         expect(br._capability.length).to.equal(0)
-      }).then(done).catch(done)
+      })
     })
   })
 
@@ -226,36 +223,36 @@ describe('browserbox unit tests', () => {
       sinon.stub(br, 'exec')
     })
 
-    it('should do nothing if capability is set', (done) => {
+    it('should do nothing if capability is set', () => {
       br._capability = ['abc']
-      br.updateCapability().then(done).catch(done)
+      return br.updateCapability()
     })
 
-    it('should run CAPABILITY if capability not set', (done) => {
+    it('should run CAPABILITY if capability not set', () => {
       br.exec.returns(Promise.resolve())
 
       br._capability = []
 
-      br.updateCapability().then(() => {
+      return br.updateCapability().then(() => {
         expect(br.exec.args[0][0]).to.equal('CAPABILITY')
-      }).then(done).catch(done)
+      })
     })
 
-    it('should force run CAPABILITY', (done) => {
+    it('should force run CAPABILITY', () => {
       br.exec.returns(Promise.resolve())
       br._capability = ['abc']
 
-      br.updateCapability(true).then(() => {
+      return br.updateCapability(true).then(() => {
         expect(br.exec.args[0][0]).to.equal('CAPABILITY')
-      }).then(done).catch(done)
+      })
     })
 
-    it('should do nothing if connection is not yet upgraded', (done) => {
+    it('should do nothing if connection is not yet upgraded', () => {
       br._capability = []
       br.client.secureMode = false
       br.options.requireTLS = true
 
-      br.updateCapability().then(done).catch(done)
+      br.updateCapability()
     })
   })
 
@@ -264,7 +261,7 @@ describe('browserbox unit tests', () => {
       sinon.stub(br, 'exec')
     })
 
-    it('should run NAMESPACE if supported', (done) => {
+    it('should run NAMESPACE if supported', () => {
       br.exec.returns(Promise.resolve({
         payload: {
           NAMESPACE: [{
@@ -284,7 +281,7 @@ describe('browserbox unit tests', () => {
       }))
       br._capability = ['NAMESPACE']
 
-      br.listNamespaces().then((namespaces) => {
+      return br.listNamespaces().then((namespaces) => {
         expect(namespaces).to.deep.equal({
           personal: [{
             prefix: 'INBOX.',
@@ -295,15 +292,15 @@ describe('browserbox unit tests', () => {
         })
         expect(br.exec.args[0][0]).to.equal('NAMESPACE')
         expect(br.exec.args[0][1]).to.equal('NAMESPACE')
-      }).then(done).catch(done)
+      })
     })
 
-    it('should do nothing if not supported', (done) => {
+    it('should do nothing if not supported', () => {
       br._capability = []
-      br.listNamespaces().then((namespaces) => {
+      return br.listNamespaces().then((namespaces) => {
         expect(namespaces).to.be.false
         expect(br.exec.callCount).to.equal(0)
-      }).then(done).catch(done)
+      })
     })
   })
 
@@ -313,7 +310,7 @@ describe('browserbox unit tests', () => {
       sinon.stub(br.client, 'enableCompression')
     })
 
-    it('should run COMPRESS=DEFLATE if supported', (done) => {
+    it('should run COMPRESS=DEFLATE if supported', () => {
       br.exec.withArgs({
         command: 'COMPRESS',
         attributes: [{
@@ -324,36 +321,36 @@ describe('browserbox unit tests', () => {
 
       br.options.enableCompression = true
       br._capability = ['COMPRESS=DEFLATE']
-      br.compressConnection().then(() => {
+      return br.compressConnection().then(() => {
         expect(br.exec.callCount).to.equal(1)
         expect(br.client.enableCompression.callCount).to.equal(1)
-      }).then(done).catch(done)
+      })
     })
 
-    it('should do nothing if not supported', (done) => {
+    it('should do nothing if not supported', () => {
       br._capability = []
 
-      br.compressConnection().then(() => {
+      return br.compressConnection().then(() => {
         expect(br.exec.callCount).to.equal(0)
-      }).then(done).catch(done)
+      })
     })
 
-    it('should do nothing if not enabled', (done) => {
+    it('should do nothing if not enabled', () => {
       br.options.enableCompression = false
       br._capability = ['COMPRESS=DEFLATE']
 
-      br.compressConnection().then(() => {
+      return br.compressConnection().then(() => {
         expect(br.exec.callCount).to.equal(0)
-      }).then(done).catch(done)
+      })
     })
   })
 
   describe('#login', () => {
-    it('should call LOGIN', (done) => {
+    it('should call LOGIN', () => {
       sinon.stub(br, 'exec').returns(Promise.resolve({}))
       sinon.stub(br, 'updateCapability').returns(Promise.resolve(true))
 
-      br.login({
+      return br.login({
         user: 'u1',
         pass: 'p1'
       }).then(() => {
@@ -369,8 +366,6 @@ describe('browserbox unit tests', () => {
             sensitive: true
           }]
         })
-
-        done()
       })
     })
 
@@ -404,18 +399,18 @@ describe('browserbox unit tests', () => {
       sinon.stub(br, 'exec')
     })
 
-    it('should not nothing if not supported', (done) => {
+    it('should not nothing if not supported', () => {
       br._capability = []
 
-      br.updateId({
+      return br.updateId({
         a: 'b',
         c: 'd'
       }).then(() => {
         expect(br.serverId).to.be.false
-      }).then(done).catch(done)
+      })
     })
 
-    it('should send NIL', (done) => {
+    it('should send NIL', () => {
       br.exec.withArgs({
         command: 'ID',
         attributes: [
@@ -432,12 +427,12 @@ describe('browserbox unit tests', () => {
       }))
       br._capability = ['ID']
 
-      br.updateId(null).then(() => {
+      return br.updateId(null).then(() => {
         expect(br.serverId).to.deep.equal({})
-      }).then(done).catch(done)
+      })
     })
 
-    it('should exhange ID values', (done) => {
+    it('should exhange ID values', () => {
       br.exec.withArgs({
         command: 'ID',
         attributes: [
@@ -462,7 +457,7 @@ describe('browserbox unit tests', () => {
       }))
       br._capability = ['ID']
 
-      br.updateId({
+      return br.updateId({
         ckey1: 'cval1',
         ckey2: 'cval2'
       }).then(() => {
@@ -470,7 +465,7 @@ describe('browserbox unit tests', () => {
           skey1: 'sval1',
           skey2: 'sval2'
         })
-      }).then(done).catch(done)
+      })
     })
   })
 
@@ -479,7 +474,7 @@ describe('browserbox unit tests', () => {
       sinon.stub(br, 'exec')
     })
 
-    it('should call LIST and LSUB in sequence', (done) => {
+    it('should call LIST and LSUB in sequence', () => {
       br.exec.withArgs({
         command: 'LIST',
         attributes: ['', '*']
@@ -498,12 +493,12 @@ describe('browserbox unit tests', () => {
         }
       }))
 
-      br.listMailboxes().then((tree) => {
+      return br.listMailboxes().then((tree) => {
         expect(tree).to.exist
-      }).then(done).catch(done)
+      })
     })
 
-    it('should not die on NIL separators', (done) => {
+    it('should not die on NIL separators', () => {
       br.exec.withArgs({
         command: 'LIST',
         attributes: ['', '*']
@@ -526,9 +521,9 @@ describe('browserbox unit tests', () => {
         }
       }))
 
-      br.listMailboxes().then((tree) => {
+      return br.listMailboxes().then((tree) => {
         expect(tree).to.exist
-      }).then(done).catch(done)
+      })
     })
   })
 
@@ -537,7 +532,7 @@ describe('browserbox unit tests', () => {
       sinon.stub(br, 'exec')
     })
 
-    it('should call CREATE with a string payload', (done) => {
+    it('should call CREATE with a string payload', () => {
       // The spec allows unquoted ATOM-style syntax too, but for
       // simplicity we always generate a string even if it could be
       // expressed as an atom.
@@ -546,24 +541,24 @@ describe('browserbox unit tests', () => {
         attributes: ['mailboxname']
       }).returns(Promise.resolve())
 
-      br.createMailbox('mailboxname').then(() => {
+      return br.createMailbox('mailboxname').then(() => {
         expect(br.exec.callCount).to.equal(1)
-      }).then(done).catch(done)
+      })
     })
 
-    it('should call mutf7 encode the argument', (done) => {
+    it('should call mutf7 encode the argument', () => {
       // From RFC 3501
       br.exec.withArgs({
         command: 'CREATE',
         attributes: ['~peter/mail/&U,BTFw-/&ZeVnLIqe-']
       }).returns(Promise.resolve())
 
-      br.createMailbox('~peter/mail/\u53f0\u5317/\u65e5\u672c\u8a9e').then(() => {
+      return br.createMailbox('~peter/mail/\u53f0\u5317/\u65e5\u672c\u8a9e').then(() => {
         expect(br.exec.callCount).to.equal(1)
-      }).then(done).catch(done)
+      })
     })
 
-    it('should treat an ALREADYEXISTS response as success', (done) => {
+    it('should treat an ALREADYEXISTS response as success', () => {
       var fakeErr = {
         code: 'ALREADYEXISTS'
       }
@@ -572,9 +567,9 @@ describe('browserbox unit tests', () => {
         attributes: ['mailboxname']
       }).returns(Promise.reject(fakeErr))
 
-      br.createMailbox('mailboxname').then(() => {
+      return br.createMailbox('mailboxname').then(() => {
         expect(br.exec.callCount).to.equal(1)
-      }).then(done).catch(done)
+      })
     })
   })
 
@@ -585,18 +580,18 @@ describe('browserbox unit tests', () => {
       sinon.stub(br, '_parseFETCH')
     })
 
-    it('should call FETCH', (done) => {
+    it('should call FETCH', () => {
       br.exec.returns(Promise.resolve('abc'))
       br._buildFETCHCommand.withArgs(['1:2', ['uid', 'flags'], {
         byUid: true
       }]).returns({})
 
-      br.listMessages('INBOX', '1:2', ['uid', 'flags'], {
+      return br.listMessages('INBOX', '1:2', ['uid', 'flags'], {
         byUid: true
       }).then(() => {
         expect(br._buildFETCHCommand.callCount).to.equal(1)
         expect(br._parseFETCH.withArgs('abc').callCount).to.equal(1)
-      }).then(done).catch(done)
+      })
     })
   })
 
@@ -607,7 +602,7 @@ describe('browserbox unit tests', () => {
       sinon.stub(br, '_parseSEARCH')
     })
 
-    it('should call SEARCH', (done) => {
+    it('should call SEARCH', () => {
       br.exec.returns(Promise.resolve('abc'))
       br._buildSEARCHCommand.withArgs({
         uid: 1
@@ -615,7 +610,7 @@ describe('browserbox unit tests', () => {
         byUid: true
       }).returns({})
 
-      br.search('INBOX', {
+      return br.search('INBOX', {
         uid: 1
       }, {
         byUid: true
@@ -623,7 +618,7 @@ describe('browserbox unit tests', () => {
         expect(br._buildSEARCHCommand.callCount).to.equal(1)
         expect(br.exec.callCount).to.equal(1)
         expect(br._parseSEARCH.withArgs('abc').callCount).to.equal(1)
-      }).then(done).catch(done)
+      })
     })
   })
 
@@ -632,22 +627,22 @@ describe('browserbox unit tests', () => {
       sinon.stub(br, 'exec')
     })
 
-    it('should call APPEND with custom flag', (done) => {
+    it('should call APPEND with custom flag', () => {
       br.exec.returns(Promise.resolve())
 
-      br.upload('mailbox', 'this is a message', {
+      return br.upload('mailbox', 'this is a message', {
         flags: ['\\$MyFlag']
       }).then(() => {
         expect(br.exec.callCount).to.equal(1)
-      }).then(done).catch(done)
+      })
     })
 
-    it('should call APPEND w/o flags', (done) => {
+    it('should call APPEND w/o flags', () => {
       br.exec.returns(Promise.resolve())
 
-      br.upload('mailbox', 'this is a message').then(() => {
+      return br.upload('mailbox', 'this is a message').then(() => {
         expect(br.exec.callCount).to.equal(1)
-      }).then(done).catch(done)
+      })
     })
   })
 
@@ -658,18 +653,18 @@ describe('browserbox unit tests', () => {
       sinon.stub(br, '_parseFETCH')
     })
 
-    it('should call STORE', (done) => {
+    it('should call STORE', () => {
       br.exec.returns(Promise.resolve('abc'))
       br._buildSTORECommand.withArgs('1:2', 'FLAGS', ['\\Seen', '$MyFlag'], {
         byUid: true
       }).returns({})
 
-      br.setFlags('INBOX', '1:2', ['\\Seen', '$MyFlag'], {
+      return br.setFlags('INBOX', '1:2', ['\\Seen', '$MyFlag'], {
         byUid: true
       }).then(() => {
         expect(br.exec.callCount).to.equal(1)
         expect(br._parseFETCH.withArgs('abc').callCount).to.equal(1)
-      }).then(done).catch(done)
+      })
     })
   })
 
@@ -680,19 +675,19 @@ describe('browserbox unit tests', () => {
       sinon.stub(br, '_parseFETCH')
     })
 
-    it('should call STORE', (done) => {
+    it('should call STORE', () => {
       br.exec.returns(Promise.resolve('abc'))
       br._buildSTORECommand.withArgs('1:2', '+X-GM-LABELS', ['\\Sent', '\\Junk'], {
         byUid: true
       }).returns({})
 
-      br.store('INBOX', '1:2', '+X-GM-LABELS', ['\\Sent', '\\Junk'], {
+      return br.store('INBOX', '1:2', '+X-GM-LABELS', ['\\Sent', '\\Junk'], {
         byUid: true
       }).then(() => {
         expect(br._buildSTORECommand.callCount).to.equal(1)
         expect(br.exec.callCount).to.equal(1)
         expect(br._parseFETCH.withArgs('abc').callCount).to.equal(1)
-      }).then(done).catch(done)
+      })
     })
   })
 
@@ -702,7 +697,7 @@ describe('browserbox unit tests', () => {
       sinon.stub(br, 'exec')
     })
 
-    it('should call UID EXPUNGE', (done) => {
+    it('should call UID EXPUNGE', () => {
       br.exec.withArgs({
         command: 'UID EXPUNGE',
         attributes: [{
@@ -715,25 +710,25 @@ describe('browserbox unit tests', () => {
       }).returns(Promise.resolve())
 
       br._capability = ['UIDPLUS']
-      br.deleteMessages('INBOX', '1:2', {
+      return br.deleteMessages('INBOX', '1:2', {
         byUid: true
       }).then(() => {
         expect(br.exec.callCount).to.equal(1)
-      }).then(done).catch(done)
+      })
     })
 
-    it('should call EXPUNGE', (done) => {
+    it('should call EXPUNGE', () => {
       br.exec.withArgs('EXPUNGE').returns(Promise.resolve('abc'))
       br.setFlags.withArgs('INBOX', '1:2', {
         add: '\\Deleted'
       }).returns(Promise.resolve())
 
       br._capability = []
-      br.deleteMessages('INBOX', '1:2', {
+      return br.deleteMessages('INBOX', '1:2', {
         byUid: true
       }).then(() => {
         expect(br.exec.callCount).to.equal(1)
-      }).then(done).catch(done)
+      })
     })
   })
 
@@ -742,7 +737,7 @@ describe('browserbox unit tests', () => {
       sinon.stub(br, 'exec')
     })
 
-    it('should call COPY', (done) => {
+    it('should call COPY', () => {
       br.exec.withArgs({
         command: 'UID COPY',
         attributes: [{
@@ -756,12 +751,12 @@ describe('browserbox unit tests', () => {
         humanReadable: 'abc'
       }))
 
-      br.copyMessages('INBOX', '1:2', '[Gmail]/Trash', {
+      return br.copyMessages('INBOX', '1:2', '[Gmail]/Trash', {
         byUid: true
       }).then((response) => {
         expect(response).to.equal('abc')
         expect(br.exec.callCount).to.equal(1)
-      }).then(done).catch(done)
+      })
     })
   })
 
@@ -772,7 +767,7 @@ describe('browserbox unit tests', () => {
       sinon.stub(br, 'deleteMessages')
     })
 
-    it('should call MOVE if supported', (done) => {
+    it('should call MOVE if supported', () => {
       br.exec.withArgs({
         command: 'UID MOVE',
         attributes: [{
@@ -785,14 +780,14 @@ describe('browserbox unit tests', () => {
       }, ['OK']).returns(Promise.resolve('abc'))
 
       br._capability = ['MOVE']
-      br.moveMessages('INBOX', '1:2', '[Gmail]/Trash', {
+      return br.moveMessages('INBOX', '1:2', '[Gmail]/Trash', {
         byUid: true
       }).then(() => {
         expect(br.exec.callCount).to.equal(1)
-      }).then(done).catch(done)
+      })
     })
 
-    it('should fallback to copy+expunge', (done) => {
+    it('should fallback to copy+expunge', () => {
       br.copyMessages.withArgs('INBOX', '1:2', '[Gmail]/Trash', {
         byUid: true
       }).returns(Promise.resolve())
@@ -801,11 +796,11 @@ describe('browserbox unit tests', () => {
       }).returns(Promise.resolve())
 
       br._capability = []
-      br.moveMessages('INBOX', '1:2', '[Gmail]/Trash', {
+      return br.moveMessages('INBOX', '1:2', '[Gmail]/Trash', {
         byUid: true
       }).then(() => {
         expect(br.deleteMessages.callCount).to.equal(1)
-      }).then(done).catch(done)
+      })
     })
   })
 
@@ -849,7 +844,7 @@ describe('browserbox unit tests', () => {
       sinon.stub(br, '_parseSELECT')
     })
 
-    it('should run SELECT', (done) => {
+    it('should run SELECT', () => {
       br.exec.withArgs({
         command: 'SELECT',
         attributes: [{
@@ -858,14 +853,14 @@ describe('browserbox unit tests', () => {
         }]
       }).returns(Promise.resolve('abc'))
 
-      br.selectMailbox('[Gmail]/Trash').then(() => {
+      return br.selectMailbox('[Gmail]/Trash').then(() => {
         expect(br.exec.callCount).to.equal(1)
         expect(br._parseSELECT.withArgs('abc').callCount).to.equal(1)
         expect(br._state).to.equal(STATE_SELECTED)
-      }).then(done).catch(done)
+      })
     })
 
-    it('should run SELECT with CONDSTORE', (done) => {
+    it('should run SELECT with CONDSTORE', () => {
       br.exec.withArgs({
         command: 'SELECT',
         attributes: [{
@@ -880,13 +875,13 @@ describe('browserbox unit tests', () => {
       }).returns(Promise.resolve('abc'))
 
       br._capability = ['CONDSTORE']
-      br.selectMailbox('[Gmail]/Trash', {
+      return br.selectMailbox('[Gmail]/Trash', {
         condstore: true
       }).then(() => {
         expect(br.exec.callCount).to.equal(1)
         expect(br._parseSELECT.withArgs('abc').callCount).to.equal(1)
         expect(br._state).to.equal(STATE_SELECTED)
-      }).then(done).catch(done)
+      })
     })
 
     describe('should emit onselectmailbox before selectMailbox is resolved', () => {
@@ -895,42 +890,40 @@ describe('browserbox unit tests', () => {
         br._parseSELECT.withArgs('abc').returns('def')
       })
 
-      it('when it returns a promise', (done) => {
+      it('when it returns a promise', () => {
         var promiseResolved = false
         br.onselectmailbox = () => new Promise((resolve) => {
           resolve()
           promiseResolved = true
         })
         var onselectmailboxSpy = sinon.spy(br, 'onselectmailbox')
-        br.selectMailbox('[Gmail]/Trash').then(() => {
+        return br.selectMailbox('[Gmail]/Trash').then(() => {
           expect(br._parseSELECT.callCount).to.equal(1)
           expect(onselectmailboxSpy.withArgs('[Gmail]/Trash', 'def').callCount).to.equal(1)
           expect(promiseResolved).to.equal(true)
-          done()
-        }).catch(done)
+        })
       })
 
-      it('when it does not return a promise', (done) => {
+      it('when it does not return a promise', () => {
         br.onselectmailbox = () => { }
         var onselectmailboxSpy = sinon.spy(br, 'onselectmailbox')
-        br.selectMailbox('[Gmail]/Trash').then(() => {
+        return br.selectMailbox('[Gmail]/Trash').then(() => {
           expect(br._parseSELECT.callCount).to.equal(1)
           expect(onselectmailboxSpy.withArgs('[Gmail]/Trash', 'def').callCount).to.equal(1)
-          done()
-        }).catch(done)
+        })
       })
     })
 
-    it('should emit onclosemailbox', (done) => {
+    it('should emit onclosemailbox', () => {
       br.exec.returns(Promise.resolve('abc'))
       br._parseSELECT.withArgs('abc').returns('def')
 
       br.onclosemailbox = (path) => expect(path).to.equal('yyy')
 
       br._selectedMailbox = 'yyy'
-      br.selectMailbox('[Gmail]/Trash').then(() => {
+      return br.selectMailbox('[Gmail]/Trash').then(() => {
         expect(br._parseSELECT.callCount).to.equal(1)
-      }).then(done).catch(done)
+      })
     })
   })
 
