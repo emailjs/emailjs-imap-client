@@ -2,6 +2,7 @@
 
 import hoodiecrow from 'hoodiecrow-imap'
 import ImapClient from './client'
+import { LOG_LEVEL_NONE } from './common'
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 

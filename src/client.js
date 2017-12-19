@@ -22,15 +22,6 @@ import {
   SPECIAL_USE_BOX_FLAGS
 } from './special-use'
 
-export {
-  LOG_LEVEL_NONE,
-  LOG_LEVEL_ERROR,
-  LOG_LEVEL_WARN,
-  LOG_LEVEL_INFO,
-  LOG_LEVEL_DEBUG,
-  LOG_LEVEL_ALL
-} from './common'
-
 export const TIMEOUT_CONNECTION = 90 * 1000 // Milliseconds to wait for the IMAP greeting from the server
 export const TIMEOUT_NOOP = 60 * 1000 // Milliseconds between NOOP commands while idling
 export const TIMEOUT_IDLE = 60 * 1000 // Milliseconds until IDLE command is cancelled

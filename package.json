@@ -21,7 +21,7 @@
     "type": "git",
     "url": "git://github.com/emailjs/emailjs-imap-client.git"
   },
-  "main": "dist/client",
+  "main": "dist/index",
   "dependencies": {
     "emailjs-addressparser": "^2.0.2",
     "emailjs-base64": "^1.1.2",
