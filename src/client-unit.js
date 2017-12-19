@@ -250,7 +250,7 @@ describe('browserbox unit tests', () => {
     it('should do nothing if connection is not yet upgraded', () => {
       br._capability = []
       br.client.secureMode = false
-      br.options.requireTLS = true
+      br._requireTLS = true
 
       br.updateCapability()
     })
@@ -319,7 +319,7 @@ describe('browserbox unit tests', () => {
         }]
       }).returns(Promise.resolve({}))
 
-      br.options.enableCompression = true
+      br._enableCompression = true
       br._capability = ['COMPRESS=DEFLATE']
       return br.compressConnection().then(() => {
         expect(br.exec.callCount).to.equal(1)
@@ -336,7 +336,7 @@ describe('browserbox unit tests', () => {
     })
 
     it('should do nothing if not enabled', () => {
-      br.options.enableCompression = false
+      br._enableCompression = false
       br._capability = ['COMPRESS=DEFLATE']
 
       return br.compressConnection().then(() => {

@@ -32,6 +32,10 @@ export const STATE_AUTHENTICATED = 3
 export const STATE_SELECTED = 4
 export const STATE_LOGOUT = 5
 
+export const DEFAULT_CLIENT_ID = {
+  name: 'emailjs-imap-client'
+}
+
 /**
  * emailjs IMAP client
  *
@@ -55,19 +59,19 @@ export default class Client {
     this.onselectmailbox = null
     this.onclosemailbox = null
 
-    //
-    // Internals
-    //
-
-    this.options = options
+    this._clientId = propOr(DEFAULT_CLIENT_ID, 'id')(options)
     this._state = false // Current state
     this._authenticated = false // Is the connection authenticated
     this._capability = [] // List of extensions the server supports
     this._selectedMailbox = false // Selected mailbox
     this._enteredIdle = false
     this._idleTimeout = false
+    this._enableCompression = !!options.enableCompression
+    this._auth = options.auth
+    this._requireTLS = !!options.requireTLS
+    this._ignoreTLS = !!options.ignoreTLS
 
-    this.client = new ImapClient(host, port, this.options) // IMAP client object
+    this.client = new ImapClient(host, port, options) // IMAP client object
 
     // Event Handlers
     this.client.onerror = this._onError.bind(this)
@@ -133,10 +137,10 @@ export default class Client {
     }).then(() => {
       return this.upgradeConnection()
     }).then(() => {
-      return this.updateId(this.options.id)
+      return this.updateId(this._clientId)
         .catch(err => this.logger.warn('Failed to update id', err))
     }).then(() => {
-      return this.login(this.options.auth)
+      return this.login(this._auth)
     }).then(() => {
       return this.compressConnection()
     }).then(() => {
@@ -197,9 +201,7 @@ export default class Client {
       return Promise.resolve()
     }
 
-    let attributes = [
-      []
-    ]
+    let attributes = [ [] ]
     if (id) {
       if (typeof id === 'string') {
         id = {
@@ -689,7 +691,7 @@ export default class Client {
    *   https://tools.ietf.org/html/rfc4978
    */
   compressConnection () {
-    if (!this.options.enableCompression || this._capability.indexOf('COMPRESS=DEFLATE') < 0 || this.client.compressed) {
+    if (!this._enableCompression || this._capability.indexOf('COMPRESS=DEFLATE') < 0 || this.client.compressed) {
       return Promise.resolve(false)
     }
 
@@ -870,7 +872,7 @@ export default class Client {
     }
 
     // skip if STARTTLS not available or starttls support disabled
-    if ((this._capability.indexOf('STARTTLS') < 0 || this.options.ignoreTLS) && !this.options.requireTLS) {
+    if ((this._capability.indexOf('STARTTLS') < 0 || this._ignoreTLS) && !this._requireTLS) {
       return Promise.resolve(false)
     }
 
@@ -901,7 +903,7 @@ export default class Client {
 
     // If STARTTLS is required then skip capability listing as we are going to try
     // STARTTLS anyway and we re-check capabilities after connection is secured
-    if (!this.client.secureMode && this.options.requireTLS) {
+    if (!this.client.secureMode && this._requireTLS) {
       return Promise.resolve()
     }
 
