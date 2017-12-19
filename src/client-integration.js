@@ -78,7 +78,7 @@ describe('browserbox integration tests', () => {
       insecureServer.close(done)
     })
 
-    it('should use STARTTLS by default', (done) => {
+    it('should use STARTTLS by default', () => {
       imap = new ImapClient('127.0.0.1', port, {
         auth: {
           user: 'testuser',
@@ -86,13 +86,13 @@ describe('browserbox integration tests', () => {
         },
         useSecureTransport: false
       })
-      imap.logLevel = imap.LOG_LEVEL_NONE
+      imap.logLevel = LOG_LEVEL_NONE
 
-      imap.connect().then(() => {
+      return imap.connect().then(() => {
         expect(imap.client.secureMode).to.be.true
       }).then(() => {
         return imap.close()
-      }).then(() => done()).catch(done)
+      })
     })
 
     it('should ignore STARTTLS', () => {
@@ -113,7 +113,7 @@ describe('browserbox integration tests', () => {
       })
     })
 
-    it('should fail connecting to non-STARTTLS host', (done) => {
+    it('should fail connecting to non-STARTTLS host', () => {
       imap = new ImapClient('127.0.0.1', port + 2, {
         auth: {
           user: 'testuser',
@@ -124,9 +124,8 @@ describe('browserbox integration tests', () => {
       })
       imap.logLevel = imap.LOG_LEVEL_NONE
 
-      imap.connect().catch((err) => {
+      return imap.connect().catch((err) => {
         expect(err).to.exist
-        done()
       })
     })
 
@@ -366,7 +365,7 @@ describe('browserbox integration tests', () => {
     })
 
     describe('precheck', () => {
-      it('should handle precheck error correctly', (done) => {
+      it('should handle precheck error correctly', () => {
         // simulates a broken search command
         var search = (query, options) => {
           var command = imap._buildSEARCHCommand(query, options)
@@ -375,20 +374,18 @@ describe('browserbox integration tests', () => {
           }).then((response) => imap._parseSEARCH(response))
         }
 
-        imap.selectMailbox('inbox').then(() => {
+        return imap.selectMailbox('inbox').then(() => {
           return search({
             header: ['subject', 'hello 3']
           }, {})
         }).catch((err) => {
           expect(err.message).to.equal('FOO')
-          return imap.selectMailbox('[Gmail]/Spam').then(() => {
-            done()
-          }).catch(done)
+          return imap.selectMailbox('[Gmail]/Spam')
         })
       })
 
-      it('should select correct mailboxes in prechecks on concurrent calls', (done) => {
-        imap.selectMailbox('[Gmail]/A').then(() => {
+      it('should select correct mailboxes in prechecks on concurrent calls', () => {
+        return imap.selectMailbox('[Gmail]/A').then(() => {
           return Promise.all([
             imap.selectMailbox('[Gmail]/B'),
             imap.setFlags('[Gmail]/A', '1', ['\\Seen'])
@@ -398,12 +395,11 @@ describe('browserbox integration tests', () => {
         }).then((messages) => {
           expect(messages.length).to.equal(1)
           expect(messages[0].flags).to.deep.equal(['\\Seen'])
-          done()
-        }).catch(done)
+        })
       })
 
-      it('should send precheck commands in correct order on concurrent calls', (done) => {
-        Promise.all([
+      it('should send precheck commands in correct order on concurrent calls', () => {
+        return Promise.all([
           imap.setFlags('[Gmail]/A', '1', ['\\Seen']),
           imap.setFlags('[Gmail]/B', '1', ['\\Seen'])
         ]).then(() => {
@@ -416,7 +412,7 @@ describe('browserbox integration tests', () => {
         }).then((messages) => {
           expect(messages.length).to.equal(1)
           expect(messages[0].flags).to.deep.equal(['\\Seen'])
-        }).then(done).catch(done)
+        })
       })
     })
   })
@@ -442,23 +438,18 @@ describe('browserbox integration tests', () => {
     })
 
     it('should timeout', (done) => {
-      imap.onerror = () => {
-        done()
-      }
-
+      imap.onerror = () => { done() }
       imap.selectMailbox('inbox')
     })
 
-    it('should reject all pending commands on timeout', (done) => {
+    it('should reject all pending commands on timeout', () => {
       let rejectionCount = 0
-      Promise.all([
-
+      return Promise.all([
         imap.selectMailbox('INBOX')
           .catch(err => {
             expect(err).to.exist
             rejectionCount++
           }),
-
         imap.listMessages('INBOX', '1:*', ['body.peek[]'])
           .catch(err => {
             expect(err).to.exist
@@ -467,7 +458,6 @@ describe('browserbox integration tests', () => {
 
       ]).then(() => {
         expect(rejectionCount).to.equal(2)
-        done()
       })
     })
   })
