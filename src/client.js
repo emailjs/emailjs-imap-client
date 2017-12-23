@@ -1,4 +1,4 @@
-import { propOr, pathOr } from 'ramda'
+import { toLower, prop, sort, map, pipe, union, zip, fromPairs, propOr, pathOr, flatten } from 'ramda'
 import { encode as encodeBase64 } from 'emailjs-base64'
 import { imapEncode, imapDecode } from 'emailjs-utf7'
 import { parser, compiler } from 'emailjs-imap-handler'
@@ -59,7 +59,7 @@ export default class Client {
     this.onselectmailbox = null
     this.onclosemailbox = null
 
-    this._clientId = propOr(DEFAULT_CLIENT_ID, 'id')(options)
+    this._clientId = propOr(DEFAULT_CLIENT_ID, 'id', options)
     this._state = false // Current state
     this._authenticated = false // Is the connection authenticated
     this._capability = [] // List of extensions the server supports
@@ -113,7 +113,30 @@ export default class Client {
    *
    * @returns {Promise} Promise when login procedure is complete
    */
-  connect () {
+  async connect () {
+    try {
+      await this._openConnection()
+      this._changeState(STATE_NOT_AUTHENTICATED)
+      await this.updateCapability()
+      await this.upgradeConnection()
+      try {
+        await this.updateId(this._clientId)
+      } catch (err) {
+        this.logger.warn('Failed to update server id!', err.message)
+      }
+
+      await this.login(this._auth)
+      await this.compressConnection()
+      this.logger.debug('Connection established, ready to roll!')
+      this.client.onerror = this._onError.bind(this)
+    } catch (err) {
+      this.logger.error('Could not connect to server', err)
+      this.close(err) // we don't really care whether this works or not
+      throw err
+    }
+  }
+
+  _openConnection () {
     return new Promise((resolve, reject) => {
       let connectionTimeout = setTimeout(() => reject(new Error('Timeout connecting to server')), this.timeoutConnection)
       this.logger.debug('Connecting to', this.client.host, ':', this.client.port)
@@ -131,25 +154,6 @@ export default class Client {
           reject(err)
         }
       }).catch(reject)
-    }).then(() => {
-      this._changeState(STATE_NOT_AUTHENTICATED)
-      return this.updateCapability()
-    }).then(() => {
-      return this.upgradeConnection()
-    }).then(() => {
-      return this.updateId(this._clientId)
-        .catch(err => this.logger.warn('Failed to update id', err))
-    }).then(() => {
-      return this.login(this._auth)
-    }).then(() => {
-      return this.compressConnection()
-    }).then(() => {
-      this.logger.debug('Connection established, ready to roll!')
-      this.client.onerror = this._onError.bind(this)
-    }).catch((err) => {
-      this.logger.error('Could not connect to server', err)
-      this.close(err) // we don't really care whether this works or not
-      throw err
     })
   }
 
@@ -165,12 +169,11 @@ export default class Client {
    *
    * @returns {Promise} Resolves when server has closed the connection
    */
-  logout () {
+  async logout () {
     this._changeState(STATE_LOGOUT)
     this.logger.debug('Logging out...')
-    return this.client.logout().then(() => {
-      clearTimeout(this._idleTimeout)
-    })
+    await this.client.logout()
+    clearTimeout(this._idleTimeout)
   }
 
   /**
@@ -178,13 +181,12 @@ export default class Client {
    *
    * @returns {Promise} Resolves when socket is closed
    */
-  close (err) {
+  async close (err) {
     this._changeState(STATE_LOGOUT)
     clearTimeout(this._idleTimeout)
     this.logger.debug('Closing connection...')
-    return this.client.close(err).then(() => {
-      clearTimeout(this._idleTimeout)
-    })
+    await this.client.close(err)
+    clearTimeout(this._idleTimeout)
   }
 
   /**
@@ -193,51 +195,22 @@ export default class Client {
    * ID details:
    *   http://tools.ietf.org/html/rfc2971
    *
-   * @param {Object} id ID as key value pairs. See http://tools.ietf.org/html/rfc2971#section-3.3 for possible values
+   * @param {Object} id ID as JSON object. See http://tools.ietf.org/html/rfc2971#section-3.3 for possible values
    * @returns {Promise} Resolves when response has been parsed
    */
-  updateId (id) {
-    if (this._capability.indexOf('ID') < 0) {
-      return Promise.resolve()
-    }
-
-    let attributes = [ [] ]
-    if (id) {
-      if (typeof id === 'string') {
-        id = {
-          name: id
-        }
-      }
-      Object.keys(id).forEach((key) => {
-        attributes[0].push(key)
-        attributes[0].push(id[key])
-      })
-    } else {
-      attributes[0] = null
-    }
+  async updateId (id) {
+    if (this._capability.indexOf('ID') < 0) return
 
     this.logger.debug('Updating id...')
-    return this.exec({
-      command: 'ID',
-      attributes: attributes
-    }, 'ID').then((response) => {
-      if (!response.payload || !response.payload.ID || !response.payload.ID.length) {
-        return
-      }
 
-      this.serverId = {}
-
-      let key;
-      [].concat([].concat(response.payload.ID.shift().attributes || []).shift() || []).forEach((val, i) => {
-        if (i % 2 === 0) {
-          key = propOr('', 'value')(val).toLowerCase().trim()
-        } else {
-          this.serverId[key] = propOr('', 'value')(val)
-        }
-      })
-
-      this.logger.debug('Server id updated!', this.serverId)
-    })
+    const command = 'ID'
+    const attributes = id ? [ flatten(Object.entries(id)) ] : [ null ]
+    const response = await this.exec({ command, attributes }, 'ID')
+    const list = flatten(pathOr([], ['payload', 'ID', '0', 'attributes', '0'], response).map(Object.values))
+    const keys = list.filter((_, i) => i % 2 === 0)
+    const values = list.filter((_, i) => i % 2 === 1)
+    this.serverId = fromPairs(zip(keys, values))
+    this.logger.debug('Server id updated!', this.serverId)
   }
 
   _shouldSelectMailbox (path, ctx) {
@@ -268,45 +241,31 @@ export default class Client {
    * @param {Object} [options] Options object
    * @returns {Promise} Promise with information about the selected mailbox
    */
-  selectMailbox (path, options) {
-    options = options || {}
-
+  async selectMailbox (path, options = {}) {
     let query = {
       command: options.readOnly ? 'EXAMINE' : 'SELECT',
-      attributes: [{
-        type: 'STRING',
-        value: path
-      }]
+      attributes: [{ type: 'STRING', value: path }]
     }
 
     if (options.condstore && this._capability.indexOf('CONDSTORE') >= 0) {
-      query.attributes.push([{
-        type: 'ATOM',
-        value: 'CONDSTORE'
-      }])
+      query.attributes.push([{ type: 'ATOM', value: 'CONDSTORE' }])
     }
 
     this.logger.debug('Opening', path, '...')
-    return this.exec(query, ['EXISTS', 'FLAGS', 'OK'], {
-      ctx: options.ctx
-    }).then((response) => {
-      this._changeState(STATE_SELECTED)
+    const response = await this.exec(query, ['EXISTS', 'FLAGS', 'OK'], { ctx: options.ctx })
+    let mailboxInfo = this._parseSELECT(response)
 
-      if (this._selectedMailbox && this._selectedMailbox !== path) {
-        this.onclosemailbox && this.onclosemailbox(this._selectedMailbox)
-      }
+    this._changeState(STATE_SELECTED)
 
-      this._selectedMailbox = path
+    if (this._selectedMailbox !== path && this.onclosemailbox) {
+      await this.onclosemailbox(this._selectedMailbox)
+    }
+    this._selectedMailbox = path
+    if (this.onselectmailbox) {
+      await this.onselectmailbox(path, mailboxInfo)
+    }
 
-      let mailboxInfo = this._parseSELECT(response)
-
-      let maybePromise = this.onselectmailbox && this.onselectmailbox(path, mailboxInfo)
-      if (maybePromise && typeof maybePromise.then === 'function') {
-        return maybePromise.then(() => mailboxInfo)
-      } else {
-        return mailboxInfo
-      }
-    })
+    return mailboxInfo
   }
 
   /**
@@ -317,15 +276,12 @@ export default class Client {
    *
    * @returns {Promise} Promise with namespace object
    */
-  listNamespaces () {
-    if (this._capability.indexOf('NAMESPACE') < 0) {
-      return Promise.resolve(false)
-    }
+  async listNamespaces () {
+    if (this._capability.indexOf('NAMESPACE') < 0) return false
 
     this.logger.debug('Listing namespaces...')
-    return this.exec('NAMESPACE', 'NAMESPACE').then((response) => {
-      return this._parseNAMESPACE(response)
-    })
+    const response = await this.exec('NAMESPACE', 'NAMESPACE')
+    return this._parseNAMESPACE(response)
   }
 
   /**
@@ -338,63 +294,38 @@ export default class Client {
    *
    * @returns {Promise} Promise with list of mailboxes
    */
-  listMailboxes () {
-    let tree
+  async listMailboxes () {
+    const tree = { root: true, children: [] }
 
     this.logger.debug('Listing mailboxes...')
-    return this.exec({
-      command: 'LIST',
-      attributes: ['', '*']
-    }, 'LIST').then((response) => {
-      tree = {
-        root: true,
-        children: []
-      }
+    const listResponse = await this.exec({ command: 'LIST', attributes: ['', '*'] }, 'LIST')
+    const list = pathOr([], ['payload', 'LIST'], listResponse)
+    list.forEach(item => {
+      const attr = propOr([], 'attributes', item)
+      if (!attr.length < 3) return
 
-      if (!response.payload || !response.payload.LIST || !response.payload.LIST.length) {
-        return
-      }
-
-      response.payload.LIST.forEach((item) => {
-        if (!item || !item.attributes || item.attributes.length < 3) {
-          return
-        }
-        let branch = this._ensurePath(tree, (item.attributes[2].value || '').toString(), (item.attributes[1] ? item.attributes[1].value : '/').toString())
-        branch.flags = [].concat(item.attributes[0] || []).map((flag) => (flag.value || '').toString())
-        branch.listed = true
-        this._checkSpecialUse(branch)
-      })
-    }).then(() => {
-      return this.exec({
-        command: 'LSUB',
-        attributes: ['', '*']
-      }, 'LSUB')
-    }).then((response) => {
-      if (!response.payload || !response.payload.LSUB || !response.payload.LSUB.length) {
-        return tree
-      }
-
-      response.payload.LSUB.forEach((item) => {
-        if (!item || !item.attributes || item.attributes.length < 3) {
-          return
-        }
-        let branch = this._ensurePath(tree, (item.attributes[2].value || '').toString(), (item.attributes[1] ? item.attributes[1].value : '/').toString());
-        [].concat(item.attributes[0] || []).map((flag) => {
-          flag = (flag.value || '').toString()
-          if (!branch.flags || branch.flags.indexOf(flag) < 0) {
-            branch.flags = [].concat(branch.flags || []).concat(flag)
-          }
-        })
-        branch.subscribed = true
-      })
-      return tree
-    }).catch((err) => {
-      if (tree) {
-        return tree // ignore error for subscribed mailboxes if there's a valid response already
-      }
-
-      throw err
+      const path = pathOr('', ['2', 'value'], attr)
+      const delim = pathOr('/', ['1', 'value'], attr)
+      const branch = this._ensurePath(tree, path, delim)
+      branch.flags = propOr([], '0', attr).map(({value}) => value || '')
+      branch.listed = true
+      this._checkSpecialUse(branch)
     })
+
+    const lsubResponse = await this.exec({ command: 'LSUB', attributes: ['', '*'] }, 'LSUB')
+    const lsub = pathOr([], ['payload', 'LSUB'], lsubResponse)
+    lsub.forEach((item) => {
+      const attr = propOr([], 'attributes', item)
+      if (!attr.length < 3) return
+
+      const path = pathOr('', ['2', 'value'], attr)
+      const delim = pathOr('/', ['1', 'value'], attr)
+      const branch = this._ensurePath(tree, path, delim)
+      propOr([], '0', attr).map((flag = '') => { branch.flags = union(branch.flags, [flag]) })
+      branch.subscribed = true
+    })
+
+    return tree
   }
 
   /**
@@ -410,18 +341,16 @@ export default class Client {
    *     Promise resolves if mailbox was created.
    *     In the event the server says NO [ALREADYEXISTS], we treat that as success.
    */
-  createMailbox (path) {
+  async createMailbox (path) {
     this.logger.debug('Creating mailbox', path, '...')
-    return this.exec({
-      command: 'CREATE',
-      attributes: [imapEncode(path)]
-    }).catch((err) => {
+    try {
+      await this.exec({ command: 'CREATE', attributes: [imapEncode(path)] })
+    } catch (err) {
       if (err && err.code === 'ALREADYEXISTS') {
         return
       }
-
       throw err
-    })
+    }
   }
 
   /**
@@ -438,17 +367,13 @@ export default class Client {
    * @param {Object} [options] Query modifiers
    * @returns {Promise} Promise with the fetched message info
    */
-  listMessages (path, sequence, items, options) {
-    items = items || [{
-      fast: true
-    }]
-    options = options || {}
-
+  async listMessages (path, sequence, items = [{ fast: true }], options = {}) {
     this.logger.debug('Fetching messages', sequence, 'from', path, '...')
-    let command = this._buildFETCHCommand(sequence, items, options)
-    return this.exec(command, 'FETCH', {
+    const command = this._buildFETCHCommand(sequence, items, options)
+    const response = await this.exec(command, 'FETCH', {
       precheck: (ctx) => this._shouldSelectMailbox(path, ctx) ? this.selectMailbox(path, { ctx }) : Promise.resolve()
-    }).then((response) => this._parseFETCH(response))
+    })
+    return this._parseFETCH(response)
   }
 
   /**
@@ -462,14 +387,13 @@ export default class Client {
    * @param {Object} [options] Query modifiers
    * @returns {Promise} Promise with the array of matching seq. or uid numbers
    */
-  search (path, query, options) {
-    options = options || {}
-
+  async search (path, query, options = {}) {
     this.logger.debug('Searching in', path, '...')
-    let command = this._buildSEARCHCommand(query, options)
-    return this.exec(command, 'SEARCH', {
+    const command = this._buildSEARCHCommand(query, options)
+    const response = await this.exec(command, 'SEARCH', {
       precheck: (ctx) => this._shouldSelectMailbox(path, ctx) ? this.selectMailbox(path, { ctx }) : Promise.resolve()
-    }).then((response) => this._parseSEARCH(response))
+    })
+    return this._parseSEARCH(response)
   }
 
   /**
@@ -519,13 +443,12 @@ export default class Client {
    * @param {Object} [options] Query modifiers
    * @returns {Promise} Promise with the array of matching seq. or uid numbers
    */
-  store (path, sequence, action, flags, options) {
-    options = options || {}
-
-    let command = this._buildSTORECommand(sequence, action, flags, options)
-    return this.exec(command, 'FETCH', {
+  async store (path, sequence, action, flags, options = {}) {
+    const command = this._buildSTORECommand(sequence, action, flags, options)
+    const response = await this.exec(command, 'FETCH', {
       precheck: (ctx) => this._shouldSelectMailbox(path, ctx) ? this.selectMailbox(path, { ctx }) : Promise.resolve()
-    }).then((response) => this._parseFETCH(response))
+    })
+    return this._parseFETCH(response)
   }
 
   /**
@@ -539,26 +462,14 @@ export default class Client {
    * @param {Array} options.flags Any flags you want to set on the uploaded message. Defaults to [\Seen]. (optional)
    * @returns {Promise} Promise with the array of matching seq. or uid numbers
    */
-  upload (destination, message, options) {
-    options = options || {}
-    options.flags = options.flags || ['\\Seen']
-    let flags = options.flags.map((flag) => {
-      return {
-        type: 'atom',
-        value: flag
-      }
-    })
-
+  upload (destination, message, options = {}) {
+    let flags = propOr(['\\Seen'], 'flags', options).map(value => ({ type: 'atom', value }))
     let command = {
       command: 'APPEND',
-      attributes: [{
-        type: 'atom',
-        value: destination
-      },
-        flags, {
-          type: 'literal',
-          value: message
-        }
+      attributes: [
+        { type: 'atom', value: destination },
+        flags,
+        { type: 'literal', value: message }
       ]
     }
 
@@ -585,29 +496,15 @@ export default class Client {
    * @param {Object} [options] Query modifiers
    * @returns {Promise} Promise
    */
-  deleteMessages (path, sequence, options) {
-    options = options || {}
-
+  async deleteMessages (path, sequence, options = {}) {
     // add \Deleted flag to the messages and run EXPUNGE or UID EXPUNGE
     this.logger.debug('Deleting messages', sequence, 'in', path, '...')
-    return this.setFlags(path, sequence, {
-      add: '\\Deleted'
-    }, options).then(() => {
-      let cmd
-      if (options.byUid && this._capability.indexOf('UIDPLUS') >= 0) {
-        cmd = {
-          command: 'UID EXPUNGE',
-          attributes: [{
-            type: 'sequence',
-            value: sequence
-          }]
-        }
-      } else {
-        cmd = 'EXPUNGE'
-      }
-      return this.exec(cmd, null, {
-        precheck: (ctx) => this._shouldSelectMailbox(path, ctx) ? this.selectMailbox(path, { ctx }) : Promise.resolve()
-      })
+    const useUidPlus = options.byUid && this._capability.indexOf('UIDPLUS') >= 0
+    const uidExpungeCommand = { command: 'UID EXPUNGE', attributes: [{ type: 'sequence', value: sequence }] }
+    await this.setFlags(path, sequence, { add: '\\Deleted' }, options)
+    const cmd = useUidPlus ? uidExpungeCommand : 'EXPUNGE'
+    return this.exec(cmd, null, {
+      precheck: (ctx) => this._shouldSelectMailbox(path, ctx) ? this.selectMailbox(path, { ctx }) : Promise.resolve()
     })
   }
 
@@ -625,22 +522,18 @@ export default class Client {
    * @param {Boolean} [options.byUid] If true, uses UID COPY instead of COPY
    * @returns {Promise} Promise
    */
-  copyMessages (path, sequence, destination, options) {
-    options = options || {}
-
+  async copyMessages (path, sequence, destination, options = {}) {
     this.logger.debug('Copying messages', sequence, 'from', path, 'to', destination, '...')
-    return this.exec({
+    const { humanReadable } = await this.exec({
       command: options.byUid ? 'UID COPY' : 'COPY',
-      attributes: [{
-        type: 'sequence',
-        value: sequence
-      }, {
-        type: 'atom',
-        value: destination
-      }]
+      attributes: [
+        { type: 'sequence', value: sequence },
+        { type: 'atom', value: destination }
+      ]
     }, null, {
       precheck: (ctx) => this._shouldSelectMailbox(path, ctx) ? this.selectMailbox(path, { ctx }) : Promise.resolve()
-    }).then((response) => (response.humanReadable || 'COPY completed'))
+    })
+    return humanReadable || 'COPY completed'
   }
 
   /**
@@ -657,28 +550,22 @@ export default class Client {
    * @param {Object} [options] Query modifiers
    * @returns {Promise} Promise
    */
-  moveMessages (path, sequence, destination, options) {
-    options = options || {}
-
+  async moveMessages (path, sequence, destination, options = {}) {
     this.logger.debug('Moving messages', sequence, 'from', path, 'to', destination, '...')
 
     if (this._capability.indexOf('MOVE') === -1) {
       // Fallback to COPY + EXPUNGE
-      return this.copyMessages(path, sequence, destination, options).then(() => {
-        return this.deleteMessages(path, sequence, options)
-      })
+      await this.copyMessages(path, sequence, destination, options)
+      return this.deleteMessages(path, sequence, options)
     }
 
     // If possible, use MOVE
     return this.exec({
       command: options.byUid ? 'UID MOVE' : 'MOVE',
-      attributes: [{
-        type: 'sequence',
-        value: sequence
-      }, {
-        type: 'atom',
-        value: destination
-      }]
+      attributes: [
+        { type: 'sequence', value: sequence },
+        { type: 'atom', value: destination }
+      ]
     }, ['OK'], {
       precheck: (ctx) => this._shouldSelectMailbox(path, ctx) ? this.selectMailbox(path, { ctx }) : Promise.resolve()
     })
@@ -690,22 +577,21 @@ export default class Client {
    * COMPRESS details:
    *   https://tools.ietf.org/html/rfc4978
    */
-  compressConnection () {
+  async compressConnection () {
     if (!this._enableCompression || this._capability.indexOf('COMPRESS=DEFLATE') < 0 || this.client.compressed) {
-      return Promise.resolve(false)
+      return false
     }
 
     this.logger.debug('Enabling compression...')
-    return this.exec({
+    await this.exec({
       command: 'COMPRESS',
       attributes: [{
         type: 'ATOM',
         value: 'DEFLATE'
       }]
-    }).then(() => {
-      this.client.enableCompression()
-      this.logger.debug('Compression enabled, all data sent and received is deflated!')
     })
+    this.client.enableCompression()
+    this.logger.debug('Compression enabled, all data sent and received is deflated!')
   }
 
   /**
@@ -720,65 +606,56 @@ export default class Client {
    * @param {String} auth.pass
    * @param {String} auth.xoauth2
    */
-  login (auth) {
+  async login (auth) {
     let command
     let options = {}
 
     if (!auth) {
-      return Promise.reject(new Error('Authentication information not provided'))
+      throw new Error('Authentication information not provided')
     }
 
     if (this._capability.indexOf('AUTH=XOAUTH2') >= 0 && auth && auth.xoauth2) {
       command = {
         command: 'AUTHENTICATE',
-        attributes: [{
-          type: 'ATOM',
-          value: 'XOAUTH2'
-        }, {
-          type: 'ATOM',
-          value: this._buildXOAuth2Token(auth.user, auth.xoauth2),
-          sensitive: true
-        }]
+        attributes: [
+          { type: 'ATOM', value: 'XOAUTH2' },
+          { type: 'ATOM', value: this._buildXOAuth2Token(auth.user, auth.xoauth2), sensitive: true }
+        ]
       }
 
       options.errorResponseExpectsEmptyLine = true // + tagged error response expects an empty line in return
     } else {
       command = {
         command: 'login',
-        attributes: [{
-          type: 'STRING',
-          value: auth.user || ''
-        }, {
-          type: 'STRING',
-          value: auth.pass || '',
-          sensitive: true
-        }]
+        attributes: [
+          { type: 'STRING', value: auth.user || '' },
+          { type: 'STRING', value: auth.pass || '', sensitive: true }
+        ]
       }
     }
 
     this.logger.debug('Logging in...')
-    return this.exec(command, 'capability', options).then((response) => {
-      /*
-       * update post-auth capabilites
-       * capability list shouldn't contain auth related stuff anymore
-       * but some new extensions might have popped up that do not
-       * make much sense in the non-auth state
-       */
-      if (response.capability && response.capability.length) {
-        // capabilites were listed with the OK [CAPABILITY ...] response
-        this._capability = [].concat(response.capability || [])
-      } else if (response.payload && response.payload.CAPABILITY && response.payload.CAPABILITY.length) {
-        // capabilites were listed with * CAPABILITY ... response
-        this._capability = [].concat(response.payload.CAPABILITY.pop().attributes || []).map((capa) => (capa.value || '').toString().toUpperCase().trim())
-      } else {
-        // capabilities were not automatically listed, reload
-        return this.updateCapability(true)
-      }
-    }).then(() => {
-      this._changeState(STATE_AUTHENTICATED)
-      this._authenticated = true
-      this.logger.debug('Login successful, post-auth capabilites updated!', this._capability)
-    })
+    const response = this.exec(command, 'capability', options)
+    /*
+     * update post-auth capabilites
+     * capability list shouldn't contain auth related stuff anymore
+     * but some new extensions might have popped up that do not
+     * make much sense in the non-auth state
+     */
+    if (response.capability && response.capability.length) {
+      // capabilites were listed with the OK [CAPABILITY ...] response
+      this._capability = response.capability
+    } else if (response.payload && response.payload.CAPABILITY && response.payload.CAPABILITY.length) {
+      // capabilites were listed with * CAPABILITY ... response
+      this._capability = response.payload.CAPABILITY.pop().attributes.map((capa = '') => capa.value.toUpperCase().trim())
+    } else {
+      // capabilities were not automatically listed, reload
+      await this.updateCapability(true)
+    }
+
+    this._changeState(STATE_AUTHENTICATED)
+    this._authenticated = true
+    this.logger.debug('Login successful, post-auth capabilites updated!', this._capability)
   }
 
   /**
@@ -787,14 +664,13 @@ export default class Client {
    * @param {Object} request Structured request object
    * @param {Array} acceptUntagged a list of untagged responses that will be included in 'payload' property
    */
-  exec (request, acceptUntagged, options) {
+  async exec (request, acceptUntagged, options) {
     this.breakIdle()
-    return this.client.enqueueCommand(request, acceptUntagged, options).then((response) => {
-      if (response && response.capability) {
-        this._capability = response.capability
-      }
-      return response
-    })
+    const response = await this.client.enqueueCommand(request, acceptUntagged, options)
+    if (response && response.capability) {
+      this._capability = response.capability
+    }
+    return response
   }
 
   /**
@@ -865,23 +741,22 @@ export default class Client {
    *
    * @param {Boolean} [forced] By default the command is not run if capability is already listed. Set to true to skip this validation
    */
-  upgradeConnection () {
+  async upgradeConnection () {
     // skip request, if already secured
     if (this.client.secureMode) {
-      return Promise.resolve(false)
+      return false
     }
 
     // skip if STARTTLS not available or starttls support disabled
     if ((this._capability.indexOf('STARTTLS') < 0 || this._ignoreTLS) && !this._requireTLS) {
-      return Promise.resolve(false)
+      return false
     }
 
     this.logger.debug('Encrypting connection...')
-    return this.exec('STARTTLS').then(() => {
-      this._capability = []
-      this.client.upgrade()
-      return this.updateCapability()
-    })
+    await this.exec('STARTTLS')
+    this._capability = []
+    this.client.upgrade()
+    return this.updateCapability()
   }
 
   /**
@@ -895,24 +770,24 @@ export default class Client {
    *
    * @param {Boolean} [forced] By default the command is not run if capability is already listed. Set to true to skip this validation
    */
-  updateCapability (forced) {
+  async updateCapability (forced) {
     // skip request, if not forced update and capabilities are already loaded
     if (!forced && this._capability.length) {
-      return Promise.resolve()
+      return
     }
 
     // If STARTTLS is required then skip capability listing as we are going to try
     // STARTTLS anyway and we re-check capabilities after connection is secured
     if (!this.client.secureMode && this._requireTLS) {
-      return Promise.resolve()
+      return
     }
 
     this.logger.debug('Updating capability...')
     return this.exec('CAPABILITY')
   }
 
-  hasCapability (capa) {
-    return this._capability.indexOf((capa || '').toString().toUpperCase().trim()) >= 0
+  hasCapability (capa = '') {
+    return this._capability.indexOf(capa.toUpperCase().trim()) >= 0
   }
 
   // Default handlers for untagged responses
@@ -936,7 +811,10 @@ export default class Client {
    * @param {Function} next Until called, server responses are not processed
    */
   _untaggedCapabilityHandler (response) {
-    this._capability = [].concat(propOr([], 'attributes')(response)).map((capa) => (capa.value || '').toString().toUpperCase().trim())
+    this._capability = pipe(
+      propOr([], 'attributes'),
+      map(({value}) => (value || '').toUpperCase().trim())
+    )(response)
   }
 
   /**
@@ -970,11 +848,7 @@ export default class Client {
    * @param {Function} next Until called, server responses are not processed
    */
   _untaggedFetchHandler (response) {
-    this.onupdate && this.onupdate(this._selectedMailbox, 'fetch', [].concat(this._parseFETCH({
-      payload: {
-        FETCH: [response]
-      }
-    }) || []).shift())
+    this.onupdate && this.onupdate(this._selectedMailbox, 'fetch', [].concat(this._parseFETCH({ payload: { FETCH: [response] } }) || []).shift())
   }
 
   // Private helpers
@@ -1153,9 +1027,9 @@ export default class Client {
     }
 
     let list = []
-    let messages = {};
+    let messages = {}
 
-    [].concat(response.payload.FETCH || []).forEach((item) => {
+    response.payload.FETCH.forEach((item) => {
       let params = [].concat([].concat(item.attributes || [])[0] || []) // ensure the first value is an array
       let message
       let i, len, key
@@ -1245,23 +1119,14 @@ export default class Client {
      * to addressparser and uses resulting values instead of the
      * pre-parsed addresses
      */
-    let processAddresses = (list) => {
-      return [].concat(list || []).map((addr) => {
-        let name = (pathOr('', ['0', 'value'])(addr)).trim()
-        let address = (pathOr('', ['2', 'value'])(addr)) + '@' + (pathOr('', ['3', 'value'])(addr))
-        let formatted
-
-        if (!name) {
-          formatted = address
-        } else {
-          formatted = this._encodeAddressName(name) + ' <' + address + '>'
-        }
-
-        let parsed = parseAddress(formatted).shift() // there should bu just a single address
-        parsed.name = mimeWordsDecode(parsed.name)
-        return parsed
-      })
-    }
+    const processAddresses = (list = []) => list.map((addr) => {
+      const name = (pathOr('', ['0', 'value'], addr)).trim()
+      const address = (pathOr('', ['2', 'value'], addr)) + '@' + (pathOr('', ['3', 'value'], addr))
+      const formatted = name ? (this._encodeAddressName(name) + ' <' + address + '>') : address
+      let parsed = parseAddress(formatted).shift() // there should be just a single address
+      parsed.name = mimeWordsDecode(parsed.name)
+      return parsed
+    })
 
     if (value[0] && value[0].value) {
       envelope.date = value[0].value
@@ -1315,10 +1180,16 @@ export default class Client {
    * @param {Object} Envelope object
    */
   _parseBODYSTRUCTURE (value) {
-    let processNode = (node, path = []) => {
+    const attributesToObject = (attrs = [], keyTransform = toLower, valueTransform = mimeWordsDecode) => {
+      const vals = attrs.map(prop('value'))
+      const keys = vals.filter((_, i) => i % 2 === 0).map(keyTransform)
+      const values = vals.filter((_, i) => i % 2 === 1).map(valueTransform)
+      return fromPairs(zip(keys, values))
+    }
+
+    const processNode = (node, path = []) => {
       let curNode = {}
       let i = 0
-      let key
       let part = 0
 
       if (path.length) {
@@ -1341,14 +1212,7 @@ export default class Client {
         // body parameter parenthesized list
         if (i < node.length - 1) {
           if (node[i]) {
-            curNode.parameters = {};
-            [].concat(node[i] || []).forEach((val, j) => {
-              if (j % 2) {
-                curNode.parameters[key] = mimeWordsDecode(propOr('', 'value')(val))
-              } else {
-                key = propOr('', 'value')(val).toLowerCase()
-              }
-            })
+            curNode.parameters = attributesToObject(node[i])
           }
           i++
         }
@@ -1360,14 +1224,7 @@ export default class Client {
 
         // body parameter parenthesized list
         if (node[i]) {
-          curNode.parameters = {};
-          [].concat(node[i] || []).forEach((val, j) => {
-            if (j % 2) {
-              curNode.parameters[key] = mimeWordsDecode(propOr('', 'value')(val))
-            } else {
-              key = propOr('', 'value')(val).toLowerCase()
-            }
-          })
+          curNode.parameters = attributesToObject(node[i])
         }
         i++
 
@@ -1448,14 +1305,7 @@ export default class Client {
         if (Array.isArray(node[i]) && node[i].length) {
           curNode.disposition = ((node[i][0] || {}).value || '').toString().toLowerCase()
           if (Array.isArray(node[i][1])) {
-            curNode.dispositionParameters = {};
-            [].concat(node[i][1] || []).forEach((val, j) => {
-              if (j % 2) {
-                curNode.dispositionParameters[key] = mimeWordsDecode(propOr('', 'value')(val))
-              } else {
-                key = propOr('', 'value')(val).toLowerCase()
-              }
-            })
+            curNode.dispositionParameters = attributesToObject(node[i][1])
           }
         }
         i++
@@ -1464,7 +1314,7 @@ export default class Client {
       // body language
       if (i < node.length - 1) {
         if (node[i]) {
-          curNode.language = [].concat(node[i] || []).map((val) => propOr('', 'value')(val).toLowerCase())
+          curNode.language = [].concat(node[i]).map((val) => propOr('', 'value', val).toLowerCase())
         }
         i++
       }
@@ -1501,7 +1351,7 @@ export default class Client {
    * @param {Boolean} [options.byUid] If ture, use UID SEARCH instead of SEARCH
    * @return {Object} IMAP command object
    */
-  _buildSEARCHCommand (query, options) {
+  _buildSEARCHCommand (query = {}, options) {
     let command = {
       command: options.byUid ? 'UID SEARCH' : 'SEARCH'
     }
@@ -1525,8 +1375,7 @@ export default class Client {
               isAscii = false
               return {
                 type: 'literal',
-                // cast unicode string to pseudo-binary as imap-handler compiles strings as octets
-                value: fromTypedArray(encode(param))
+                value: fromTypedArray(encode(param)) // cast unicode string to pseudo-binary as imap-handler compiles strings as octets
               }
             }
             return {
@@ -1586,7 +1435,7 @@ export default class Client {
       return list
     }
 
-    command.attributes = [].concat(buildTerm(query || {}) || [])
+    command.attributes = buildTerm(query)
 
     // If any string input is using 8bit bytes, prepend the optional CHARSET argument
     if (!isAscii) {
@@ -1604,43 +1453,6 @@ export default class Client {
   }
 
   /**
-   * Binary Search
-   *
-   * @param {Array} haystack Ordered array
-   * @param {any} needle Item to search for in haystack
-   * @param {Function} comparator Function that defines the sort order
-   * @return {Number} Index of needle in haystack or if not found,
-   *     -Index-1 is the position where needle could be inserted while still
-   *     keeping haystack ordered.
-   */
-  _binSearch (haystack, needle, comparator) {
-    let mid, cmp
-    let low = 0
-    let high = haystack.length - 1
-
-    while (low <= high) {
-      // Note that "(low + high) >>> 1" may overflow, and results in
-      // a typecast to double (which gives the wrong results).
-      mid = low + (high - low >> 1)
-      cmp = +comparator(haystack[mid], needle)
-
-      if (cmp < 0.0) {
-        // too low
-        low = mid + 1
-      } else if (cmp > 0.0) {
-        // too high
-        high = mid - 1
-      } else {
-        // key found
-        return mid
-      }
-    }
-
-    // key not found
-    return ~low
-  }
-
-  /**
    * Parses SEARCH response. Gathers all untagged SEARCH responses, fetched seq./uid numbers
    * and compiles these into a sorted array.
    *
@@ -1649,30 +1461,19 @@ export default class Client {
    * @param {Array} Sorted Seq./UID number list
    */
   _parseSEARCH (response) {
-    let cmp = (a, b) => (a - b)
-    let list = []
-
-    if (!response || !response.payload || !response.payload.SEARCH || !response.payload.SEARCH.length) {
-      return []
-    }
-
-    [].concat(response.payload.SEARCH || []).forEach((result) => {
-      [].concat(result.attributes || []).forEach((nr) => {
-        nr = Number(propOr(nr || 0, 'value')(nr)) || 0
-        let idx = this._binSearch(list, nr, cmp)
-        if (idx < 0) {
-          list.splice(-idx - 1, 0, nr)
-        }
-      })
-    })
-
-    return list
+    return pipe(
+      pathOr([], ['payload', 'SEARCH']),
+      map(x => x.attributes || []),
+      flatten,
+      map(nr => Number(propOr(nr || 0, 'value', nr)) || 0),
+      sort((a, b) => a > b)
+    )(response)
   }
 
   /**
    * Creates an IMAP STORE command from the selected arguments
    */
-  _buildSTORECommand (sequence, action, flags, options) {
+  _buildSTORECommand (sequence, action = '', flags, options) {
     let command = {
       command: options.byUid ? 'UID STORE' : 'STORE',
       attributes: [{
@@ -1683,7 +1484,7 @@ export default class Client {
 
     command.attributes.push({
       type: 'atom',
-      value: (action || '').toString().toUpperCase() + (options.silent ? '.SILENT' : '')
+      value: action.toUpperCase() + (options.silent ? '.SILENT' : '')
     })
 
     command.attributes.push(flags.map((flag) => {
@@ -1726,13 +1527,12 @@ export default class Client {
    * @return {Object} branch for used path
    */
   _ensurePath (tree, path, delimiter) {
-    let names = path.split(delimiter)
+    const names = path.split(delimiter)
     let branch = tree
-    let i, j, found
 
-    for (i = 0; i < names.length; i++) {
-      found = false
-      for (j = 0; j < branch.children.length; j++) {
+    for (let i = 0; i < names.length; i++) {
+      let found = false
+      for (let j = 0; j < branch.children.length; j++) {
         if (this._compareMailboxNames(branch.children[j].name, imapDecode(names[i]))) {
           branch = branch.children[j]
           found = true
@@ -1770,11 +1570,9 @@ export default class Client {
    * @return {String} Special use flag (if detected)
    */
   _checkSpecialUse (mailbox) {
-    let i, type
-
     if (mailbox.flags) {
-      for (i = 0; i < SPECIAL_USE_FLAGS.length; i++) {
-        type = SPECIAL_USE_FLAGS[i]
+      for (let i = 0; i < SPECIAL_USE_FLAGS.length; i++) {
+        const type = SPECIAL_USE_FLAGS[i]
         if ((mailbox.flags || []).indexOf(type) >= 0) {
           mailbox.specialUse = type
           mailbox.specialUseFlag = type
@@ -1787,12 +1585,10 @@ export default class Client {
   }
 
   _checkSpecialUseByName (mailbox) {
-    let name = propOr('', 'name')(mailbox).toLowerCase().trim()
-    let i
-    let type
+    const name = propOr('', 'name', mailbox).toLowerCase().trim()
 
-    for (i = 0; i < SPECIAL_USE_BOX_FLAGS.length; i++) {
-      type = SPECIAL_USE_BOX_FLAGS[i]
+    for (let i = 0; i < SPECIAL_USE_BOX_FLAGS.length; i++) {
+      const type = SPECIAL_USE_BOX_FLAGS[i]
       if (SPECIAL_USE_BOXES[type].indexOf(name) >= 0) {
         mailbox.specialUse = type
         return type
@@ -1809,9 +1605,9 @@ export default class Client {
    * @param {String} token Valid access token for the user
    * @return {String} Base64 formatted login token
    */
-  _buildXOAuth2Token (user, token) {
+  _buildXOAuth2Token (user = '', token) {
     let authData = [
-      'user=' + (user || ''),
+      'user=' + user,
       'auth=Bearer ' + token,
       '',
       ''
