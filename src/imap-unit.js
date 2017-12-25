@@ -46,24 +46,22 @@ describe('browserbox imap unit tests', () => {
   })
 
   describe.skip('#close', () => {
-    it('should call socket.close', (done) => {
+    it('should call socket.close', () => {
       client.socket.readyState = 'open'
 
-      client.close().then(() => {
-        expect(socketStub.close.callCount).to.equal(1)
-      }).then(done).catch(done)
-
       setTimeout(() => socketStub.onclose(), 10)
+      return client.close().then(() => {
+        expect(socketStub.close.callCount).to.equal(1)
+      })
     })
 
-    it('should not call socket.close', (done) => {
+    it('should not call socket.close', () => {
       client.socket.readyState = 'not open. duh.'
 
-      client.close().then(() => {
-        expect(socketStub.close.called).to.be.false
-      }).then(done).catch(done)
-
       setTimeout(() => socketStub.onclose(), 10)
+      return client.close().then(() => {
+        expect(socketStub.close.called).to.be.false
+      })
     })
   })
 
@@ -443,7 +441,7 @@ describe('browserbox imap unit tests', () => {
   })
 
   describe('#enqueueCommand', () => {
-    it('should reject on NO/BAD', (done) => {
+    it('should reject on NO/BAD', () => {
       sinon.stub(client, '_sendRequest').callsFake(() => {
         client._clientQueue[0].callback({ command: 'NO' })
       })
@@ -452,17 +450,16 @@ describe('browserbox imap unit tests', () => {
       client._clientQueue = []
       client._canSend = true
 
-      client.enqueueCommand({
+      return client.enqueueCommand({
         command: 'abc'
       }, ['def'], {
         t: 1
       }).catch((err) => {
         expect(err).to.exist
-        done()
       })
     })
 
-    it('should invoke sending', (done) => {
+    it('should invoke sending', () => {
       sinon.stub(client, '_sendRequest').callsFake(() => {
         client._clientQueue[0].callback({})
       })
@@ -471,7 +468,7 @@ describe('browserbox imap unit tests', () => {
       client._clientQueue = []
       client._canSend = true
 
-      client.enqueueCommand({
+      return client.enqueueCommand({
         command: 'abc'
       }, ['def'], {
         t: 1
@@ -484,17 +481,19 @@ describe('browserbox imap unit tests', () => {
           tag: 'W101'
         })
         expect(client._clientQueue[0].t).to.equal(1)
-      }).then(done).catch(done)
+      })
     })
 
-    it('should only queue', (done) => {
+    it('should only queue', () => {
       sinon.stub(client, '_sendRequest')
 
       client._tagCounter = 100
       client._clientQueue = []
       client._canSend = false
 
-      client.enqueueCommand({
+      setTimeout(() => { client._clientQueue[0].callback({}) }, 0)
+
+      return client.enqueueCommand({
         command: 'abc'
       }, ['def'], {
         t: 1
@@ -502,32 +501,25 @@ describe('browserbox imap unit tests', () => {
         expect(client._sendRequest.callCount).to.equal(0)
         expect(client._clientQueue.length).to.equal(1)
         expect(client._clientQueue[0].tag).to.equal('W101')
-      }).then(done).catch(done)
-
-      setTimeout(() => {
-        client._clientQueue[0].callback({})
-      }, 0)
+      })
     })
 
-    it('should store valueAsString option in the command', (done) => {
+    it('should store valueAsString option in the command', () => {
       sinon.stub(client, '_sendRequest')
 
       client._tagCounter = 100
       client._clientQueue = []
       client._canSend = false
 
-      client.enqueueCommand({
+      setTimeout(() => { client._clientQueue[0].callback({}) }, 0)
+      return client.enqueueCommand({
         command: 'abc',
         valueAsString: false
       }, ['def'], {
         t: 1
       }).then(() => {
         expect(client._clientQueue[0].request.valueAsString).to.equal(false)
-      }).then(done).catch(done)
-
-      setTimeout(() => {
-        client._clientQueue[0].callback({})
-      }, 0)
+      })
     })
   })
 
