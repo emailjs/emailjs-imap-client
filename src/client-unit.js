@@ -70,14 +70,15 @@ describe('browserbox unit tests', () => {
       })
     })
 
-    it('should fail to login', (done) => {
+    it('should fail to login', () => {
       br.client.connect.returns(Promise.resolve())
       br.updateCapability.returns(Promise.resolve())
       br.upgradeConnection.returns(Promise.resolve())
       br.updateId.returns(Promise.resolve())
       br.login.returns(Promise.reject(new Error()))
 
-      br.connect().catch((err) => {
+      setTimeout(() => br.client.onready(), 0)
+      return br.connect().catch((err) => {
         expect(err).to.exist
 
         expect(br.client.connect.calledOnce).to.be.true
@@ -88,18 +89,15 @@ describe('browserbox unit tests', () => {
         expect(br.login.calledOnce).to.be.true
 
         expect(br.compressConnection.called).to.be.false
-
-        done()
       })
 
-      setTimeout(() => br.client.onready(), 0)
     })
 
-    it('should timeout', (done) => {
+    it('should timeout', () => {
       br.client.connect.returns(Promise.resolve())
       br.timeoutConnection = 1
 
-      br.connect().catch((err) => {
+      return br.connect().catch((err) => {
         expect(err).to.exist
 
         expect(br.client.connect.calledOnce).to.be.true
@@ -110,8 +108,6 @@ describe('browserbox unit tests', () => {
         expect(br.updateId.called).to.be.false
         expect(br.login.called).to.be.false
         expect(br.compressConnection.called).to.be.false
-
-        done()
       })
     })
   })

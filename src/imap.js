@@ -120,9 +120,9 @@ export default class Imap {
    *     in production use!
    * @returns {Promise} Resolves when socket is opened
    */
-  connect (Socket) {
+  connect (Socket = TCPSocket) {
     return new Promise((resolve, reject) => {
-      this.socket = (Socket || TCPSocket).open(this.host, this.port, {
+      this.socket = Socket.open(this.host, this.port, {
         binaryType: 'arraybuffer',
         useSecureTransport: this.secureMode,
         ca: this.options.ca
@@ -266,7 +266,7 @@ export default class Imap {
         callback: (response) => {
           if (this.isError(response)) {
             return reject(response)
-          } else if (['NO', 'BAD'].indexOf(propOr('', 'command')(response).toUpperCase().trim()) >= 0) {
+          } else if (['NO', 'BAD'].indexOf(propOr('', 'command', response).toUpperCase().trim()) >= 0) {
             var error = new Error(response.humanReadable || 'Error')
             if (response.code) {
               error.code = response.code
@@ -574,7 +574,7 @@ export default class Imap {
    * @param {Object} response Parsed command object
    */
   _handleResponse (response) {
-    var command = propOr('', 'command')(response).toUpperCase().trim()
+    var command = propOr('', 'command', response).toUpperCase().trim()
 
     if (!this._currentCommand) {
       // unsolicited untagged response
@@ -698,9 +698,7 @@ export default class Imap {
    * @param {Object} response Parsed response object
    */
   _processResponse (response) {
-    let command = propOr('', 'command')(response).toUpperCase().trim()
-    let option
-    let key
+    let command = propOr('', 'command', response).toUpperCase().trim()
 
     // no attributes
     if (!response || !response.attributes || !response.attributes.length) {
@@ -725,7 +723,7 @@ export default class Imap {
 
     // Parse and format ATOM values
     if (response.attributes[0].type === 'ATOM' && response.attributes[0].section) {
-      option = response.attributes[0].section.map((key) => {
+      const option = response.attributes[0].section.map((key) => {
         if (!key) {
           return
         }
@@ -736,7 +734,7 @@ export default class Imap {
         }
       })
 
-      key = option.shift()
+      const key = option.shift()
       response.code = key
 
       if (option.length === 1) {
@@ -770,23 +768,21 @@ export default class Imap {
       this._compressionWorker = new Worker(URL.createObjectURL(new Blob([CompressionBlob])))
       this._compressionWorker.onmessage = (e) => {
         var message = e.data.message
-        var buffer = e.data.buffer
+        var data = e.data.buffer
 
         switch (message) {
           case MESSAGE_INFLATED_DATA_READY:
-            this._socketOnData({
-              data: buffer
-            })
+            this._socketOnData({ data })
             break
 
           case MESSAGE_DEFLATED_DATA_READY:
-            this.waitDrain = this.socket.send(buffer)
+            this.waitDrain = this.socket.send(data)
             break
         }
       }
 
       this._compressionWorker.onerror = (e) => {
-        this._onError(new Error('Error handling compression web worker: Line ' + e.lineno + ' in ' + e.filename + ': ' + e.message))
+        this._onError(new Error('Error handling compression web worker: ' + e.message))
       }
 
       this._compressionWorker.postMessage(createMessage(MESSAGE_INITIALIZE_WORKER))
