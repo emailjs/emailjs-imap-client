@@ -672,20 +672,13 @@ describe('browserbox imap unit tests', () => {
       client.enableCompression()
       expect(client.compressed).to.be.true
 
-      sinon.stub(client._compression, 'inflate').callsFake(() => {
-        client._compression.inflatedReady(new Uint8Array([1, 2, 3]).buffer)
-      })
-      sinon.stub(client._compression, 'deflate').callsFake(() => {
-        client._compression.deflatedReady(new Uint8Array([4, 5, 6]).buffer)
-      })
+      const payload = 'asdasd'
+      const expected = payload.split('').map(char => char.charCodeAt(0))
 
-      client.send('a')
-      client.socket.ondata(new Uint8Array([1]).buffer)
-
-      expect(socketStub.send.args[0][0]).to.deep.equal(new Uint8Array([4, 5, 6]).buffer)
-      expect(client._socketOnData.args[0][0]).to.deep.equal({
-        data: new Uint8Array([1, 2, 3]).buffer
-      })
+      client.send(payload)
+      const actualOut = socketStub.send.args[0][0]
+      client.socket.ondata({ data: actualOut })
+      expect(Buffer.from(client._socketOnData.args[0][0].data)).to.deep.equal(Buffer.from(expected))
     })
   })
 
