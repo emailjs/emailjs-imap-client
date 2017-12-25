@@ -340,7 +340,7 @@ export default class Imap {
     const timeout = this.timeoutSocketLowerBound + Math.floor(buffer.byteLength * this.timeoutSocketMultiplier)
 
     clearTimeout(this._socketTimeoutTimer) // clear pending timeouts
-    this._socketTimeoutTimer = setTimeout(() => this._onError(new Error(this.options.sessionId + ' Socket timed out!')), timeout) // arm the next timeout
+    this._socketTimeoutTimer = setTimeout(() => this._onError(new Error(' Socket timed out!')), timeout) // arm the next timeout
 
     if (this.compressed) {
       this._sendCompressed(buffer)
@@ -399,14 +399,14 @@ export default class Imap {
    */
   _onData (evt) {
     clearTimeout(this._socketTimeoutTimer) // reset the timeout on each data packet
-    this._socketTimeoutTimer = setTimeout(() => this._onError(new Error(this.options.sessionId + ' Socket timed out!')), this.ON_DATA_TIMEOUT)
+    this._socketTimeoutTimer = setTimeout(() => this._onError(new Error(' Socket timed out!')), this.ON_DATA_TIMEOUT)
 
     this._incomingBuffers.push(new Uint8Array(evt.data)) // append to the incoming buffer
     this._parseIncomingCommands(this._iterateIncomingBuffer()) // Consume the incoming buffer
   }
 
   * _iterateIncomingBuffer () {
-    let buf = this._incomingBuffers[this._incomingBuffers.length - 1]
+    let buf = this._incomingBuffers[this._incomingBuffers.length - 1] || []
     let i = 0
 
     // loop invariant:

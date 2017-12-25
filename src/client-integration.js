@@ -367,21 +367,19 @@ describe('browserbox integration tests', () => {
     describe('precheck', () => {
       it('should handle precheck error correctly', () => {
         // simulates a broken search command
-        var search = (query, options) => {
+        var search = (query, options = {}) => {
           var command = imap._buildSEARCHCommand(query, options)
           return imap.exec(command, 'SEARCH', {
             precheck: () => Promise.reject(new Error('FOO'))
           }).then((response) => imap._parseSEARCH(response))
         }
 
-        return imap.selectMailbox('inbox').then(() => {
-          return search({
-            header: ['subject', 'hello 3']
-          }, {})
-        }).catch((err) => {
-          expect(err.message).to.equal('FOO')
-          return imap.selectMailbox('[Gmail]/Spam')
-        })
+        return imap.selectMailbox('inbox')
+          .then(() => search({ header: ['subject', 'hello 3'] }))
+          .catch((err) => {
+            expect(err.message).to.equal('FOO')
+            return imap.selectMailbox('[Gmail]/Spam')
+          })
       })
 
       it('should select correct mailboxes in prechecks on concurrent calls', () => {
@@ -439,7 +437,7 @@ describe('browserbox integration tests', () => {
 
     it('should timeout', (done) => {
       imap.onerror = () => { done() }
-      imap.selectMailbox('inbox')
+      imap.selectMailbox('inbox').catch(() => {})
     })
 
     it('should reject all pending commands on timeout', () => {
