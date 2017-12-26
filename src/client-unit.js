@@ -4,7 +4,6 @@
 import ImapClient, { STATE_SELECTED, STATE_LOGOUT } from './client'
 import { parser } from 'emailjs-imap-handler'
 import mimeTorture from '../res/fixtures/mime-torture-bodystructure'
-import testEnvelope from '../res/fixtures/envelope'
 import { toTypedArray } from './common'
 
 describe('browserbox unit tests', () => {
@@ -1255,12 +1254,6 @@ describe('browserbox unit tests', () => {
         '#': 124,
         'uid': 790
       }])
-    })
-  })
-
-  describe('#_parseENVELOPE', () => {
-    it('should parsed envelope object', () => {
-      expect(br._parseENVELOPE(testEnvelope.source)).to.deep.equal(testEnvelope.parsed)
     })
   })
 

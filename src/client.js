@@ -2,9 +2,12 @@ import { toLower, prop, sort, map, pipe, union, zip, fromPairs, propOr, pathOr, 
 import { encode as encodeBase64 } from 'emailjs-base64'
 import { imapEncode, imapDecode } from 'emailjs-utf7'
 import { parser, compiler } from 'emailjs-imap-handler'
-import { encode, mimeWordEncode, mimeWordsDecode } from 'emailjs-mime-codec'
-import parseAddress from 'emailjs-addressparser'
-import { parseNAMESPACE, parseSELECT } from './command-parser'
+import { encode, mimeWordsDecode } from 'emailjs-mime-codec'
+import {
+  parseNAMESPACE,
+  parseSELECT,
+  parseENVELOPE
+} from './command-parser'
 
 import createDefaultLogger from './logger'
 import ImapClient from './imap'
@@ -992,7 +995,7 @@ export default class Client {
         value = [].concat(value).map((flag) => (flag.value || ''))
         break
       case 'envelope':
-        value = this._parseENVELOPE([].concat(value || []))
+        value = parseENVELOPE([].concat(value || []))
         break
       case 'bodystructure':
         value = this._parseBODYSTRUCTURE([].concat(value || []))
@@ -1003,77 +1006,6 @@ export default class Client {
     }
 
     return value
-  }
-
-  /**
-   * Parses message envelope from FETCH response. All keys in the resulting
-   * object are lowercase. Address fields are all arrays with {name:, address:}
-   * structured values. Unicode strings are automatically decoded.
-   *
-   * @param {Array} value Envelope array
-   * @param {Object} Envelope object
-   */
-  _parseENVELOPE (value) {
-    let envelope = {}
-
-    /*
-     * ENVELOPE lists addresses as [name-part, source-route, username, hostname]
-     * where source-route is not used anymore and can be ignored.
-     * To get comparable results with other parts of the email.js stack
-     * browserbox feeds the parsed address values from ENVELOPE
-     * to addressparser and uses resulting values instead of the
-     * pre-parsed addresses
-     */
-    const processAddresses = (list = []) => list.map((addr) => {
-      const name = (pathOr('', ['0', 'value'], addr)).trim()
-      const address = (pathOr('', ['2', 'value'], addr)) + '@' + (pathOr('', ['3', 'value'], addr))
-      const formatted = name ? (this._encodeAddressName(name) + ' <' + address + '>') : address
-      let parsed = parseAddress(formatted).shift() // there should be just a single address
-      parsed.name = mimeWordsDecode(parsed.name)
-      return parsed
-    })
-
-    if (value[0] && value[0].value) {
-      envelope.date = value[0].value
-    }
-
-    if (value[1] && value[1].value) {
-      envelope.subject = mimeWordsDecode(value[1] && value[1].value)
-    }
-
-    if (value[2] && value[2].length) {
-      envelope.from = processAddresses(value[2])
-    }
-
-    if (value[3] && value[3].length) {
-      envelope.sender = processAddresses(value[3])
-    }
-
-    if (value[4] && value[4].length) {
-      envelope['reply-to'] = processAddresses(value[4])
-    }
-
-    if (value[5] && value[5].length) {
-      envelope.to = processAddresses(value[5])
-    }
-
-    if (value[6] && value[6].length) {
-      envelope.cc = processAddresses(value[6])
-    }
-
-    if (value[7] && value[7].length) {
-      envelope.bcc = processAddresses(value[7])
-    }
-
-    if (value[8] && value[8].value) {
-      envelope['in-reply-to'] = value[8].value
-    }
-
-    if (value[9] && value[9].value) {
-      envelope['message-id'] = value[9].value
-    }
-
-    return envelope
   }
 
   /**
@@ -1162,7 +1094,7 @@ export default class Client {
 
           // envelope
           if (node[i]) {
-            curNode.envelope = this._parseENVELOPE([].concat(node[i] || []))
+            curNode.envelope = parseENVELOPE([].concat(node[i] || []))
           }
           i++
 
@@ -1518,23 +1450,6 @@ export default class Client {
       ''
     ]
     return encodeBase64(authData.join('\x01'))
-  }
-
-  /**
-   * If needed, encloses with quotes or mime encodes the name part of an e-mail address
-   *
-   * @param {String} name Name part of an address
-   * @returns {String} Mime word encoded or quoted string
-   */
-  _encodeAddressName (name) {
-    if (!/^[\w ']*$/.test(name)) {
-      if (/^[\x20-\x7e]*$/.test(name)) {
-        return JSON.stringify(name)
-      } else {
-        return mimeWordEncode(name, 'Q', 52)
-      }
-    }
-    return name
   }
 
   createLogger (logger = createDefaultLogger()) {

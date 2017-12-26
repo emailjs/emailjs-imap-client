@@ -1,12 +1,14 @@
 /* eslint-disable no-unused-expressions */
 /* eslint-disable no-useless-escape */
 
+import { parser } from 'emailjs-imap-handler'
 import {
   parseNAMESPACE,
+  parseENVELOPE,
   parseSELECT
 } from './command-parser'
-import { parser } from 'emailjs-imap-handler'
 import { toTypedArray } from './common'
+import testEnvelope from '../res/fixtures/envelope'
 
 describe('parseNAMESPACE', () => {
   it('should not succeed for no namespace response', () => {
@@ -290,5 +292,11 @@ describe('parseSELECT', () => {
       uidValidity: 2,
       noModseq: true
     })
+  })
+})
+
+describe('parseENVELOPE', () => {
+  it('should parsed envelope object', () => {
+    expect(parseENVELOPE(testEnvelope.source)).to.deep.equal(testEnvelope.parsed)
   })
 })
