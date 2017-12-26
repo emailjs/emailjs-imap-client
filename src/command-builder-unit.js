@@ -1,5 +1,6 @@
 import {
-  buildFETCHCommand
+  buildFETCHCommand,
+  buildXOAuth2Token
 } from './command-builder'
 
 describe('buildFETCHCommand', () => {
@@ -161,5 +162,11 @@ describe('buildFETCHCommand', () => {
       }],
       valueAsString: false
     })
+  })
+})
+
+describe('#_buildXOAuth2Token', () => {
+  it('should return base64 encoded XOAUTH2 token', () => {
+    expect(buildXOAuth2Token('user@host', 'abcde')).to.equal('dXNlcj11c2VyQGhvc3QBYXV0aD1CZWFyZXIgYWJjZGUBAQ==')
   })
 })

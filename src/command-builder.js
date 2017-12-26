@@ -1,4 +1,5 @@
 import { parser } from 'emailjs-imap-handler'
+import { encode as encodeBase64 } from 'emailjs-base64'
 import {
   toTypedArray
 } from './common'
@@ -67,4 +68,21 @@ export function buildFETCHCommand (sequence, items, options) {
   }
 
   return command
+}
+
+  /**
+   * Builds a login token for XOAUTH2 authentication command
+   *
+   * @param {String} user E-mail address of the user
+   * @param {String} token Valid access token for the user
+   * @return {String} Base64 formatted login token
+   */
+export function buildXOAuth2Token (user = '', token) {
+  let authData = [
+    `user=${user}`,
+    `auth=Bearer ${token}`,
+    '',
+    ''
+  ]
+  return encodeBase64(authData.join('\x01'))
 }

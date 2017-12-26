@@ -1,5 +1,4 @@
 import { sort, map, pipe, union, zip, fromPairs, propOr, pathOr, flatten } from 'ramda'
-import { encode as encodeBase64 } from 'emailjs-base64'
 import { imapEncode, imapDecode } from 'emailjs-utf7'
 import { encode } from 'emailjs-mime-codec'
 import {
@@ -8,7 +7,8 @@ import {
   parseFETCH
 } from './command-parser'
 import {
-  buildFETCHCommand
+  buildFETCHCommand,
+  buildXOAuth2Token
 } from './command-builder'
 
 import createDefaultLogger from './logger'
@@ -624,7 +624,7 @@ export default class Client {
         command: 'AUTHENTICATE',
         attributes: [
           { type: 'ATOM', value: 'XOAUTH2' },
-          { type: 'ATOM', value: this._buildXOAuth2Token(auth.user, auth.xoauth2), sensitive: true }
+          { type: 'ATOM', value: buildXOAuth2Token(auth.user, auth.xoauth2), sensitive: true }
         ]
       }
 
@@ -1119,23 +1119,6 @@ export default class Client {
     }
 
     return false
-  }
-
-  /**
-   * Builds a login token for XOAUTH2 authentication command
-   *
-   * @param {String} user E-mail address of the user
-   * @param {String} token Valid access token for the user
-   * @return {String} Base64 formatted login token
-   */
-  _buildXOAuth2Token (user = '', token) {
-    let authData = [
-      'user=' + user,
-      'auth=Bearer ' + token,
-      '',
-      ''
-    ]
-    return encodeBase64(authData.join('\x01'))
   }
 
   createLogger (logger = createDefaultLogger()) {

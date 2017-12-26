@@ -1413,12 +1413,6 @@ describe('browserbox unit tests', () => {
     })
   })
 
-  describe('#_buildXOAuth2Token', () => {
-    it('should return base64 encoded XOAUTH2 token', () => {
-      expect(br._buildXOAuth2Token('user@host', 'abcde')).to.equal('dXNlcj11c2VyQGhvc3QBYXV0aD1CZWFyZXIgYWJjZGUBAQ==')
-    })
-  })
-
   describe('untagged updates', () => {
     it('should receive information about untagged exists', (done) => {
       br.client._connectionReady = true
