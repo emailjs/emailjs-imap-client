@@ -5,10 +5,12 @@ import { parser } from 'emailjs-imap-handler'
 import {
   parseNAMESPACE,
   parseENVELOPE,
-  parseSELECT
+  parseSELECT,
+  parseBODYSTRUCTURE
 } from './command-parser'
 import { toTypedArray } from './common'
 import testEnvelope from '../res/fixtures/envelope'
+import mimeTorture from '../res/fixtures/mime-torture-bodystructure'
 
 describe('parseNAMESPACE', () => {
   it('should not succeed for no namespace response', () => {
@@ -298,5 +300,77 @@ describe('parseSELECT', () => {
 describe('parseENVELOPE', () => {
   it('should parsed envelope object', () => {
     expect(parseENVELOPE(testEnvelope.source)).to.deep.equal(testEnvelope.parsed)
+  })
+})
+
+describe('parseBODYSTRUCTURE', () => {
+  it('should parse bodystructure object', () => {
+    expect(parseBODYSTRUCTURE(mimeTorture.source)).to.deep.equal(mimeTorture.parsed)
+  })
+
+  it('should parse bodystructure with unicode filename', () => {
+    var input = [
+      [{
+        type: 'STRING',
+        value: 'APPLICATION'
+      }, {
+        type: 'STRING',
+        value: 'OCTET-STREAM'
+      },
+        null,
+        null,
+        null, {
+          type: 'STRING',
+          value: 'BASE64'
+        }, {
+          type: 'ATOM',
+          value: '40'
+        },
+        null, [{
+          type: 'STRING',
+          value: 'ATTACHMENT'
+        },
+        [{
+          type: 'STRING',
+          value: 'FILENAME'
+        }, {
+          type: 'STRING',
+          value: '=?ISO-8859-1?Q?BBR_Handel,_Gewerbe,_B=FCrobetriebe,?= =?ISO-8859-1?Q?_private_Bildungseinrichtungen.txt?='
+        }]
+        ],
+        null
+      ], {
+        type: 'STRING',
+        value: 'MIXED'
+      },
+      [{
+        type: 'STRING',
+        value: 'BOUNDARY'
+      }, {
+        type: 'STRING',
+        value: '----sinikael-?=_1-14105085265110.49903922458179295'
+      }],
+      null,
+      null
+    ]
+
+    var expected = {
+      childNodes: [{
+        part: '1',
+        type: 'application/octet-stream',
+        encoding: 'base64',
+        size: 40,
+        disposition: 'attachment',
+        dispositionParameters: {
+          filename: 'BBR Handel, Gewerbe, Bürobetriebe, private Bildungseinrichtungen.txt'
+        }
+      }],
+      type: 'multipart/mixed',
+      parameters: {
+        boundary: '----sinikael-?=_1-14105085265110.49903922458179295'
+      }
+    }
+
+    expect(parseBODYSTRUCTURE(input)).to.deep.equal(expected)
   })
 })

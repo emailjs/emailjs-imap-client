@@ -1,12 +1,13 @@
-import { toLower, prop, sort, map, pipe, union, zip, fromPairs, propOr, pathOr, flatten } from 'ramda'
+import { sort, map, pipe, union, zip, fromPairs, propOr, pathOr, flatten } from 'ramda'
 import { encode as encodeBase64 } from 'emailjs-base64'
 import { imapEncode, imapDecode } from 'emailjs-utf7'
 import { parser, compiler } from 'emailjs-imap-handler'
-import { encode, mimeWordsDecode } from 'emailjs-mime-codec'
+import { encode } from 'emailjs-mime-codec'
 import {
   parseNAMESPACE,
   parseSELECT,
-  parseENVELOPE
+  parseENVELOPE,
+  parseBODYSTRUCTURE
 } from './command-parser'
 
 import createDefaultLogger from './logger'
@@ -998,7 +999,7 @@ export default class Client {
         value = parseENVELOPE([].concat(value || []))
         break
       case 'bodystructure':
-        value = this._parseBODYSTRUCTURE([].concat(value || []))
+        value = parseBODYSTRUCTURE([].concat(value || []))
         break
       case 'modseq':
         value = (value.shift() || {}).value || '0'
@@ -1006,170 +1007,6 @@ export default class Client {
     }
 
     return value
-  }
-
-  /**
-   * Parses message body structure from FETCH response.
-   *
-   * TODO: implement actual handler
-   *
-   * @param {Array} value BODYSTRUCTURE array
-   * @param {Object} Envelope object
-   */
-  _parseBODYSTRUCTURE (value) {
-    const attributesToObject = (attrs = [], keyTransform = toLower, valueTransform = mimeWordsDecode) => {
-      const vals = attrs.map(prop('value'))
-      const keys = vals.filter((_, i) => i % 2 === 0).map(keyTransform)
-      const values = vals.filter((_, i) => i % 2 === 1).map(valueTransform)
-      return fromPairs(zip(keys, values))
-    }
-
-    const processNode = (node, path = []) => {
-      let curNode = {}
-      let i = 0
-      let part = 0
-
-      if (path.length) {
-        curNode.part = path.join('.')
-      }
-
-      // multipart
-      if (Array.isArray(node[0])) {
-        curNode.childNodes = []
-        while (Array.isArray(node[i])) {
-          curNode.childNodes.push(processNode(node[i], path.concat(++part)))
-          i++
-        }
-
-        // multipart type
-        curNode.type = 'multipart/' + ((node[i++] || {}).value || '').toString().toLowerCase()
-
-        // extension data (not available for BODY requests)
-
-        // body parameter parenthesized list
-        if (i < node.length - 1) {
-          if (node[i]) {
-            curNode.parameters = attributesToObject(node[i])
-          }
-          i++
-        }
-      } else {
-        // content type
-        curNode.type = [
-          ((node[i++] || {}).value || '').toString().toLowerCase(), ((node[i++] || {}).value || '').toString().toLowerCase()
-        ].join('/')
-
-        // body parameter parenthesized list
-        if (node[i]) {
-          curNode.parameters = attributesToObject(node[i])
-        }
-        i++
-
-        // id
-        if (node[i]) {
-          curNode.id = ((node[i] || {}).value || '').toString()
-        }
-        i++
-
-        // description
-        if (node[i]) {
-          curNode.description = ((node[i] || {}).value || '').toString()
-        }
-        i++
-
-        // encoding
-        if (node[i]) {
-          curNode.encoding = ((node[i] || {}).value || '').toString().toLowerCase()
-        }
-        i++
-
-        // size
-        if (node[i]) {
-          curNode.size = Number((node[i] || {}).value || 0) || 0
-        }
-        i++
-
-        if (curNode.type === 'message/rfc822') {
-          // message/rfc adds additional envelope, bodystructure and line count values
-
-          // envelope
-          if (node[i]) {
-            curNode.envelope = parseENVELOPE([].concat(node[i] || []))
-          }
-          i++
-
-          if (node[i]) {
-            curNode.childNodes = [
-              // rfc822 bodyparts share the same path, difference is between MIME and HEADER
-              // path.MIME returns message/rfc822 header
-              // path.HEADER returns inlined message header
-              processNode(node[i], path)
-            ]
-          }
-          i++
-
-          // line count
-          if (node[i]) {
-            curNode.lineCount = Number((node[i] || {}).value || 0) || 0
-          }
-          i++
-        } else if (/^text\//.test(curNode.type)) {
-          // text/* adds additional line count values
-
-          // line count
-          if (node[i]) {
-            curNode.lineCount = Number((node[i] || {}).value || 0) || 0
-          }
-          i++
-        }
-
-        // extension data (not available for BODY requests)
-
-        // md5
-        if (i < node.length - 1) {
-          if (node[i]) {
-            curNode.md5 = ((node[i] || {}).value || '').toString().toLowerCase()
-          }
-          i++
-        }
-      }
-
-      // the following are shared extension values (for both multipart and non-multipart parts)
-      // not available for BODY requests
-
-      // body disposition
-      if (i < node.length - 1) {
-        if (Array.isArray(node[i]) && node[i].length) {
-          curNode.disposition = ((node[i][0] || {}).value || '').toString().toLowerCase()
-          if (Array.isArray(node[i][1])) {
-            curNode.dispositionParameters = attributesToObject(node[i][1])
-          }
-        }
-        i++
-      }
-
-      // body language
-      if (i < node.length - 1) {
-        if (node[i]) {
-          curNode.language = [].concat(node[i]).map((val) => propOr('', 'value', val).toLowerCase())
-        }
-        i++
-      }
-
-      // body location
-      // NB! defined as a "string list" in RFC3501 but replaced in errata document with "string"
-      // Errata: http://www.rfc-editor.org/errata_search.php?rfc=3501
-      if (i < node.length - 1) {
-        if (node[i]) {
-          curNode.location = ((node[i] || {}).value || '').toString()
-        }
-        i++
-      }
-
-      return curNode
-    }
-
-    return processNode(value)
   }
 
   /**
