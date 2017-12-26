@@ -311,46 +311,29 @@ describe('parseBODYSTRUCTURE', () => {
 
   it('should parse bodystructure with unicode filename', () => {
     var input = [
-      [{
-        type: 'STRING',
-        value: 'APPLICATION'
-      }, {
-        type: 'STRING',
-        value: 'OCTET-STREAM'
-      },
+      [
+        { type: 'STRING', value: 'APPLICATION' },
+        { type: 'STRING', value: 'OCTET-STREAM' },
         null,
         null,
-        null, {
-          type: 'STRING',
-          value: 'BASE64'
-        }, {
-          type: 'ATOM',
-          value: '40'
-        },
-        null, [{
-          type: 'STRING',
-          value: 'ATTACHMENT'
-        },
-        [{
-          type: 'STRING',
-          value: 'FILENAME'
-        }, {
-          type: 'STRING',
-          value: '=?ISO-8859-1?Q?BBR_Handel,_Gewerbe,_B=FCrobetriebe,?= =?ISO-8859-1?Q?_private_Bildungseinrichtungen.txt?='
-        }]
+        null,
+        { type: 'STRING', value: 'BASE64' },
+        { type: 'ATOM', value: '40' },
+        null,
+        [
+          { type: 'STRING', value: 'ATTACHMENT' },
+          [
+            { type: 'STRING', value: 'FILENAME' },
+            { type: 'STRING', value: '=?ISO-8859-1?Q?BBR_Handel,_Gewerbe,_B=FCrobetriebe,?= =?ISO-8859-1?Q?_private_Bildungseinrichtungen.txt?=' }
+          ]
         ],
         null
-      ], {
-        type: 'STRING',
-        value: 'MIXED'
-      },
-      [{
-        type: 'STRING',
-        value: 'BOUNDARY'
-      }, {
-        type: 'STRING',
-        value: '----sinikael-?=_1-14105085265110.49903922458179295'
-      }],
+      ],
+      { type: 'STRING', value: 'MIXED' },
+      [
+        { type: 'STRING', value: 'BOUNDARY' },
+        { type: 'STRING', value: '----sinikael-?=_1-14105085265110.49903922458179295' }
+      ],
       null,
       null
     ]
