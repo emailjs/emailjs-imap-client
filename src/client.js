@@ -1,18 +1,19 @@
 import { sort, map, pipe, union, zip, fromPairs, propOr, pathOr, flatten } from 'ramda'
 import { encode as encodeBase64 } from 'emailjs-base64'
 import { imapEncode, imapDecode } from 'emailjs-utf7'
-import { parser } from 'emailjs-imap-handler'
 import { encode } from 'emailjs-mime-codec'
 import {
   parseNAMESPACE,
   parseSELECT,
   parseFETCH
 } from './command-parser'
+import {
+  buildFETCHCommand
+} from './command-builder'
 
 import createDefaultLogger from './logger'
 import ImapClient from './imap'
 import {
-  toTypedArray,
   fromTypedArray,
   LOG_LEVEL_ERROR,
   LOG_LEVEL_WARN,
@@ -373,7 +374,7 @@ export default class Client {
    */
   async listMessages (path, sequence, items = [{ fast: true }], options = {}) {
     this.logger.debug('Fetching messages', sequence, 'from', path, '...')
-    const command = this._buildFETCHCommand(sequence, items, options)
+    const command = buildFETCHCommand(sequence, items, options)
     const response = await this.exec(command, 'FETCH', {
       precheck: (ctx) => this._shouldSelectMailbox(path, ctx) ? this.selectMailbox(path, { ctx }) : Promise.resolve()
     })
@@ -856,72 +857,6 @@ export default class Client {
   }
 
   // Private helpers
-
-  /**
-   * Builds a FETCH command
-   *
-   * @param {String} sequence Message range selector
-   * @param {Array} items List of elements to fetch (eg. `['uid', 'envelope']`).
-   * @param {Object} [options] Optional options object. Use `{byUid:true}` for `UID FETCH`
-   * @returns {Object} Structured IMAP command
-   */
-  _buildFETCHCommand (sequence, items, options) {
-    let command = {
-      command: options.byUid ? 'UID FETCH' : 'FETCH',
-      attributes: [{
-        type: 'SEQUENCE',
-        value: sequence
-      }]
-    }
-
-    if (options.valueAsString !== undefined) {
-      command.valueAsString = options.valueAsString
-    }
-
-    let query = []
-
-    items.forEach((item) => {
-      item = item.toUpperCase().trim()
-
-      if (/^\w+$/.test(item)) {
-        // alphanum strings can be used directly
-        query.push({
-          type: 'ATOM',
-          value: item
-        })
-      } else if (item) {
-        try {
-          // parse the value as a fake command, use only the attributes block
-          const cmd = parser(toTypedArray('* Z ' + item))
-          query = query.concat(cmd.attributes || [])
-        } catch (e) {
-          // if parse failed, use the original string as one entity
-          query.push({
-            type: 'ATOM',
-            value: item
-          })
-        }
-      }
-    })
-
-    if (query.length === 1) {
-      query = query.pop()
-    }
-
-    command.attributes.push(query)
-
-    if (options.changedSince) {
-      command.attributes.push([{
-        type: 'ATOM',
-        value: 'CHANGEDSINCE'
-      }, {
-        type: 'ATOM',
-        value: options.changedSince
-      }])
-    }
-
-    return command
-  }
 
   /**
    * Compiles a search query into an IMAP command. Queries are composed as objects
