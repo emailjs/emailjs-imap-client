@@ -6,7 +6,8 @@ import {
   parseNAMESPACE,
   parseENVELOPE,
   parseSELECT,
-  parseBODYSTRUCTURE
+  parseBODYSTRUCTURE,
+  parseFETCH
 } from './command-parser'
 import { toTypedArray } from './common'
 import testEnvelope from '../res/fixtures/envelope'
@@ -372,5 +373,90 @@ describe('parseBODYSTRUCTURE', () => {
     }
 
     expect(parseBODYSTRUCTURE(input)).to.deep.equal(expected)
+  })
+})
+
+describe('#_parseFETCH', () => {
+  it('should return values lowercase keys', () => {
+    expect(parseFETCH({
+      payload: {
+        FETCH: [{
+          nr: 123,
+          attributes: [
+            [{
+              type: 'ATOM',
+              value: 'BODY',
+              section: [{
+                type: 'ATOM',
+                value: 'HEADER'
+              },
+              [{
+                type: 'ATOM',
+                value: 'DATE'
+              }, {
+                type: 'ATOM',
+                value: 'SUBJECT'
+              }]
+              ],
+              partial: [0, 123]
+            }, {
+              type: 'ATOM',
+              value: 'abc'
+            }]
+          ]
+        }]
+      }
+    })).to.deep.equal([{
+      '#': 123,
+      'body[header (date subject)]<0.123>': 'abc'
+    }])
+  })
+
+  it('should merge multiple responses based on sequence number', () => {
+    expect(parseFETCH({
+      payload: {
+        FETCH: [{
+          nr: 123,
+          attributes: [
+            [{
+              type: 'ATOM',
+              value: 'UID'
+            }, {
+              type: 'ATOM',
+              value: 789
+            }]
+          ]
+        }, {
+          nr: 124,
+          attributes: [
+            [{
+              type: 'ATOM',
+              value: 'UID'
+            }, {
+              type: 'ATOM',
+              value: 790
+            }]
+          ]
+        }, {
+          nr: 123,
+          attributes: [
+            [{
+              type: 'ATOM',
+              value: 'MODSEQ'
+            }, {
+              type: 'ATOM',
+              value: '127'
+            }]
+          ]
+        }]
+      }
+    })).to.deep.equal([{
+      '#': 123,
+      'uid': 789,
+      'modseq': '127'
+    }, {
+      '#': 124,
+      'uid': 790
+    }])
   })
 })

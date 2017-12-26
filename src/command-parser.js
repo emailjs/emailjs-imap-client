@@ -1,4 +1,5 @@
 import parseAddress from 'emailjs-addressparser'
+import { compiler } from 'emailjs-imap-handler'
 import { zip, fromPairs, prop, pathOr, propOr, toLower } from 'ramda'
 import { mimeWordEncode, mimeWordsDecode } from 'emailjs-mime-codec'
 
@@ -344,4 +345,89 @@ function attributesToObject (attrs = [], keyTransform = toLower, valueTransform 
   const keys = vals.filter((_, i) => i % 2 === 0).map(keyTransform)
   const values = vals.filter((_, i) => i % 2 === 1).map(valueTransform)
   return fromPairs(zip(keys, values))
+}
+
+/**
+ * Parses FETCH response
+ *
+ * @param {Object} response
+ * @return {Object} Message object
+ */
+export function parseFETCH (response) {
+  if (!response || !response.payload || !response.payload.FETCH || !response.payload.FETCH.length) {
+    return []
+  }
+
+  let list = []
+  let messages = {}
+
+  response.payload.FETCH.forEach((item) => {
+    let params = [].concat([].concat(item.attributes || [])[0] || []) // ensure the first value is an array
+    let message
+    let i, len, key
+
+    if (messages[item.nr]) {
+      // same sequence number is already used, so merge values instead of creating a new message object
+      message = messages[item.nr]
+    } else {
+      messages[item.nr] = message = {
+        '#': item.nr
+      }
+      list.push(message)
+    }
+
+    for (i = 0, len = params.length; i < len; i++) {
+      if (i % 2 === 0) {
+        key = compiler({
+          attributes: [params[i]]
+        }).toLowerCase().replace(/<\d+>$/, '')
+        continue
+      }
+      message[key] = parseFetchValue(key, params[i])
+    }
+  })
+
+  return list
+}
+
+/**
+ * Parses a single value from the FETCH response object
+ *
+ * @param {String} key Key name (uppercase)
+ * @param {Mized} value Value for the key
+ * @return {Mixed} Processed value
+ */
+function parseFetchValue (key, value) {
+  if (!value) {
+    return null
+  }
+
+  if (!Array.isArray(value)) {
+    switch (key) {
+      case 'uid':
+      case 'rfc822.size':
+        return Number(value.value) || 0
+      case 'modseq': // do not cast 64 bit uint to a number
+        return value.value || '0'
+    }
+    return value.value
+  }
+
+  switch (key) {
+    case 'flags':
+    case 'x-gm-labels':
+      value = [].concat(value).map((flag) => (flag.value || ''))
+      break
+    case 'envelope':
+      value = parseENVELOPE([].concat(value || []))
+      break
+    case 'bodystructure':
+      value = parseBODYSTRUCTURE([].concat(value || []))
+      break
+    case 'modseq':
+      value = (value.shift() || {}).value || '0'
+      break
+  }
+
+  return value
 }
