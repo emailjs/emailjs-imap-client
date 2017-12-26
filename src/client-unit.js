@@ -90,7 +90,6 @@ describe('browserbox unit tests', () => {
 
         expect(br.compressConnection.called).to.be.false
       })
-
     })
 
     it('should timeout', () => {
@@ -835,9 +834,9 @@ describe('browserbox unit tests', () => {
   })
 
   describe('#selectMailbox', () => {
+    const path = '[Gmail]/Trash'
     beforeEach(() => {
       sinon.stub(br, 'exec')
-      sinon.stub(br, '_parseSELECT')
     })
 
     it('should run SELECT', () => {
@@ -845,13 +844,14 @@ describe('browserbox unit tests', () => {
         command: 'SELECT',
         attributes: [{
           type: 'STRING',
-          value: '[Gmail]/Trash'
+          value: path
         }]
-      }).returns(Promise.resolve('abc'))
+      }).returns(Promise.resolve({
+        code: 'READ-WRITE'
+      }))
 
-      return br.selectMailbox('[Gmail]/Trash').then(() => {
+      return br.selectMailbox(path).then(() => {
         expect(br.exec.callCount).to.equal(1)
-        expect(br._parseSELECT.withArgs('abc').callCount).to.equal(1)
         expect(br._state).to.equal(STATE_SELECTED)
       })
     })
@@ -861,29 +861,31 @@ describe('browserbox unit tests', () => {
         command: 'SELECT',
         attributes: [{
           type: 'STRING',
-          value: '[Gmail]/Trash'
+          value: path
         },
         [{
           type: 'ATOM',
           value: 'CONDSTORE'
         }]
         ]
-      }).returns(Promise.resolve('abc'))
+      }).returns(Promise.resolve({
+        code: 'READ-WRITE'
+      }))
 
       br._capability = ['CONDSTORE']
-      return br.selectMailbox('[Gmail]/Trash', {
+      return br.selectMailbox(path, {
         condstore: true
       }).then(() => {
         expect(br.exec.callCount).to.equal(1)
-        expect(br._parseSELECT.withArgs('abc').callCount).to.equal(1)
         expect(br._state).to.equal(STATE_SELECTED)
       })
     })
 
     describe('should emit onselectmailbox before selectMailbox is resolved', () => {
       beforeEach(() => {
-        br.exec.returns(Promise.resolve('abc'))
-        br._parseSELECT.withArgs('abc').returns('def')
+        br.exec.returns(Promise.resolve({
+          code: 'READ-WRITE'
+        }))
       })
 
       it('when it returns a promise', () => {
@@ -893,9 +895,8 @@ describe('browserbox unit tests', () => {
           promiseResolved = true
         })
         var onselectmailboxSpy = sinon.spy(br, 'onselectmailbox')
-        return br.selectMailbox('[Gmail]/Trash').then(() => {
-          expect(br._parseSELECT.callCount).to.equal(1)
-          expect(onselectmailboxSpy.withArgs('[Gmail]/Trash', 'def').callCount).to.equal(1)
+        return br.selectMailbox(path).then(() => {
+          expect(onselectmailboxSpy.withArgs(path).callCount).to.equal(1)
           expect(promiseResolved).to.equal(true)
         })
       })
@@ -903,22 +904,26 @@ describe('browserbox unit tests', () => {
       it('when it does not return a promise', () => {
         br.onselectmailbox = () => { }
         var onselectmailboxSpy = sinon.spy(br, 'onselectmailbox')
-        return br.selectMailbox('[Gmail]/Trash').then(() => {
-          expect(br._parseSELECT.callCount).to.equal(1)
-          expect(onselectmailboxSpy.withArgs('[Gmail]/Trash', 'def').callCount).to.equal(1)
+        return br.selectMailbox(path).then(() => {
+          expect(onselectmailboxSpy.withArgs(path).callCount).to.equal(1)
         })
       })
     })
 
     it('should emit onclosemailbox', () => {
-      br.exec.returns(Promise.resolve('abc'))
-      br._parseSELECT.withArgs('abc').returns('def')
+      let called = false
+      br.exec.returns(Promise.resolve('abc')).returns(Promise.resolve({
+        code: 'READ-WRITE'
+      }))
 
-      br.onclosemailbox = (path) => expect(path).to.equal('yyy')
+      br.onclosemailbox = (path) => {
+        expect(path).to.equal('yyy')
+        called = true
+      }
 
       br._selectedMailbox = 'yyy'
-      return br.selectMailbox('[Gmail]/Trash').then(() => {
-        expect(br._parseSELECT.callCount).to.equal(1)
+      return br.selectMailbox(path).then(() => {
+        expect(called).to.be.true
       })
     })
   })
@@ -996,291 +1001,6 @@ describe('browserbox unit tests', () => {
             nr: 123
           }]
         }
-      })
-    })
-  })
-
-  describe('#_parseSELECT', () => {
-    it('should parse a complete response', () => {
-      expect(br._parseSELECT({
-        code: 'READ-WRITE',
-        payload: {
-          EXISTS: [{
-            nr: 123
-          }],
-          FLAGS: [{
-            attributes: [
-              [{
-                type: 'ATOM',
-                value: '\\Answered'
-              }, {
-                type: 'ATOM',
-                value: '\\Flagged'
-              }]
-            ]
-          }],
-          OK: [{
-            code: 'PERMANENTFLAGS',
-            permanentflags: ['\\Answered', '\\Flagged']
-          }, {
-            code: 'UIDVALIDITY',
-            uidvalidity: '2'
-          }, {
-            code: 'UIDNEXT',
-            uidnext: '38361'
-          }, {
-            code: 'HIGHESTMODSEQ',
-            highestmodseq: '3682918'
-          }]
-        }
-      })).to.deep.equal({
-        exists: 123,
-        flags: ['\\Answered', '\\Flagged'],
-        highestModseq: '3682918',
-        permanentFlags: ['\\Answered', '\\Flagged'],
-        readOnly: false,
-        uidNext: 38361,
-        uidValidity: 2
-      })
-    })
-
-    it('should parse response with no modseq', () => {
-      expect(br._parseSELECT({
-        code: 'READ-WRITE',
-        payload: {
-          EXISTS: [{
-            nr: 123
-          }],
-          FLAGS: [{
-            attributes: [
-              [{
-                type: 'ATOM',
-                value: '\\Answered'
-              }, {
-                type: 'ATOM',
-                value: '\\Flagged'
-              }]
-            ]
-          }],
-          OK: [{
-            code: 'PERMANENTFLAGS',
-            permanentflags: ['\\Answered', '\\Flagged']
-          }, {
-            code: 'UIDVALIDITY',
-            uidvalidity: '2'
-          }, {
-            code: 'UIDNEXT',
-            uidnext: '38361'
-          }]
-        }
-      })).to.deep.equal({
-        exists: 123,
-        flags: ['\\Answered', '\\Flagged'],
-        permanentFlags: ['\\Answered', '\\Flagged'],
-        readOnly: false,
-        uidNext: 38361,
-        uidValidity: 2
-      })
-    })
-
-    it('should parse response with read-only', () => {
-      expect(br._parseSELECT({
-        code: 'READ-ONLY',
-        payload: {
-          EXISTS: [{
-            nr: 123
-          }],
-          FLAGS: [{
-            attributes: [
-              [{
-                type: 'ATOM',
-                value: '\\Answered'
-              }, {
-                type: 'ATOM',
-                value: '\\Flagged'
-              }]
-            ]
-          }],
-          OK: [{
-            code: 'PERMANENTFLAGS',
-            permanentflags: ['\\Answered', '\\Flagged']
-          }, {
-            code: 'UIDVALIDITY',
-            uidvalidity: '2'
-          }, {
-            code: 'UIDNEXT',
-            uidnext: '38361'
-          }]
-        }
-      })).to.deep.equal({
-        exists: 123,
-        flags: ['\\Answered', '\\Flagged'],
-        permanentFlags: ['\\Answered', '\\Flagged'],
-        readOnly: true,
-        uidNext: 38361,
-        uidValidity: 2
-      })
-    })
-
-    it('should parse response with NOMODSEQ flag', () => {
-      expect(br._parseSELECT({
-        code: 'READ-WRITE',
-        payload: {
-          EXISTS: [{
-            nr: 123
-          }],
-          FLAGS: [{
-            attributes: [
-              [{
-                type: 'ATOM',
-                value: '\\Answered'
-              }, {
-                type: 'ATOM',
-                value: '\\Flagged'
-              }]
-            ]
-          }],
-          OK: [{
-            code: 'PERMANENTFLAGS',
-            permanentflags: ['\\Answered', '\\Flagged']
-          }, {
-            code: 'UIDVALIDITY',
-            uidvalidity: '2'
-          }, {
-            code: 'UIDNEXT',
-            uidnext: '38361'
-          }, {
-            code: 'NOMODSEQ'
-          }]
-        }
-      })).to.deep.equal({
-        exists: 123,
-        flags: ['\\Answered', '\\Flagged'],
-        permanentFlags: ['\\Answered', '\\Flagged'],
-        readOnly: false,
-        uidNext: 38361,
-        uidValidity: 2,
-        noModseq: true
-      })
-    })
-  })
-
-  describe('#_parseNAMESPACE', () => {
-    it('should not succeed for no namespace response', () => {
-      expect(br._parseNAMESPACE({
-        payload: {
-          NAMESPACE: []
-        }
-      })).to.be.false
-    })
-
-    it('should return single personal namespace', () => {
-      expect(br._parseNAMESPACE({
-        payload: {
-          NAMESPACE: [{
-            attributes: [
-              [
-                [{
-                  type: 'STRING',
-                  value: 'INBOX.'
-                }, {
-                  type: 'STRING',
-                  value: '.'
-                }]
-              ], null, null
-            ]
-          }]
-        }
-      })).to.deep.equal({
-        personal: [{
-          prefix: 'INBOX.',
-          delimiter: '.'
-        }],
-        users: false,
-        shared: false
-      })
-    })
-
-    it('should return single personal, single users, multiple shared', () => {
-      expect(br._parseNAMESPACE({
-        payload: {
-          NAMESPACE: [{
-            attributes: [
-              // personal
-              [
-                [{
-                  type: 'STRING',
-                  value: ''
-                }, {
-                  type: 'STRING',
-                  value: '/'
-                }]
-              ],
-              // users
-              [
-                [{
-                  type: 'STRING',
-                  value: '~'
-                }, {
-                  type: 'STRING',
-                  value: '/'
-                }]
-              ],
-              // shared
-              [
-                [{
-                  type: 'STRING',
-                  value: '#shared/'
-                }, {
-                  type: 'STRING',
-                  value: '/'
-                }],
-                [{
-                  type: 'STRING',
-                  value: '#public/'
-                }, {
-                  type: 'STRING',
-                  value: '/'
-                }]
-              ]
-            ]
-          }]
-        }
-      })).to.deep.equal({
-        personal: [{
-          prefix: '',
-          delimiter: '/'
-        }],
-        users: [{
-          prefix: '~',
-          delimiter: '/'
-        }],
-        shared: [{
-          prefix: '#shared/',
-          delimiter: '/'
-        }, {
-          prefix: '#public/',
-          delimiter: '/'
-        }]
-      })
-    })
-
-    it('should handle NIL namespace hierarchy delim', () => {
-      expect(br._parseNAMESPACE({
-        payload: {
-          NAMESPACE: [
-            // This specific value is returned by yahoo.co.jp's
-            // imapgate version 0.7.68_11_1.61475 IMAP server
-            parser(toTypedArray('* NAMESPACE (("" NIL)) NIL NIL'))
-          ]
-        }
-      })).to.deep.equal({
-        personal: [{
-          prefix: '',
-          delimiter: null
-        }],
-        users: false,
-        shared: false
       })
     })
   })

@@ -4,6 +4,7 @@ import { imapEncode, imapDecode } from 'emailjs-utf7'
 import { parser, compiler } from 'emailjs-imap-handler'
 import { encode, mimeWordEncode, mimeWordsDecode } from 'emailjs-mime-codec'
 import parseAddress from 'emailjs-addressparser'
+import { parseNAMESPACE, parseSELECT } from './command-parser'
 
 import createDefaultLogger from './logger'
 import ImapClient from './imap'
@@ -253,7 +254,7 @@ export default class Client {
 
     this.logger.debug('Opening', path, '...')
     const response = await this.exec(query, ['EXISTS', 'FLAGS', 'OK'], { ctx: options.ctx })
-    let mailboxInfo = this._parseSELECT(response)
+    let mailboxInfo = parseSELECT(response)
 
     this._changeState(STATE_SELECTED)
 
@@ -281,7 +282,7 @@ export default class Client {
 
     this.logger.debug('Listing namespaces...')
     const response = await this.exec('NAMESPACE', 'NAMESPACE')
-    return this._parseNAMESPACE(response)
+    return parseNAMESPACE(response)
   }
 
   /**
@@ -852,102 +853,6 @@ export default class Client {
   }
 
   // Private helpers
-
-  /**
-   * Parses SELECT response
-   *
-   * @param {Object} response
-   * @return {Object} Mailbox information object
-   */
-  _parseSELECT (response) {
-    if (!response || !response.payload) {
-      return
-    }
-
-    let mailbox = {
-      readOnly: response.code === 'READ-ONLY'
-    }
-    let existsResponse = response.payload.EXISTS && response.payload.EXISTS.pop()
-    let flagsResponse = response.payload.FLAGS && response.payload.FLAGS.pop()
-    let okResponse = response.payload.OK
-
-    if (existsResponse) {
-      mailbox.exists = existsResponse.nr || 0
-    }
-
-    if (flagsResponse && flagsResponse.attributes && flagsResponse.attributes.length) {
-      mailbox.flags = flagsResponse.attributes[0].map((flag) => (flag.value || '').toString().trim())
-    }
-
-    [].concat(okResponse || []).forEach((ok) => {
-      switch (ok && ok.code) {
-        case 'PERMANENTFLAGS':
-          mailbox.permanentFlags = [].concat(ok.permanentflags || [])
-          break
-        case 'UIDVALIDITY':
-          mailbox.uidValidity = Number(ok.uidvalidity) || 0
-          break
-        case 'UIDNEXT':
-          mailbox.uidNext = Number(ok.uidnext) || 0
-          break
-        case 'HIGHESTMODSEQ':
-          mailbox.highestModseq = ok.highestmodseq || '0' // keep 64bit uint as a string
-          break
-        case 'NOMODSEQ':
-          mailbox.noModseq = true
-          break
-      }
-    })
-
-    return mailbox
-  }
-
-  /**
-   * Parses NAMESPACE response
-   *
-   * @param {Object} response
-   * @return {Object} Namespaces object
-   */
-  _parseNAMESPACE (response) {
-    if (!response.payload || !response.payload.NAMESPACE || !response.payload.NAMESPACE.length) {
-      return false
-    }
-
-    let attributes = [].concat(response.payload.NAMESPACE.pop().attributes || [])
-    if (!attributes.length) {
-      return false
-    }
-
-    return {
-      personal: this._parseNAMESPACEElement(attributes[0]),
-      users: this._parseNAMESPACEElement(attributes[1]),
-      shared: this._parseNAMESPACEElement(attributes[2])
-    }
-  }
-
-  /**
-   * Parses a NAMESPACE element
-   *
-   * @param {Object} element
-   * @return {Object} Namespaces element object
-   */
-  _parseNAMESPACEElement (element) {
-    if (!element) {
-      return false
-    }
-
-    element = [].concat(element || [])
-    return element.map((ns) => {
-      if (!ns || !ns.length) {
-        return false
-      }
-
-      return {
-        prefix: ns[0].value,
-        delimiter: ns[1] && ns[1].value // The delimiter can legally be NIL which maps to null
-      }
-    })
-  }
 
   /**
    * Builds a FETCH command
