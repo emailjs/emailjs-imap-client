@@ -1,15 +1,14 @@
 # emailjs-imap-client
 
-[![Greenkeeper badge](https://badges.greenkeeper.io/emailjs/emailjs-imap-client.svg)](https://greenkeeper.io/) [![Build Status](https://travis-ci.org/emailjs/emailjs-imap-client.png?branch=master)](https://travis-ci.org/emailjs/emailjs-imap-client) [![JavaScript Style Guide](https://img.shields.io/badge/code_style-standard-brightgreen.svg)](https://standardjs.com)  [![ES6+](https://camo.githubusercontent.com/567e52200713e0f0c05a5238d91e1d096292b338/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f65732d362b2d627269676874677265656e2e737667)](https://kangax.github.io/compat-table/es6/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![npm](https://img.shields.io/npm/v/emailjs-tcp-socket.svg)](https://github.com/emailjs/emailjs-imap-client) [![Greenkeeper badge](https://badges.greenkeeper.io/emailjs/emailjs-imap-client.svg)](https://greenkeeper.io/) [![Build Status](https://travis-ci.org/emailjs/emailjs-imap-client.png?branch=master)](https://travis-ci.org/emailjs/emailjs-imap-client) [![JavaScript Style Guide](https://img.shields.io/badge/code_style-standard-brightgreen.svg)](https://standardjs.com)  [![ES6+](https://camo.githubusercontent.com/567e52200713e0f0c05a5238d91e1d096292b338/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f65732d362b2d627269676874677265656e2e737667)](https://kangax.github.io/compat-table/es6/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Low-level IMAP client for all your JS needs.
+Low-level IMAP client for all your IMAP needs.
 
-NB: This README is for v3.0.0 and higher. For others, [please go here](https://github.com/emailjs/emailjs-imap-client/blob/25bbf7bfb554ffe9b14c5a6fe65f010bc76cd231/README.md)
+## Usage
 
 ```bash
 npm install --save emailjs-imap-client
 ```
-
 ```javascript
 import ImapClient from 'emailjs-imap-client'
 ```
