@@ -1,5 +1,4 @@
 /* eslint-disable no-unused-expressions */
-/* eslint-disable no-useless-escape */
 
 import ImapClient, { STATE_SELECTED, STATE_LOGOUT } from './client'
 import { parser } from 'emailjs-imap-handler'
@@ -1107,44 +1106,6 @@ describe('browserbox unit tests', () => {
           }]
         }]
       })
-    })
-  })
-
-  describe('#_checkSpecialUse', () => {
-    it('should return a matching special use flag', () => {
-      expect(br._checkSpecialUse({
-        flags: ['test', '\\All']
-      })).to.equal('\\All')
-    })
-
-    it('should fail for non-existent flag', () => {
-      expect(false, br._checkSpecialUse({}))
-    })
-
-    it('should fail for invalid flag', () => {
-      expect(br._checkSpecialUse({
-        flags: ['test']
-      })).to.be.false
-    })
-
-    it('should return special use flag if a matching name is found', () => {
-      expect(br._checkSpecialUse({
-        name: 'test'
-      })).to.be.false
-      expect(br._checkSpecialUse({
-        name: 'Praht'
-      })).to.equal('\\Trash')
-      expect(br._checkSpecialUse({
-        flags: ['\HasChildren'], // not a special use flag
-        name: 'Praht'
-      })).to.equal('\\Trash')
-    })
-
-    it('should prefer matching special use flag over a matching name', () => {
-      expect(br._checkSpecialUse({
-        flags: ['\\All'],
-        name: 'Praht'
-      })).to.equal('\\All')
     })
   })
 

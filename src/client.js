@@ -23,9 +23,7 @@ import {
 } from './common'
 
 import {
-  SPECIAL_USE_FLAGS,
-  SPECIAL_USE_BOXES,
-  SPECIAL_USE_BOX_FLAGS
+  checkSpecialUse
 } from './special-use'
 
 export const TIMEOUT_CONNECTION = 90 * 1000 // Milliseconds to wait for the IMAP greeting from the server
@@ -315,7 +313,7 @@ export default class Client {
       const branch = this._ensurePath(tree, path, delim)
       branch.flags = propOr([], '0', attr).map(({value}) => value || '')
       branch.listed = true
-      this._checkSpecialUse(branch)
+      checkSpecialUse(branch)
     })
 
     const lsubResponse = await this.exec({ command: 'LSUB', attributes: ['', '*'] }, 'LSUB')
@@ -680,20 +678,6 @@ export default class Client {
   }
 
   /**
-   * Indicates that the connection started idling. Initiates a cycle
-   * of NOOPs or IDLEs to receive notifications about updates in the server
-   */
-  _onIdle () {
-    if (!this._authenticated || this._enteredIdle) {
-      // No need to IDLE when not logged in or already idling
-      return
-    }
-
-    this.logger.debug('Client started idling')
-    this.enterIdle()
-  }
-
-  /**
    * The connection is idling. Sends a NOOP or IDLE command
    *
    * IDLE details:
@@ -860,6 +844,20 @@ export default class Client {
   // Private helpers
 
   /**
+   * Indicates that the connection started idling. Initiates a cycle
+   * of NOOPs or IDLEs to receive notifications about updates in the server
+   */
+  _onIdle () {
+    if (!this._authenticated || this._enteredIdle) {
+      // No need to IDLE when not logged in or already idling
+      return
+    }
+
+    this.logger.debug('Client started idling')
+    this.enterIdle()
+  }
+
+  /**
    * Updates the IMAP state value for the current connection
    *
    * @param {Number} newState The state you want to change to
@@ -923,41 +921,6 @@ export default class Client {
    */
   _compareMailboxNames (a, b) {
     return (a.toUpperCase() === 'INBOX' ? 'INBOX' : a) === (b.toUpperCase() === 'INBOX' ? 'INBOX' : b)
-  }
-
-  /**
-   * Checks if a mailbox is for special use
-   *
-   * @param {Object} mailbox
-   * @return {String} Special use flag (if detected)
-   */
-  _checkSpecialUse (mailbox) {
-    if (mailbox.flags) {
-      for (let i = 0; i < SPECIAL_USE_FLAGS.length; i++) {
-        const type = SPECIAL_USE_FLAGS[i]
-        if ((mailbox.flags || []).indexOf(type) >= 0) {
-          mailbox.specialUse = type
-          mailbox.specialUseFlag = type
-          return type
-        }
-      }
-    }
-
-    return this._checkSpecialUseByName(mailbox)
-  }
-
-  _checkSpecialUseByName (mailbox) {
-    const name = propOr('', 'name', mailbox).toLowerCase().trim()
-
-    for (let i = 0; i < SPECIAL_USE_BOX_FLAGS.length; i++) {
-      const type = SPECIAL_USE_BOX_FLAGS[i]
-      if (SPECIAL_USE_BOXES[type].indexOf(name) >= 0) {
-        mailbox.specialUse = type
-        return type
-      }
-    }
-
-    return false
   }
 
   createLogger (logger = createDefaultLogger()) {

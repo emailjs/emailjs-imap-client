@@ -1,5 +1,7 @@
-export const SPECIAL_USE_FLAGS = ['\\All', '\\Archive', '\\Drafts', '\\Flagged', '\\Junk', '\\Sent', '\\Trash']
-export const SPECIAL_USE_BOXES = {
+import {propOr} from 'ramda'
+
+const SPECIAL_USE_FLAGS = ['\\All', '\\Archive', '\\Drafts', '\\Flagged', '\\Junk', '\\Sent', '\\Trash']
+const SPECIAL_USE_BOXES = {
   '\\Sent': [
     'aika', 'bidaliak', 'bidalita', 'dihantar', 'e rometsweng', 'e tindami', 'elküldött', 'elküldöttek', 'enviadas',
     'enviadas', 'enviados', 'enviats', 'envoyés', 'ethunyelweyo', 'expediate', 'ezipuru', 'gesendete', 'gestuur',
@@ -39,4 +41,39 @@ export const SPECIAL_USE_BOXES = {
     '草稿', '草稿', '임시 보관함'
   ]
 }
-export const SPECIAL_USE_BOX_FLAGS = Object.keys(SPECIAL_USE_BOXES)
+const SPECIAL_USE_BOX_FLAGS = Object.keys(SPECIAL_USE_BOXES)
+
+/**
+ * Checks if a mailbox is for special use
+ *
+ * @param {Object} mailbox
+ * @return {String} Special use flag (if detected)
+ */
+export function checkSpecialUse (mailbox) {
+  if (mailbox.flags) {
+    for (let i = 0; i < SPECIAL_USE_FLAGS.length; i++) {
+      const type = SPECIAL_USE_FLAGS[i]
+      if ((mailbox.flags || []).indexOf(type) >= 0) {
+        mailbox.specialUse = type
+        mailbox.specialUseFlag = type
+        return type
+      }
+    }
+  }
+
+  return checkSpecialUseByName(mailbox)
+}
+
+function checkSpecialUseByName (mailbox) {
+  const name = propOr('', 'name', mailbox).toLowerCase().trim()
+
+  for (let i = 0; i < SPECIAL_USE_BOX_FLAGS.length; i++) {
+    const type = SPECIAL_USE_BOX_FLAGS[i]
+    if (SPECIAL_USE_BOXES[type].indexOf(name) >= 0) {
+      mailbox.specialUse = type
+      return type
+    }
+  }
+
+  return false
+}
