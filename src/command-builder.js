@@ -105,7 +105,7 @@ export function buildXOAuth2Token (user = '', token) {
  * @param {Boolean} [options.byUid] If ture, use UID SEARCH instead of SEARCH
  * @return {Object} IMAP command object
  */
-export function buildSEARCHCommand (query = {}, options) {
+export function buildSEARCHCommand (query = {}, options = {}) {
   let command = {
     command: options.byUid ? 'UID SEARCH' : 'SEARCH'
   }
@@ -202,6 +202,33 @@ export function buildSEARCHCommand (query = {}, options) {
       value: 'CHARSET'
     })
   }
+
+  return command
+}
+
+/**
+ * Creates an IMAP STORE command from the selected arguments
+ */
+export function buildSTORECommand (sequence, action = '', flags = [], options = {}) {
+  let command = {
+    command: options.byUid ? 'UID STORE' : 'STORE',
+    attributes: [{
+      type: 'sequence',
+      value: sequence
+    }]
+  }
+
+  command.attributes.push({
+    type: 'atom',
+    value: action.toUpperCase() + (options.silent ? '.SILENT' : '')
+  })
+
+  command.attributes.push(flags.map((flag) => {
+    return {
+      type: 'atom',
+      value: flag
+    }
+  }))
 
   return command
 }

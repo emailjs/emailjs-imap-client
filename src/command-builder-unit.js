@@ -1,4 +1,5 @@
 import {
+  buildSTORECommand,
   buildFETCHCommand,
   buildXOAuth2Token,
   buildSEARCHCommand
@@ -270,6 +271,138 @@ describe('buildSEARCHCommand', () => {
         type: 'literal',
         value: 'jÃµgeva'
       }]
+    })
+  })
+})
+
+describe('#_buildSTORECommand', () => {
+  it('should compose a store command from an array', () => {
+    expect(buildSTORECommand('1,2,3', 'FLAGS', ['a', 'b'], {})).to.deep.equal({
+      command: 'STORE',
+      attributes: [{
+        'type': 'sequence',
+        'value': '1,2,3'
+      }, {
+        'type': 'atom',
+        'value': 'FLAGS'
+      },
+      [{
+        'type': 'atom',
+        'value': 'a'
+      }, {
+        'type': 'atom',
+        'value': 'b'
+      }]
+      ]
+    })
+  })
+
+  it('should compose a store set flags command', () => {
+    expect(buildSTORECommand('1,2,3', 'FLAGS', ['a', 'b'], {})).to.deep.equal({
+      command: 'STORE',
+      attributes: [{
+        'type': 'sequence',
+        'value': '1,2,3'
+      }, {
+        'type': 'atom',
+        'value': 'FLAGS'
+      },
+      [{
+        'type': 'atom',
+        'value': 'a'
+      }, {
+        'type': 'atom',
+        'value': 'b'
+      }]
+      ]
+    })
+  })
+
+  it('should compose a store add flags command', () => {
+    expect(buildSTORECommand('1,2,3', '+FLAGS', ['a', 'b'], {})).to.deep.equal({
+      command: 'STORE',
+      attributes: [{
+        'type': 'sequence',
+        'value': '1,2,3'
+      }, {
+        'type': 'atom',
+        'value': '+FLAGS'
+      },
+      [{
+        'type': 'atom',
+        'value': 'a'
+      }, {
+        'type': 'atom',
+        'value': 'b'
+      }]
+      ]
+    })
+  })
+
+  it('should compose a store remove flags command', () => {
+    expect(buildSTORECommand('1,2,3', '-FLAGS', ['a', 'b'], {})).to.deep.equal({
+      command: 'STORE',
+      attributes: [{
+        'type': 'sequence',
+        'value': '1,2,3'
+      }, {
+        'type': 'atom',
+        'value': '-FLAGS'
+      },
+      [{
+        'type': 'atom',
+        'value': 'a'
+      }, {
+        'type': 'atom',
+        'value': 'b'
+      }]
+      ]
+    })
+  })
+
+  it('should compose a store remove silent flags command', () => {
+    expect(buildSTORECommand('1,2,3', '-FLAGS', ['a', 'b'], {
+      silent: true
+    })).to.deep.equal({
+      command: 'STORE',
+      attributes: [{
+        'type': 'sequence',
+        'value': '1,2,3'
+      }, {
+        'type': 'atom',
+        'value': '-FLAGS.SILENT'
+      },
+      [{
+        'type': 'atom',
+        'value': 'a'
+      }, {
+        'type': 'atom',
+        'value': 'b'
+      }]
+      ]
+    })
+  })
+
+  it('should compose a uid store flags command', () => {
+    expect(buildSTORECommand('1,2,3', 'FLAGS', ['a', 'b'], {
+      byUid: true
+    })).to.deep.equal({
+      command: 'UID STORE',
+      attributes: [{
+        'type': 'sequence',
+        'value': '1,2,3'
+      }, {
+        'type': 'atom',
+        'value': 'FLAGS'
+      },
+      [{
+        'type': 'atom',
+        'value': 'a'
+      }, {
+        'type': 'atom',
+        'value': 'b'
+      }]
+      ]
     })
   })
 })

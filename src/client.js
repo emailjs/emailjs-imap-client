@@ -9,7 +9,8 @@ import {
 import {
   buildFETCHCommand,
   buildXOAuth2Token,
-  buildSEARCHCommand
+  buildSEARCHCommand,
+  buildSTORECommand
 } from './command-builder'
 
 import createDefaultLogger from './logger'
@@ -449,7 +450,7 @@ export default class Client {
    * @returns {Promise} Promise with the array of matching seq. or uid numbers
    */
   async store (path, sequence, action, flags, options = {}) {
-    const command = this._buildSTORECommand(sequence, action, flags, options)
+    const command = buildSTORECommand(sequence, action, flags, options)
     const response = await this.exec(command, 'FETCH', {
       precheck: (ctx) => this._shouldSelectMailbox(path, ctx) ? this.selectMailbox(path, { ctx }) : Promise.resolve()
     })
@@ -857,33 +858,6 @@ export default class Client {
   }
 
   // Private helpers
-
-  /**
-   * Creates an IMAP STORE command from the selected arguments
-   */
-  _buildSTORECommand (sequence, action = '', flags, options) {
-    let command = {
-      command: options.byUid ? 'UID STORE' : 'STORE',
-      attributes: [{
-        type: 'sequence',
-        value: sequence
-      }]
-    }
-
-    command.attributes.push({
-      type: 'atom',
-      value: action.toUpperCase() + (options.silent ? '.SILENT' : '')
-    })
-
-    command.attributes.push(flags.map((flag) => {
-      return {
-        type: 'atom',
-        value: flag
-      }
-    }))
-
-    return command
-  }
 
   /**
    * Updates the IMAP state value for the current connection
