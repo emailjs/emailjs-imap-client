@@ -1003,37 +1003,6 @@ describe('browserbox unit tests', () => {
     })
   })
 
-  describe('#_parseSEARCH', () => {
-    it('should parse SEARCH response', () => {
-      expect(br._parseSEARCH({
-        payload: {
-          SEARCH: [{
-            attributes: [{
-              value: 5
-            }, {
-              value: 7
-            }]
-          }, {
-            attributes: [{
-              value: 6
-            }]
-          }]
-        }
-      })).to.deep.equal([5, 6, 7])
-    })
-
-    it('should parse empty SEARCH response', () => {
-      expect(br._parseSEARCH({
-        payload: {
-          SEARCH: [{
-            command: 'SEARCH',
-            tag: '*'
-          }]
-        }
-      })).to.deep.equal([])
-    })
-  })
-
   describe('#_buildSTORECommand', () => {
     it('should compose a store command from an array', () => {
       expect(br._buildSTORECommand('1,2,3', 'FLAGS', ['a', 'b'], {})).to.deep.equal({

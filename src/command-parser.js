@@ -1,6 +1,6 @@
 import parseAddress from 'emailjs-addressparser'
 import { compiler } from 'emailjs-imap-handler'
-import { zip, fromPairs, prop, pathOr, propOr, toLower } from 'ramda'
+import { sort, map, pipe, zip, fromPairs, prop, pathOr, propOr, flatten, toLower } from 'ramda'
 import { mimeWordEncode, mimeWordsDecode } from 'emailjs-mime-codec'
 
 /**
@@ -430,4 +430,22 @@ function parseFetchValue (key, value) {
   }
 
   return value
+}
+
+/**
+ * Parses SEARCH response. Gathers all untagged SEARCH responses, fetched seq./uid numbers
+ * and compiles these into a sorted array.
+ *
+ * @param {Object} response
+ * @return {Object} Message object
+ * @param {Array} Sorted Seq./UID number list
+ */
+export function parseSEARCH (response) {
+  return pipe(
+    pathOr([], ['payload', 'SEARCH']),
+    map(x => x.attributes || []),
+    flatten,
+    map(nr => Number(propOr(nr || 0, 'value', nr)) || 0),
+    sort((a, b) => a > b)
+  )(response)
 }

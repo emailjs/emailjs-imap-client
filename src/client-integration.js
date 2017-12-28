@@ -2,6 +2,7 @@
 
 import hoodiecrow from 'hoodiecrow-imap'
 import ImapClient from './client'
+import { parseSEARCH } from './command-parser'
 import { buildSEARCHCommand } from './command-builder'
 import { LOG_LEVEL_NONE } from './common'
 
@@ -372,7 +373,7 @@ describe('browserbox integration tests', () => {
           var command = buildSEARCHCommand(query, options)
           return imap.exec(command, 'SEARCH', {
             precheck: () => Promise.reject(new Error('FOO'))
-          }).then((response) => imap._parseSEARCH(response))
+          }).then((response) => parseSEARCH(response))
         }
 
         return imap.selectMailbox('inbox')

@@ -3,6 +3,7 @@
 
 import { parser } from 'emailjs-imap-handler'
 import {
+  parseSEARCH,
   parseNAMESPACE,
   parseENVELOPE,
   parseSELECT,
@@ -441,5 +442,36 @@ describe('parseFETCH', () => {
       '#': 124,
       'uid': 790
     }])
+  })
+})
+
+describe('parseSEARCH', () => {
+  it('should parse SEARCH response', () => {
+    expect(parseSEARCH({
+      payload: {
+        SEARCH: [{
+          attributes: [{
+            value: 5
+          }, {
+            value: 7
+          }]
+        }, {
+          attributes: [{
+            value: 6
+          }]
+        }]
+      }
+    })).to.deep.equal([5, 6, 7])
+  })
+
+  it('should parse empty SEARCH response', () => {
+    expect(parseSEARCH({
+      payload: {
+        SEARCH: [{
+          command: 'SEARCH',
+          tag: '*'
+        }]
+      }
+    })).to.deep.equal([])
   })
 })

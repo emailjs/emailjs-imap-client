@@ -1,9 +1,10 @@
-import { sort, map, pipe, union, zip, fromPairs, propOr, pathOr, flatten } from 'ramda'
+import { map, pipe, union, zip, fromPairs, propOr, pathOr, flatten } from 'ramda'
 import { imapEncode, imapDecode } from 'emailjs-utf7'
 import {
   parseNAMESPACE,
   parseSELECT,
-  parseFETCH
+  parseFETCH,
+  parseSEARCH
 } from './command-parser'
 import {
   buildFETCHCommand,
@@ -397,7 +398,7 @@ export default class Client {
     const response = await this.exec(command, 'SEARCH', {
       precheck: (ctx) => this._shouldSelectMailbox(path, ctx) ? this.selectMailbox(path, { ctx }) : Promise.resolve()
     })
-    return this._parseSEARCH(response)
+    return parseSEARCH(response)
   }
 
   /**
@@ -856,24 +857,6 @@ export default class Client {
   }
 
   // Private helpers
-
-  /**
-   * Parses SEARCH response. Gathers all untagged SEARCH responses, fetched seq./uid numbers
-   * and compiles these into a sorted array.
-   *
-   * @param {Object} response
-   * @return {Object} Message object
-   * @param {Array} Sorted Seq./UID number list
-   */
-  _parseSEARCH (response) {
-    return pipe(
-      pathOr([], ['payload', 'SEARCH']),
-      map(x => x.attributes || []),
-      flatten,
-      map(nr => Number(propOr(nr || 0, 'value', nr)) || 0),
-      sort((a, b) => a > b)
-    )(response)
-  }
 
   /**
    * Creates an IMAP STORE command from the selected arguments
