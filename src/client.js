@@ -1,6 +1,5 @@
 import { sort, map, pipe, union, zip, fromPairs, propOr, pathOr, flatten } from 'ramda'
 import { imapEncode, imapDecode } from 'emailjs-utf7'
-import { encode } from 'emailjs-mime-codec'
 import {
   parseNAMESPACE,
   parseSELECT,
@@ -8,13 +7,13 @@ import {
 } from './command-parser'
 import {
   buildFETCHCommand,
-  buildXOAuth2Token
+  buildXOAuth2Token,
+  buildSEARCHCommand
 } from './command-builder'
 
 import createDefaultLogger from './logger'
 import ImapClient from './imap'
 import {
-  fromTypedArray,
   LOG_LEVEL_ERROR,
   LOG_LEVEL_WARN,
   LOG_LEVEL_INFO,
@@ -394,7 +393,7 @@ export default class Client {
    */
   async search (path, query, options = {}) {
     this.logger.debug('Searching in', path, '...')
-    const command = this._buildSEARCHCommand(query, options)
+    const command = buildSEARCHCommand(query, options)
     const response = await this.exec(command, 'SEARCH', {
       precheck: (ctx) => this._shouldSelectMailbox(path, ctx) ? this.selectMailbox(path, { ctx }) : Promise.resolve()
     })
@@ -857,123 +856,6 @@ export default class Client {
   }
 
   // Private helpers
-
-  /**
-   * Compiles a search query into an IMAP command. Queries are composed as objects
-   * where keys are search terms and values are term arguments. Only strings,
-   * numbers and Dates are used. If the value is an array, the members of it
-   * are processed separately (use this for terms that require multiple params).
-   * If the value is a Date, it is converted to the form of "01-Jan-1970".
-   * Subqueries (OR, NOT) are made up of objects
-   *
-   *    {unseen: true, header: ["subject", "hello world"]};
-   *    SEARCH UNSEEN HEADER "subject" "hello world"
-   *
-   * @param {Object} query Search query
-   * @param {Object} [options] Option object
-   * @param {Boolean} [options.byUid] If ture, use UID SEARCH instead of SEARCH
-   * @return {Object} IMAP command object
-   */
-  _buildSEARCHCommand (query = {}, options) {
-    let command = {
-      command: options.byUid ? 'UID SEARCH' : 'SEARCH'
-    }
-
-    let isAscii = true
-
-    let buildTerm = (query) => {
-      let list = []
-
-      Object.keys(query).forEach((key) => {
-        let params = []
-        let formatDate = (date) => date.toUTCString().replace(/^\w+, 0?(\d+) (\w+) (\d+).*/, '$1-$2-$3')
-        let escapeParam = (param) => {
-          if (typeof param === 'number') {
-            return {
-              type: 'number',
-              value: param
-            }
-          } else if (typeof param === 'string') {
-            if (/[\u0080-\uFFFF]/.test(param)) {
-              isAscii = false
-              return {
-                type: 'literal',
-                value: fromTypedArray(encode(param)) // cast unicode string to pseudo-binary as imap-handler compiles strings as octets
-              }
-            }
-            return {
-              type: 'string',
-              value: param
-            }
-          } else if (Object.prototype.toString.call(param) === '[object Date]') {
-            // RFC 3501 allows for dates to be placed in
-            // double-quotes or left without quotes.  Some
-            // servers (Yandex), do not like the double quotes,
-            // so we treat the date as an atom.
-            return {
-              type: 'atom',
-              value: formatDate(param)
-            }
-          } else if (Array.isArray(param)) {
-            return param.map(escapeParam)
-          } else if (typeof param === 'object') {
-            return buildTerm(param)
-          }
-        }
-
-        params.push({
-          type: 'atom',
-          value: key.toUpperCase()
-        });
-
-        [].concat(query[key] || []).forEach((param) => {
-          switch (key.toLowerCase()) {
-            case 'uid':
-              param = {
-                type: 'sequence',
-                value: param
-              }
-              break
-            // The Gmail extension values of X-GM-THRID and
-            // X-GM-MSGID are defined to be unsigned 64-bit integers
-            // and they must not be quoted strings or the server
-            // will report a parse error.
-            case 'x-gm-thrid':
-            case 'x-gm-msgid':
-              param = {
-                type: 'number',
-                value: param
-              }
-              break
-            default:
-              param = escapeParam(param)
-          }
-          if (param) {
-            params = params.concat(param || [])
-          }
-        })
-        list = list.concat(params || [])
-      })
-
-      return list
-    }
-
-    command.attributes = buildTerm(query)
-
-    // If any string input is using 8bit bytes, prepend the optional CHARSET argument
-    if (!isAscii) {
-      command.attributes.unshift({
-        type: 'atom',
-        value: 'UTF-8'
-      })
-      command.attributes.unshift({
-        type: 'atom',
-        value: 'CHARSET'
-      })
-    }
-
-    return command
-  }
 
   /**
    * Parses SEARCH response. Gathers all untagged SEARCH responses, fetched seq./uid numbers

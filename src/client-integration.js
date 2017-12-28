@@ -2,6 +2,7 @@
 
 import hoodiecrow from 'hoodiecrow-imap'
 import ImapClient from './client'
+import { buildSEARCHCommand } from './command-builder'
 import { LOG_LEVEL_NONE } from './common'
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
@@ -368,7 +369,7 @@ describe('browserbox integration tests', () => {
       it('should handle precheck error correctly', () => {
         // simulates a broken search command
         var search = (query, options = {}) => {
-          var command = imap._buildSEARCHCommand(query, options)
+          var command = buildSEARCHCommand(query, options)
           return imap.exec(command, 'SEARCH', {
             precheck: () => Promise.reject(new Error('FOO'))
           }).then((response) => imap._parseSEARCH(response))

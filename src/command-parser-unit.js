@@ -359,7 +359,7 @@ describe('parseBODYSTRUCTURE', () => {
   })
 })
 
-describe('#_parseFETCH', () => {
+describe('parseFETCH', () => {
   it('should return values lowercase keys', () => {
     expect(parseFETCH({
       payload: {

@@ -1,6 +1,7 @@
 import {
   buildFETCHCommand,
-  buildXOAuth2Token
+  buildXOAuth2Token,
+  buildSEARCHCommand
 } from './command-builder'
 
 describe('buildFETCHCommand', () => {
@@ -168,5 +169,107 @@ describe('buildFETCHCommand', () => {
 describe('#_buildXOAuth2Token', () => {
   it('should return base64 encoded XOAUTH2 token', () => {
     expect(buildXOAuth2Token('user@host', 'abcde')).to.equal('dXNlcj11c2VyQGhvc3QBYXV0aD1CZWFyZXIgYWJjZGUBAQ==')
+  })
+})
+
+describe('buildSEARCHCommand', () => {
+  it('should compose a search command', () => {
+    expect(buildSEARCHCommand({
+      unseen: true,
+      header: ['subject', 'hello world'],
+      or: {
+        unseen: true,
+        seen: true
+      },
+      not: {
+        seen: true
+      },
+      sentbefore: new Date(2011, 1, 3, 12, 0, 0),
+      since: new Date(2011, 11, 23, 12, 0, 0),
+      uid: '1:*',
+      'X-GM-MSGID': '1499257647490662970',
+      'X-GM-THRID': '1499257647490662971'
+    }, {})).to.deep.equal({
+      command: 'SEARCH',
+      attributes: [{
+        'type': 'atom',
+        'value': 'UNSEEN'
+      }, {
+        'type': 'atom',
+        'value': 'HEADER'
+      }, {
+        'type': 'string',
+        'value': 'subject'
+      }, {
+        'type': 'string',
+        'value': 'hello world'
+      }, {
+        'type': 'atom',
+        'value': 'OR'
+      }, {
+        'type': 'atom',
+        'value': 'UNSEEN'
+      }, {
+        'type': 'atom',
+        'value': 'SEEN'
+      }, {
+        'type': 'atom',
+        'value': 'NOT'
+      }, {
+        'type': 'atom',
+        'value': 'SEEN'
+      }, {
+        'type': 'atom',
+        'value': 'SENTBEFORE'
+      }, {
+        'type': 'atom',
+        'value': '3-Feb-2011'
+      }, {
+        'type': 'atom',
+        'value': 'SINCE'
+      }, {
+        'type': 'atom',
+        'value': '23-Dec-2011'
+      }, {
+        'type': 'atom',
+        'value': 'UID'
+      }, {
+        'type': 'sequence',
+        'value': '1:*'
+      }, {
+        'type': 'atom',
+        'value': 'X-GM-MSGID'
+      }, {
+        'type': 'number',
+        'value': '1499257647490662970'
+      }, {
+        'type': 'atom',
+        'value': 'X-GM-THRID'
+      }, {
+        'type': 'number',
+        'value': '1499257647490662971'
+      }]
+    })
+  })
+
+  it('should compose an unicode search command', () => {
+    expect(buildSEARCHCommand({
+      body: 'jõgeva'
+    }, {})).to.deep.equal({
+      command: 'SEARCH',
+      attributes: [{
+        type: 'atom',
+        value: 'CHARSET'
+      }, {
+        type: 'atom',
+        value: 'UTF-8'
+      }, {
+        type: 'atom',
+        value: 'BODY'
+      }, {
+        type: 'literal',
+        value: 'jÃµgeva'
+      }]
+    })
   })
 })
