@@ -7,12 +7,12 @@ import {
 
 let SESSIONCOUNTER = 0
 
-export default function createDefaultLogger () {
-  const tag = ++SESSIONCOUNTER
+export default function createDefaultLogger (username, hostname) {
+  const session = ++SESSIONCOUNTER
   let log = (level, messages) => {
     messages = messages.map(msg => typeof msg === 'function' ? msg() : msg)
-    let logMessage = '[' + new Date().toISOString() + '][' + tag + '][' +
-      this.options.auth.user + '][' + this.client.host + '] ' + messages.join(' ')
+    const date = new Date().toISOString()
+    let logMessage = `[${date}][${session}][${username}][${hostname}] ${messages.join(' ')}`
     if (level === LOG_LEVEL_DEBUG) {
       console.log('[DEBUG]' + logMessage)
     } else if (level === LOG_LEVEL_INFO) {

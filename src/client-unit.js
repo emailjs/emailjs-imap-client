@@ -2,14 +2,18 @@
 
 import ImapClient, { STATE_SELECTED, STATE_LOGOUT } from './client'
 import { parser } from 'emailjs-imap-handler'
-import { toTypedArray } from './common'
+import {
+  toTypedArray,
+  LOG_LEVEL_NONE
+} from './common'
 
 describe('browserbox unit tests', () => {
   var br
 
   beforeEach(() => {
-    br = new ImapClient()
-    br.logLevel = br.LOG_LEVEL_NONE
+    const auth = { user: 'baldrian', pass: 'sleeper.de' }
+    br = new ImapClient('somehost', 1234, { auth })
+    br.logLevel = LOG_LEVEL_NONE
     br.client.socket = {
       send: () => { },
       upgradeToSecure: () => { }
@@ -67,7 +71,7 @@ describe('browserbox unit tests', () => {
       })
     })
 
-    it('should fail to login', () => {
+    it('should fail to login', (done) => {
       br.client.connect.returns(Promise.resolve())
       br.updateCapability.returns(Promise.resolve())
       br.upgradeConnection.returns(Promise.resolve())
@@ -75,7 +79,7 @@ describe('browserbox unit tests', () => {
       br.login.returns(Promise.reject(new Error()))
 
       setTimeout(() => br.client.onready(), 0)
-      return br.connect().catch((err) => {
+      br.connect().catch((err) => {
         expect(err).to.exist
 
         expect(br.client.connect.calledOnce).to.be.true
@@ -86,14 +90,16 @@ describe('browserbox unit tests', () => {
         expect(br.login.calledOnce).to.be.true
 
         expect(br.compressConnection.called).to.be.false
+
+        done()
       })
     })
 
-    it('should timeout', () => {
+    it('should timeout', (done) => {
       br.client.connect.returns(Promise.resolve())
       br.timeoutConnection = 1
 
-      return br.connect().catch((err) => {
+      br.connect().catch((err) => {
         expect(err).to.exist
 
         expect(br.client.connect.calledOnce).to.be.true
@@ -104,6 +110,8 @@ describe('browserbox unit tests', () => {
         expect(br.updateId.called).to.be.false
         expect(br.login.called).to.be.false
         expect(br.compressConnection.called).to.be.false
+
+        done()
       })
     })
   })

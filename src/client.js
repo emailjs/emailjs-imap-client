@@ -63,6 +63,7 @@ export default class Client {
     this.onselectmailbox = null
     this.onclosemailbox = null
 
+    this._host = host
     this._clientId = propOr(DEFAULT_CLIENT_ID, 'id', options)
     this._state = false // Current state
     this._authenticated = false // Is the connection authenticated
@@ -923,7 +924,8 @@ export default class Client {
     return (a.toUpperCase() === 'INBOX' ? 'INBOX' : a) === (b.toUpperCase() === 'INBOX' ? 'INBOX' : b)
   }
 
-  createLogger (logger = createDefaultLogger()) {
+  createLogger (creator = createDefaultLogger) {
+    const logger = creator(this._auth.user || '', this._host)
     this.logger = this.client.logger = {
       debug: (...msgs) => { if (LOG_LEVEL_DEBUG >= this.logLevel) { logger.debug(msgs) } },
       info: (...msgs) => { if (LOG_LEVEL_INFO >= this.logLevel) { logger.info(msgs) } },
