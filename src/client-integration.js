@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-expressions */
 
 import hoodiecrow from 'hoodiecrow-imap'
-import ImapClient from './client'
+import ImapClient from '..'
 import { parseSEARCH } from './command-parser'
 import { buildSEARCHCommand } from './command-builder'
 import { LOG_LEVEL_NONE } from './common'

@@ -1,3 +1,5 @@
+import ImapClient from './client'
+
 export {
   LOG_LEVEL_NONE,
   LOG_LEVEL_ERROR,
@@ -7,4 +9,4 @@ export {
   LOG_LEVEL_ALL
 } from './common'
 
-export * from './client'
+export default ImapClient
