@@ -1,5 +1,12 @@
 {
-  "presets": ["env"],
+  "presets": [
+    ["env", {
+      "targets": {
+        "node": "7.0.0",
+        "browsers": ["last 2 Chrome versions"]
+      },
+    }]
+  ],
   "plugins": [
     ["babel-plugin-inline-import", {
       "extensions": [
