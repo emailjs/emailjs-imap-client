@@ -26,6 +26,7 @@ Where
   * **host** is to hostname to connect to
   * **port** (optional) is the port to connect to (defaults to 143)
   * **options** (optional) is the options object
+    * **logLevel** is the verbosity, can be set to error, warn, info, debug. See `src/common.js`
     * **auth** is the authentication information object
       * **user** is the username of the user (also applies to Oauth2)
       * **pass** is the password of the user

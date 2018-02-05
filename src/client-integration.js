@@ -1,10 +1,9 @@
 /* eslint-disable no-unused-expressions */
 
 import hoodiecrow from 'hoodiecrow-imap'
-import ImapClient from '..'
+import ImapClient, { LOG_LEVEL_NONE as logLevel } from '..'
 import { parseSEARCH } from './command-parser'
 import { buildSEARCHCommand } from './command-builder'
-import { LOG_LEVEL_NONE } from './common'
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 
@@ -82,13 +81,13 @@ describe('browserbox integration tests', () => {
 
     it('should use STARTTLS by default', () => {
       imap = new ImapClient('127.0.0.1', port, {
+        logLevel,
         auth: {
           user: 'testuser',
           pass: 'testpass'
         },
         useSecureTransport: false
       })
-      imap.logLevel = LOG_LEVEL_NONE
 
       return imap.connect().then(() => {
         expect(imap.client.secureMode).to.be.true
@@ -99,6 +98,7 @@ describe('browserbox integration tests', () => {
 
     it('should ignore STARTTLS', () => {
       imap = new ImapClient('127.0.0.1', port, {
+        logLevel,
         auth: {
           user: 'testuser',
           pass: 'testpass'
@@ -106,7 +106,6 @@ describe('browserbox integration tests', () => {
         useSecureTransport: false,
         ignoreTLS: true
       })
-      imap.logLevel = imap.LOG_LEVEL_NONE
 
       return imap.connect().then(() => {
         expect(imap.client.secureMode).to.be.false
@@ -117,6 +116,7 @@ describe('browserbox integration tests', () => {
 
     it('should fail connecting to non-STARTTLS host', () => {
       imap = new ImapClient('127.0.0.1', port + 2, {
+        logLevel,
         auth: {
           user: 'testuser',
           pass: 'testpass'
@@ -124,7 +124,6 @@ describe('browserbox integration tests', () => {
         useSecureTransport: false,
         requireTLS: true
       })
-      imap.logLevel = imap.LOG_LEVEL_NONE
 
       return imap.connect().catch((err) => {
         expect(err).to.exist
@@ -133,13 +132,13 @@ describe('browserbox integration tests', () => {
 
     it('should connect to non secure host', () => {
       imap = new ImapClient('127.0.0.1', port + 2, {
+        logLevel,
         auth: {
           user: 'testuser',
           pass: 'testpass'
         },
         useSecureTransport: false
       })
-      imap.logLevel = imap.LOG_LEVEL_NONE
 
       return imap.connect().then(() => {
         expect(imap.client.secureMode).to.be.false
@@ -152,13 +151,13 @@ describe('browserbox integration tests', () => {
   describe('Post login tests', () => {
     beforeEach(() => {
       imap = new ImapClient('127.0.0.1', port, {
+        logLevel,
         auth: {
           user: 'testuser',
           pass: 'testpass'
         },
         useSecureTransport: false
       })
-      imap.logLevel = imap.LOG_LEVEL_NONE
 
       return imap.connect().then(() => {
         return imap.selectMailbox('[Gmail]/Spam')
@@ -420,13 +419,13 @@ describe('browserbox integration tests', () => {
   describe('Timeout', () => {
     beforeEach(() => {
       imap = new ImapClient('127.0.0.1', port, {
+        logLevel,
         auth: {
           user: 'testuser',
           pass: 'testpass'
         },
         useSecureTransport: false
       })
-      imap.logLevel = imap.LOG_LEVEL_NONE
 
       return imap.connect()
         .then(() => {

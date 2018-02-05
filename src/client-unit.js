@@ -4,7 +4,7 @@ import ImapClient, { STATE_SELECTED, STATE_LOGOUT } from './client'
 import { parser } from 'emailjs-imap-handler'
 import {
   toTypedArray,
-  LOG_LEVEL_NONE
+  LOG_LEVEL_NONE as logLevel
 } from './common'
 
 describe('browserbox unit tests', () => {
@@ -12,8 +12,7 @@ describe('browserbox unit tests', () => {
 
   beforeEach(() => {
     const auth = { user: 'baldrian', pass: 'sleeper.de' }
-    br = new ImapClient('somehost', 1234, { auth })
-    br.logLevel = LOG_LEVEL_NONE
+    br = new ImapClient('somehost', 1234, { auth, logLevel })
     br.client.socket = {
       send: () => { },
       upgradeToSecure: () => { }
