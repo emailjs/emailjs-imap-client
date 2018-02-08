@@ -308,7 +308,7 @@ export default class Client {
     const list = pathOr([], ['payload', 'LIST'], listResponse)
     list.forEach(item => {
       const attr = propOr([], 'attributes', item)
-      if (!attr.length < 3) return
+      if (attr.length < 3) return
 
       const path = pathOr('', ['2', 'value'], attr)
       const delim = pathOr('/', ['1', 'value'], attr)
@@ -322,7 +322,7 @@ export default class Client {
     const lsub = pathOr([], ['payload', 'LSUB'], lsubResponse)
     lsub.forEach((item) => {
       const attr = propOr([], 'attributes', item)
-      if (!attr.length < 3) return
+      if (attr.length < 3) return
 
       const path = pathOr('', ['2', 'value'], attr)
       const delim = pathOr('/', ['1', 'value'], attr)
