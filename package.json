@@ -1,6 +1,6 @@
 {
   "name": "emailjs-imap-client",
-  "version": "3.0.5",
+  "version": "3.0.6",
   "homepage": "https://github.com/emailjs/emailjs-imap-client",
   "description": "JavaScript IMAP client",
   "author": "Andris Reinman <andris@kreata.ee>",
@@ -26,7 +26,7 @@
     "emailjs-addressparser": "^2.0.2",
     "emailjs-base64": "^1.1.2",
     "emailjs-imap-handler": "^3.0.2",
-    "emailjs-mime-codec": "^2.0.2",
+    "emailjs-mime-codec": "^2.0.7",
     "emailjs-tcp-socket": "^2.0.0",
     "emailjs-utf7": "^4.0.1",
     "pako": "^1.0.6",
