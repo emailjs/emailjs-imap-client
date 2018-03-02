@@ -146,6 +146,21 @@ describe('browserbox integration tests', () => {
         return imap.close()
       })
     })
+
+    it('should fail authentication', (done) => {
+      imap = new ImapClient('127.0.0.1', port + 2, {
+        logLevel,
+        auth: {
+          user: 'invalid',
+          pass: 'invalid'
+        },
+        useSecureTransport: false
+      })
+
+      imap.connect().then(() => {
+        expect(imap.client.secureMode).to.be.false
+      }).catch(() => { done() })
+    })
   })
 
   describe('Post login tests', () => {
