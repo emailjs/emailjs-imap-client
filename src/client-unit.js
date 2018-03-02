@@ -75,7 +75,7 @@ describe('browserbox unit tests', () => {
       br.updateCapability.returns(Promise.resolve())
       br.upgradeConnection.returns(Promise.resolve())
       br.updateId.returns(Promise.resolve())
-      br.login.returns(Promise.reject(new Error()))
+      br.login.throws(new Error())
 
       setTimeout(() => br.client.onready(), 0)
       br.connect().catch((err) => {
