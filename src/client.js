@@ -926,7 +926,7 @@ export default class Client {
   }
 
   createLogger (creator = createDefaultLogger) {
-    const logger = creator(this._auth.user || '', this._host)
+    const logger = creator((this._auth || {}).user || '', this._host)
     this.logger = this.client.logger = {
       debug: (...msgs) => { if (LOG_LEVEL_DEBUG >= this.logLevel) { logger.debug(msgs) } },
       info: (...msgs) => { if (LOG_LEVEL_INFO >= this.logLevel) { logger.info(msgs) } },
