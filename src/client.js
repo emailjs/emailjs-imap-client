@@ -641,7 +641,7 @@ export default class Client {
     }
 
     this.logger.debug('Logging in...')
-    const response = this.exec(command, 'capability', options)
+    const response = await this.exec(command, 'capability', options)
     /*
      * update post-auth capabilites
      * capability list shouldn't contain auth related stuff anymore
