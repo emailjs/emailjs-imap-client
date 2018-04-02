@@ -1,6 +1,6 @@
 {
   "name": "emailjs-imap-client",
-  "version": "3.0.6",
+  "version": "3.0.7",
   "homepage": "https://github.com/emailjs/emailjs-imap-client",
   "description": "JavaScript IMAP client",
   "author": "Andris Reinman <andris@kreata.ee>",
@@ -46,7 +46,8 @@
     "pre-commit": "^1.2.2",
     "sinon": "^4.5.0",
     "standard": "^11.0.0",
-    "webpack": "^3.10.0"
+    "webpack": "^4.4.1",
+    "webpack-cli": "^2.0.13"
   },
   "standard": {
     "globals": [
