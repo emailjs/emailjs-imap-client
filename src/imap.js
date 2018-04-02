@@ -104,7 +104,7 @@ export default class Imap {
     this.oncert = null
     this.onerror = null // Irrecoverable error occurred. Connection to the server will be closed automatically.
     this.onready = null // The connection to the server has been established and greeting is received
-    this.onidle = null  // There are no more commands to process
+    this.onidle = null // There are no more commands to process
   }
 
   // PUBLIC METHODS
