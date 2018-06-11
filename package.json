@@ -44,7 +44,7 @@
     "hoodiecrow-imap": "^2.1.0",
     "mocha": "^5.0.5",
     "pre-commit": "^1.2.2",
-    "sinon": "^5.0.1",
+    "sinon": "^6.0.0",
     "standard": "^11.0.0",
     "webpack": "^4.4.1",
     "webpack-cli": "^2.0.13"
