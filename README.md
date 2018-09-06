@@ -232,6 +232,17 @@ client.createMailbox('INBOX/Foo').then(() => { ... });
 // Do the same on a server where the personal namespace is ''
 client.createMailbox('Foo').then(() => { ... });
 ```
+## Delete mailbox
+
+Delete a folder with the given path with `deleteMailbox(path)`, automatically handling utf-7 encoding.
+
+Command: [DELETE](http://tools.ietf.org/html/rfc3501#section-6.3.4)
+
+Example
+
+```javascript
+client.deleteMailbox('Foo').then(() => { ... });
+```
 
 ## Select mailbox
 

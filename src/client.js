@@ -360,6 +360,23 @@ export default class Client {
   }
 
   /**
+   * Delete a mailbox with the given path.
+   *
+   * DELETE details:
+   *   https://tools.ietf.org/html/rfc3501#section-6.3.4
+   *
+   * @param {String} path
+   *     The path of the mailbox you would like to delete.  This method will
+   *     handle utf7 encoding for you.
+   * @returns {Promise}
+   *     Promise resolves if mailbox was deleted.
+   */
+  deleteMailbox (path) {
+    this.logger.debug('Deleting mailbox', path, '...')
+    return this.exec({ command: 'DELETE', attributes: [imapEncode(path)] })
+  }
+
+  /**
    * Runs FETCH command
    *
    * FETCH details:
