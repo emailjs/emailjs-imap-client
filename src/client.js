@@ -105,7 +105,10 @@ export default class Client {
     clearTimeout(this._idleTimeout)
 
     // propagate the error upwards
-    this.onerror && this.onerror(err)
+    if (!this.onerror) {
+      throw err
+    }
+    this.onerror(err)
   }
 
   //
