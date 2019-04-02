@@ -11,6 +11,9 @@ npm install --save emailjs-imap-client
 ```
 ```javascript
 import ImapClient from 'emailjs-imap-client'
+
+// Use this instead for CommonJS modules (Node.js)
+var ImapClient = require('emailjs-imap-client').default
 ```
 
 ## API
