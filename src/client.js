@@ -115,15 +115,14 @@ export default class Client {
   //
 
   /**
-   * Initiate connection to the IMAP server
+   * Initiate connection and login to the IMAP server
    *
    * @returns {Promise} Promise when login procedure is complete
    */
   async connect () {
     try {
-      await this._openConnection()
+      await this.openConnection()
       this._changeState(STATE_NOT_AUTHENTICATED)
-      await this.updateCapability()
       await this.upgradeConnection()
       try {
         await this.updateId(this._clientId)
@@ -142,7 +141,12 @@ export default class Client {
     }
   }
 
-  _openConnection () {
+  /**
+   * Initiate connection to the IMAP server
+   *
+   * @returns {Promise} capability of server without login
+   */
+  openConnection () {
     return new Promise((resolve, reject) => {
       let connectionTimeout = setTimeout(() => reject(new Error('Timeout connecting to server')), this.timeoutConnection)
       this.logger.debug('Connecting to', this.client.host, ':', this.client.port)
@@ -152,7 +156,8 @@ export default class Client {
 
         this.client.onready = () => {
           clearTimeout(connectionTimeout)
-          resolve()
+          this.updateCapability()
+            .then(() => resolve(this._capability))
         }
 
         this.client.onerror = (err) => {

@@ -23,7 +23,7 @@ Please note that **instances cannot be reused**! After terminating a connection 
 
 Where
 
-  * **host** is to hostname to connect to
+  * **host** is the hostname to connect to
   * **port** (optional) is the port to connect to (defaults to 143)
   * **options** (optional) is the options object
     * **logLevel** is the verbosity, can be set to error, warn, info, debug. See `src/common.js`
@@ -54,6 +54,16 @@ var client = new ImapClient('localhost', 143, {
 
 ```javascript
 client.onerror = function(error){}
+```
+## Get server capability
+Call `client.openConnection()` and `client.close()` without authentication to connect to server and get server capability before logging in:
+
+```javascript
+var client = new ImapClient('localhost', 143);
+client.openConnection().then(capability => {
+  client.close()
+  /* check capability too see, for example, if server is a gmail server and thereby decide on how to authenticate when connecting */
+});
 ```
 
 ## Initiate connection
