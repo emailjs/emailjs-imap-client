@@ -446,6 +446,6 @@ export function parseSEARCH (response) {
     map(x => x.attributes || []),
     flatten,
     map(nr => Number(propOr(nr || 0, 'value', nr)) || 0),
-    sort((a, b) => a > b)
+    sort((a, b) => a - b)
   )(response)
 }
