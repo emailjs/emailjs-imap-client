@@ -1,4 +1,4 @@
-import {propOr} from 'ramda'
+import { propOr } from 'ramda'
 
 const SPECIAL_USE_FLAGS = ['\\All', '\\Archive', '\\Drafts', '\\Flagged', '\\Junk', '\\Sent', '\\Trash']
 const SPECIAL_USE_BOXES = {

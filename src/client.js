@@ -313,7 +313,7 @@ export default class Client {
       const path = pathOr('', ['2', 'value'], attr)
       const delim = pathOr('/', ['1', 'value'], attr)
       const branch = this._ensurePath(tree, path, delim)
-      branch.flags = propOr([], '0', attr).map(({value}) => value || '')
+      branch.flags = propOr([], '0', attr).map(({ value }) => value || '')
       branch.listed = true
       checkSpecialUse(branch)
     })
@@ -822,7 +822,7 @@ export default class Client {
   _untaggedCapabilityHandler (response) {
     this._capability = pipe(
       propOr([], 'attributes'),
-      map(({value}) => (value || '').toUpperCase().trim())
+      map(({ value }) => (value || '').toUpperCase().trim())
     )(response)
   }
 
