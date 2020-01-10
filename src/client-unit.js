@@ -183,6 +183,20 @@ describe('browserbox unit tests', () => {
       })
 
       br._capability = []
+      br._selectedMailbox = 'FOO'
+      br.timeoutNoop = 1
+      br.enterIdle()
+    })
+
+    it('should periodically send NOOP if no mailbox selected', (done) => {
+      sinon.stub(br, 'exec').callsFake((command) => {
+        expect(command).to.equal('NOOP')
+
+        done()
+      })
+
+      br._capability = ['IDLE']
+      br._selectedMailbox = undefined
       br.timeoutNoop = 1
       br.enterIdle()
     })
@@ -197,6 +211,7 @@ describe('browserbox unit tests', () => {
       })
 
       br._capability = ['IDLE']
+      br._selectedMailbox = 'FOO'
       br.timeoutIdle = 1
       br.enterIdle()
     })
