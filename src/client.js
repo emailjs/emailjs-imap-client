@@ -706,7 +706,8 @@ export default class Client {
     if (this._enteredIdle) {
       return
     }
-    this._enteredIdle = this._capability.indexOf('IDLE') >= 0 ? 'IDLE' : 'NOOP'
+    const supportsIdle = this._capability.indexOf('IDLE') >= 0;
+    this._enteredIdle = supportsIdle && this._selectedMailbox ? 'IDLE' : 'NOOP'
     this.logger.debug('Entering idle with ' + this._enteredIdle)
 
     if (this._enteredIdle === 'NOOP') {
