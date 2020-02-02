@@ -30,7 +30,7 @@
     "emailjs-tcp-socket": "^2.0.2",
     "emailjs-utf7": "^4.0.1",
     "pako": "^1.0.10",
-    "ramda": "^0.26.1"
+    "ramda": "^0.27.0"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",
