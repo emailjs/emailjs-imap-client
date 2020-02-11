@@ -483,8 +483,8 @@ describe('parseCOPY', () => {
     expect(parseCOPY({
       copyuid: ['1', '1:3', '3,4,2']
     })).to.deep.equal({
-      sourceUids: '1:3',
-      destinationUids: '3,4,2'
+      srcSeqSet: '1:3',
+      destSeqSet: '3,4,2'
     })
   })
 })

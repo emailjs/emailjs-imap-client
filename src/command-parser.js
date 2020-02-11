@@ -453,16 +453,16 @@ export function parseSEARCH (response) {
 /**
  * Parses COPY and UID COPY response.
  * @param {Object} response
- * @returns {{destinationUids: string, sourceUids: string}} Source and
+ * @returns {{destSeqSet: string, srcSeqSet: string}} Source and
  * destination uid sequence sets.
  */
 export function parseCOPY (response) {
-  const value = { sourceUids: '', destinationUids: '' }
+  const value = { srcSeqSet: '', destSeqSet: '' }
   const copyuid = response && response.copyuid
 
   if (copyuid) {
-    value.sourceUids = copyuid[1]
-    value.destinationUids = copyuid[2]
+    value.srcSeqSet = copyuid[1]
+    value.destSeqSet = copyuid[2]
   }
 
   return value

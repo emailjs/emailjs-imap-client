@@ -783,8 +783,8 @@ describe('browserbox unit tests', () => {
         byUid: true
       }).then((response) => {
         expect(response).to.deep.equal({
-          sourceUids: '1:2',
-          destinationUids: '4,3'
+          srcSeqSet: '1:2',
+          destSeqSet: '4,3'
         })
         expect(br.exec.callCount).to.equal(1)
       })
