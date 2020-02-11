@@ -449,3 +449,30 @@ export function parseSEARCH (response) {
     sort((a, b) => a > b)
   )(response)
 }
+
+/**
+ * Parses COPY and UID COPY response.
+ * @param {Object} response
+ * @returns {{destinationUids: string, sourceUids: string}} Source and
+ * destination uid sequence sets.
+ */
+export function parseCOPY (response) {
+  const value = {sourceUids: "", destinationUids: ""}
+  const copyuid = response && response.copyuid
+
+  if (copyuid) {
+    value.sourceUids = copyuid[1]
+    value.destinationUids = copyuid[2]
+  }
+
+  return value
+}
+
+/**
+ * Parses APPEND (upload) response.
+ * @param {Object} response
+ * @returns {String} The uid assigned to the uploaded message.
+ */
+export function parseASSIGN (response) {
+  return response && response.appenduid && response.appenduid[1]
+}
