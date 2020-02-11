@@ -776,13 +776,16 @@ describe('browserbox unit tests', () => {
           value: '[Gmail]/Trash'
         }]
       }).returns(Promise.resolve({
-        humanReadable: 'abc'
+        copyuid: ['1', '1:2', '4,3']
       }))
 
       return br.copyMessages('INBOX', '1:2', '[Gmail]/Trash', {
         byUid: true
       }).then((response) => {
-        expect(response).to.equal('abc')
+        expect(response).to.deep.equal({
+          sourceUids: '1:2',
+          destinationUids: '4,3'
+        })
         expect(br.exec.callCount).to.equal(1)
       })
     })
