@@ -3,6 +3,8 @@
 
 import { parser } from 'emailjs-imap-handler'
 import {
+  parseASSIGN,
+  parseCOPY,
   parseSEARCH,
   parseNAMESPACE,
   parseENVELOPE,
@@ -473,5 +475,24 @@ describe('parseSEARCH', () => {
         }]
       }
     })).to.deep.equal([])
+  })
+})
+
+describe('parseCOPY', () => {
+  it('should parse COPY response', () => {
+    expect(parseCOPY({
+      copyuid: ['1', '1:3', '3,4,2']
+    })).to.deep.equal({
+      sourceUids: '1:3',
+      destinationUids: '3,4,2'
+    })
+  })
+})
+
+describe('parseASSIGN', () => {
+  it('should parse ASSIGN response', () => {
+    expect(parseASSIGN({
+      appenduid: ['1', '3']
+    })).to.equal('3')
   })
 })
