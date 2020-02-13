@@ -3,7 +3,7 @@
 
 import { parser } from 'emailjs-imap-handler'
 import {
-  parseASSIGN,
+  parseAPPEND,
   parseCOPY,
   parseSEARCH,
   parseNAMESPACE,
@@ -489,9 +489,9 @@ describe('parseCOPY', () => {
   })
 })
 
-describe('parseASSIGN', () => {
+describe('parseAPPEND', () => {
   it('should parse ASSIGN response', () => {
-    expect(parseASSIGN({
+    expect(parseAPPEND({
       appenduid: ['1', '3']
     })).to.equal('3')
   })

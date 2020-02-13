@@ -633,7 +633,7 @@ Command: [COPY](http://tools.ietf.org/html/rfc3501#section-6.4.7)
 ### Example
 
 ```javascript
-client.copyMessages('INBOX', '1:5', '[Gmail]/Trash').then(({srcSeqSet, destSeqSet}) => { ... });
+client.upload('INBOX', message).then((uid) => { ... });
 ```
 
 ## Move messages

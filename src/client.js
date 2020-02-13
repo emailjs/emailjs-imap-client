@@ -1,7 +1,7 @@
 import { map, pipe, union, zip, fromPairs, propOr, pathOr, flatten } from 'ramda'
 import { imapEncode, imapDecode } from 'emailjs-utf7'
 import {
-  parseASSIGN,
+  parseAPPEND,
   parseCOPY,
   parseNAMESPACE,
   parseSELECT,
@@ -500,7 +500,7 @@ export default class Client {
 
     this.logger.debug('Uploading message to', destination, '...')
     const response = await this.exec(command)
-    return parseASSIGN(response)
+    return parseAPPEND(response)
   }
 
   /**

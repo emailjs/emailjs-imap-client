@@ -520,6 +520,6 @@ export function parseCOPY (response) {
  * @param {Object} response
  * @returns {String} The uid assigned to the uploaded message.
  */
-export function parseASSIGN (response) {
+export function parseAPPEND (response) {
   return response && response.appenduid && response.appenduid[1]
 }
