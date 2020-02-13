@@ -40,6 +40,28 @@ describe('browserbox unit tests', () => {
     })
   })
 
+  describe('#openConnection', () => {
+    beforeEach(() => {
+      sinon.stub(br.client, 'connect')
+      sinon.stub(br.client, 'close')
+      sinon.stub(br.client, 'enqueueCommand')
+    })
+    it('should open connection', () => {
+      br.client.connect.returns(Promise.resolve())
+      br.client.enqueueCommand.returns(Promise.resolve({
+        capability: ['capa1', 'capa2']
+      }))
+      setTimeout(() => br.client.onready(), 0)
+      return br.openConnection().then(() => {
+        expect(br.client.connect.calledOnce).to.be.true
+        expect(br.client.enqueueCommand.calledOnce).to.be.true
+        expect(br._capability.length).to.equal(2)
+        expect(br._capability[0]).to.equal('capa1')
+        expect(br._capability[1]).to.equal('capa2')
+      })
+    })
+  })
+
   describe('#connect', () => {
     beforeEach(() => {
       sinon.stub(br.client, 'connect')
