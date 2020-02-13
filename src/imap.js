@@ -162,6 +162,10 @@ export default class Imap {
    * @returns {Promise} Resolves when the socket is closed
    */
   close (error) {
+    if (this._enteredClosingState) {
+      return Promise.resolve()
+    }
+    this._enteredClosingState = true
     return new Promise((resolve) => {
       var tearDown = () => {
         // fulfill pending promises
@@ -257,7 +261,10 @@ export default class Imap {
     var tag = 'W' + (++this._tagCounter)
     request.tag = tag
 
-    return new Promise((resolve, reject) => {
+    return new Promise(resolve => {
+      var reject = error => {
+        return resolve(this.close(error))
+      }
       var data = {
         tag: tag,
         request: request,

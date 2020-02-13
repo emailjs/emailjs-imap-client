@@ -727,6 +727,7 @@ The IMAP client has several events you can attach to by setting a listener
 ### Handling fatal error event
 
 The invocation of `onerror` indicates an irrecoverable error. When `onerror` is fired, the connection is already closed, hence there's no need for further cleanup.
+if no `onerror` callback is set, it will throw the error.
 
 ## Get your hands dirty
 
