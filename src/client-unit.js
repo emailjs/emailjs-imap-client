@@ -1195,4 +1195,19 @@ describe('browserbox unit tests', () => {
       })
     })
   })
+
+  describe('_useUidPlus', () => {
+    it('should return true if byUid and UIDPLUS is true', () => {
+      br._capability = ['UIDPLUS']
+      expect(br._useUidPlus(true)).to.equal(true)
+    })
+
+    it('should return false if either byUid or UIDPLUS is false', () => {
+      br._capability = []
+      expect(br._useUidPlus(true)).to.equal(false)
+      expect(br._useUidPlus(false)).to.equal(false)
+      br._capability = ['UIDPLUS']
+      expect(br._useUidPlus(false)).to.equal(false)
+    })
+  })
 })

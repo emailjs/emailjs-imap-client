@@ -392,6 +392,7 @@ export default class Client {
    */
   async listMessages (path, sequence, items = [{ fast: true }], options = {}) {
     this.logger.debug('Fetching messages', sequence, 'from', path, '...')
+    options.byUid = this._useUidPlus(options.byUid)
     const command = buildFETCHCommand(sequence, items, options)
     const response = await this.exec(command, 'FETCH', {
       precheck: (ctx) => this._shouldSelectMailbox(path, ctx) ? this.selectMailbox(path, { ctx }) : Promise.resolve()
@@ -412,6 +413,7 @@ export default class Client {
    */
   async search (path, query, options = {}) {
     this.logger.debug('Searching in', path, '...')
+    options.byUid = this._useUidPlus(options.byUid)
     const command = buildSEARCHCommand(query, options)
     const response = await this.exec(command, 'SEARCH', {
       precheck: (ctx) => this._shouldSelectMailbox(path, ctx) ? this.selectMailbox(path, { ctx }) : Promise.resolve()
@@ -467,6 +469,7 @@ export default class Client {
    * @returns {Promise} Promise with the array of matching seq. or uid numbers
    */
   async store (path, sequence, action, flags, options = {}) {
+    options.byUid = this._useUidPlus(options.byUid)
     const command = buildSTORECommand(sequence, action, flags, options)
     const response = await this.exec(command, 'FETCH', {
       precheck: (ctx) => this._shouldSelectMailbox(path, ctx) ? this.selectMailbox(path, { ctx }) : Promise.resolve()
@@ -479,6 +482,8 @@ export default class Client {
    *
    * APPEND details:
    *   http://tools.ietf.org/html/rfc3501#section-6.3.11
+   * APPENDUID response details:
+   *   https://tools.ietf.org/html/rfc4315#section-3
    *
    * @param {String} destination The mailbox where to append the message
    * @param {String} message The message to append
@@ -522,7 +527,7 @@ export default class Client {
   async deleteMessages (path, sequence, options = {}) {
     // add \Deleted flag to the messages and run EXPUNGE or UID EXPUNGE
     this.logger.debug('Deleting messages', sequence, 'in', path, '...')
-    const useUidPlus = options.byUid && this._capability.indexOf('UIDPLUS') >= 0
+    const useUidPlus = this._useUidPlus(options.byUid)
     const uidExpungeCommand = { command: 'UID EXPUNGE', attributes: [{ type: 'sequence', value: sequence }] }
     await this.setFlags(path, sequence, { add: '\\Deleted' }, options)
     const cmd = useUidPlus ? uidExpungeCommand : 'EXPUNGE'
@@ -537,6 +542,11 @@ export default class Client {
    *
    * COPY details:
    *   http://tools.ietf.org/html/rfc3501#section-6.4.7
+   * COPYUID response details:
+   *   https://tools.ietf.org/html/rfc4315#section-3
+   *
+   * If possible (byUid:true and UIDPLUS extension supported), uses UID COPY
+   * command to delete a range of messages, otherwise falls back to COPY.
    *
    * @param {String} path The path for the mailbox which should be selected for the command. Selects mailbox if necessary
    * @param {String} sequence Message range to be copied
@@ -547,8 +557,9 @@ export default class Client {
    */
   async copyMessages (path, sequence, destination, options = {}) {
     this.logger.debug('Copying messages', sequence, 'from', path, 'to', destination, '...')
+    const useUidPlus = this._useUidPlus(options.byUid)
     const { humanReadable } = await this.exec({
-      command: options.byUid ? 'UID COPY' : 'COPY',
+      command: useUidPlus ? 'UID COPY' : 'COPY',
       attributes: [
         { type: 'sequence', value: sequence },
         { type: 'atom', value: destination }
@@ -567,6 +578,9 @@ export default class Client {
    * MOVE details:
    *   http://tools.ietf.org/html/rfc6851
    *
+   * If possible (byUid:true and UIDPLUS extension supported), uses UID MOVE
+   * command to delete a range of messages, otherwise falls back to MOVE.
+   *
    * @param {String} path The path for the mailbox which should be selected for the command. Selects mailbox if necessary
    * @param {String} sequence Message range to be moved
    * @param {String} destination Destination mailbox path
@@ -583,8 +597,9 @@ export default class Client {
     }
 
     // If possible, use MOVE
+    const useUidPlus = this._useUidPlus(options.byUid)
     return this.exec({
-      command: options.byUid ? 'UID MOVE' : 'MOVE',
+      command: useUidPlus ? 'UID MOVE' : 'MOVE',
       attributes: [
         { type: 'sequence', value: sequence },
         { type: 'atom', value: destination }
@@ -940,6 +955,10 @@ export default class Client {
    */
   _compareMailboxNames (a, b) {
     return (a.toUpperCase() === 'INBOX' ? 'INBOX' : a) === (b.toUpperCase() === 'INBOX' ? 'INBOX' : b)
+  }
+
+  _useUidPlus (byUidOption) {
+    return byUidOption && this._capability.indexOf('UIDPLUS') >= 0
   }
 
   createLogger (creator = createDefaultLogger) {

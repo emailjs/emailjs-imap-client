@@ -622,7 +622,7 @@ Where
   * **sequence** defines the range of sequence numbers or UID values (if `byUid` option is set to true). Example: '1', '1:*', '1,2:3,4' etc.
   * **destination** is the destination folder path. Example: '[Gmail]/Trash'
   * **options** is an optional options object
-    * **byUid** if `true` uses UID values instead of sequence numbers to define the range
+    * **byUid** if `true` and server supports UIDPLUS, uses UID values instead of sequence numbers to define the range
 
 Resolves when IMAP server completed the command.
 
