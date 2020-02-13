@@ -498,7 +498,7 @@ describe('parseCOPY', () => {
 })
 
 describe('parseAPPEND', () => {
-  it('should parse ASSIGN response', () => {
+  it('should parse APPEND response', () => {
     expect(parseAPPEND({
       appenduid: ['1', '3']
     })).to.equal('3')
