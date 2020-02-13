@@ -1,6 +1,6 @@
 import parseAddress from 'emailjs-addressparser'
 import { compiler } from 'emailjs-imap-handler'
-import { sort, map, pipe, zip, fromPairs, prop, pathOr, propOr, flatten, toLower } from 'ramda'
+import { zip, fromPairs, prop, pathOr, propOr, toLower } from 'ramda'
 import { mimeWordEncode, mimeWordsDecode } from 'emailjs-mime-codec'
 
 /**
@@ -433,6 +433,43 @@ function parseFetchValue (key, value) {
 }
 
 /**
+  * Binary Search - from npm module binary-search, license CC0
+  *
+  * @param {Array} haystack Ordered array
+  * @param {any} needle Item to search for in haystack
+  * @param {Function} comparator Function that defines the sort order
+  * @return {Number} Index of needle in haystack or if not found,
+  *     -Index-1 is the position where needle could be inserted while still
+  *     keeping haystack ordered.
+  */
+function binSearch (haystack, needle, comparator = (a, b) => a - b) {
+  var mid, cmp
+  var low = 0
+  var high = haystack.length - 1
+
+  while (low <= high) {
+    // Note that "(low + high) >>> 1" may overflow, and results in
+    // a typecast to double (which gives the wrong results).
+    mid = low + (high - low >> 1)
+    cmp = +comparator(haystack[mid], needle)
+
+    if (cmp < 0.0) {
+      // too low
+      low = mid + 1
+    } else if (cmp > 0.0) {
+      // too high
+      high = mid - 1
+    } else {
+      // key found
+      return mid
+    }
+  }
+
+  // key not found
+  return ~low
+};
+
+/**
  * Parses SEARCH response. Gathers all untagged SEARCH responses, fetched seq./uid numbers
  * and compiles these into a sorted array.
  *
@@ -441,14 +478,24 @@ function parseFetchValue (key, value) {
  * @param {Array} Sorted Seq./UID number list
  */
 export function parseSEARCH (response) {
-  return pipe(
-    pathOr([], ['payload', 'SEARCH']),
-    map(x => x.attributes || []),
-    flatten,
-    map(nr => Number(propOr(nr || 0, 'value', nr)) || 0),
-    sort((a, b) => a > b)
-  )(response)
-}
+  const list = []
+
+  if (!response || !response.payload || !response.payload.SEARCH || !response.payload.SEARCH.length) {
+    return list
+  }
+
+  response.payload.SEARCH.forEach(result =>
+    (result.attributes || []).forEach(nr => {
+      nr = Number((nr && nr.value) || nr) || 0
+      const idx = binSearch(list, nr)
+      if (idx < 0) {
+        list.splice(-idx - 1, 0, nr)
+      }
+    })
+  )
+
+  return list
+};
 
 /**
  * Parses COPY and UID COPY response.
