@@ -628,7 +628,7 @@ Where
 
 Resolves with the new uid of the message in the destination folder if the server supports [UIDPLUS](https://tools.ietf.org/html/rfc4315).
 
-Command: [COPY](http://tools.ietf.org/html/rfc3501#section-6.4.7)
+Command: [APPEND](https://tools.ietf.org/html/rfc3501#section-6.3.11)
 
 ### Example
 
