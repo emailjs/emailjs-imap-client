@@ -602,14 +602,38 @@ Where
   * **options** is an optional options object
     * **byUid** if `true` uses UID values instead of sequence numbers to define the range
 
-Resolves with a response text from the server. Not really useful, can be ignored.
+Resolves with an object which contains sequence sets of source and destination uids. Note that the ordering of the sets matter - the source uids map directly to the destination uids.
+
+  * **srcSeqSet** is the sequence set of the uids of the copied messages in the source mailbox
+  * **destSeqSet** is the sequence set of the new uids of the copied messages in the destination mailbox
 
 Command: [COPY](http://tools.ietf.org/html/rfc3501#section-6.4.7)
 
 ### Example
 
 ```javascript
-client.copyMessages('INBOX', '1:5', '[Gmail]/Trash').then(() => { ... });
+client.copyMessages('INBOX', '1:5', '[Gmail]/Trash').then(({srcSeqSet, destSeqSet}) => { ... });
+```
+
+## Upload a message
+
+Upload a message with `upload(destination, message, [, options])`
+
+Where
+
+  * **destination** is the destination folder path. Example: '[Gmail]/Trash'
+  * **message** is the message to be uploaded
+  * **options** is an optional options object
+    * **flags** is an array of flags you want to set on the uploaded message. Defaults to [\Seen]. (optional)
+
+Resolves with the new uid of the message in the destination folder.
+
+Command: [COPY](http://tools.ietf.org/html/rfc3501#section-6.4.7)
+
+### Example
+
+```javascript
+client.copyMessages('INBOX', '1:5', '[Gmail]/Trash').then(({srcSeqSet, destSeqSet}) => { ... });
 ```
 
 ## Move messages
