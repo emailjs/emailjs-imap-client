@@ -438,11 +438,11 @@ describe('parseFETCH', () => {
       }
     })).to.deep.equal([{
       '#': 123,
-      'uid': 789,
-      'modseq': '127'
+      uid: 789,
+      modseq: '127'
     }, {
       '#': 124,
-      'uid': 790
+      uid: 790
     }])
   })
 })

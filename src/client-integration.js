@@ -19,7 +19,7 @@ describe('browserbox integration tests', () => {
       plugins: ['STARTTLS', 'X-GM-EXT-1'],
       secureConnection: false,
       storage: {
-        'INBOX': {
+        INBOX: {
           messages: [
             { raw: 'Subject: hello 1\r\n\r\nWorld 1!' },
             { raw: 'Subject: hello 2\r\n\r\nWorld 2!', flags: ['\\Seen'] },
@@ -31,20 +31,20 @@ describe('browserbox integration tests', () => {
           ]
         },
         '': {
-          'separator': '/',
-          'folders': {
+          separator: '/',
+          folders: {
             '[Gmail]': {
-              'flags': ['\\Noselect'],
-              'folders': {
+              flags: ['\\Noselect'],
+              folders: {
                 'All Mail': { 'special-use': '\\All' },
-                'Drafts': { 'special-use': '\\Drafts' },
-                'Important': { 'special-use': '\\Important' },
+                Drafts: { 'special-use': '\\Drafts' },
+                Important: { 'special-use': '\\Important' },
                 'Sent Mail': { 'special-use': '\\Sent' },
-                'Spam': { 'special-use': '\\Junk' },
-                'Starred': { 'special-use': '\\Flagged' },
-                'Trash': { 'special-use': '\\Trash' },
-                'A': { messages: [{}] },
-                'B': { messages: [{}] }
+                Spam: { 'special-use': '\\Junk' },
+                Starred: { 'special-use': '\\Flagged' },
+                Trash: { 'special-use': '\\Trash' },
+                A: { messages: [{}] },
+                B: { messages: [{}] }
               }
             }
           }
@@ -252,7 +252,7 @@ describe('browserbox integration tests', () => {
         return imap.setFlags('inbox', '1', ['\\Seen', '$MyFlag']).then((result) => {
           expect(result).to.deep.equal([{
             '#': 1,
-            'flags': ['\\Seen', '$MyFlag']
+            flags: ['\\Seen', '$MyFlag']
           }])
         })
       })
@@ -263,7 +263,7 @@ describe('browserbox integration tests', () => {
         }).then((result) => {
           expect(result).to.deep.equal([{
             '#': 2,
-            'flags': ['\\Seen', '$MyFlag']
+            flags: ['\\Seen', '$MyFlag']
           }])
         })
       })
@@ -276,8 +276,8 @@ describe('browserbox integration tests', () => {
         }).then((result) => {
           expect(result).to.deep.equal([{
             '#': 5,
-            'flags': ['$MyFlag'],
-            'uid': 557
+            flags: ['$MyFlag'],
+            uid: 557
           }])
         })
       })

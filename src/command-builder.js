@@ -15,7 +15,7 @@ import {
  * @returns {Object} Structured IMAP command
  */
 export function buildFETCHCommand (sequence, items, options) {
-  let command = {
+  const command = {
     command: options.byUid ? 'UID FETCH' : 'FETCH',
     attributes: [{
       type: 'SEQUENCE',
@@ -80,7 +80,7 @@ export function buildFETCHCommand (sequence, items, options) {
  * @return {String} Base64 formatted login token
  */
 export function buildXOAuth2Token (user = '', token) {
-  let authData = [
+  const authData = [
     `user=${user}`,
     `auth=Bearer ${token}`,
     '',
@@ -106,19 +106,19 @@ export function buildXOAuth2Token (user = '', token) {
  * @return {Object} IMAP command object
  */
 export function buildSEARCHCommand (query = {}, options = {}) {
-  let command = {
+  const command = {
     command: options.byUid ? 'UID SEARCH' : 'SEARCH'
   }
 
   let isAscii = true
 
-  let buildTerm = (query) => {
+  const buildTerm = (query) => {
     let list = []
 
     Object.keys(query).forEach((key) => {
       let params = []
-      let formatDate = (date) => date.toUTCString().replace(/^\w+, 0?(\d+) (\w+) (\d+).*/, '$1-$2-$3')
-      let escapeParam = (param) => {
+      const formatDate = (date) => date.toUTCString().replace(/^\w+, 0?(\d+) (\w+) (\d+).*/, '$1-$2-$3')
+      const escapeParam = (param) => {
         if (typeof param === 'number') {
           return {
             type: 'number',
@@ -210,7 +210,7 @@ export function buildSEARCHCommand (query = {}, options = {}) {
  * Creates an IMAP STORE command from the selected arguments
  */
 export function buildSTORECommand (sequence, action = '', flags = [], options = {}) {
-  let command = {
+  const command = {
     command: options.byUid ? 'UID STORE' : 'STORE',
     attributes: [{
       type: 'sequence',

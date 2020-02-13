@@ -1224,8 +1224,8 @@ describe('browserbox unit tests', () => {
         expect(type).to.equal('fetch')
         expect(value).to.deep.equal({
           '#': 123,
-          'flags': ['\\Seen'],
-          'modseq': '4'
+          flags: ['\\Seen'],
+          modseq: '4'
         })
         done()
       }

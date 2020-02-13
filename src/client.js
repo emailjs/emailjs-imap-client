@@ -149,7 +149,7 @@ export default class Client {
    */
   openConnection () {
     return new Promise((resolve, reject) => {
-      let connectionTimeout = setTimeout(() => reject(new Error('Timeout connecting to server')), this.timeoutConnection)
+      const connectionTimeout = setTimeout(() => reject(new Error('Timeout connecting to server')), this.timeoutConnection)
       this.logger.debug('Connecting to', this.client.host, ':', this.client.port)
       this._changeState(STATE_CONNECTING)
       this.client.connect().then(() => {
@@ -217,7 +217,7 @@ export default class Client {
     this.logger.debug('Updating id...')
 
     const command = 'ID'
-    const attributes = id ? [ flatten(Object.entries(id)) ] : [ null ]
+    const attributes = id ? [flatten(Object.entries(id))] : [null]
     const response = await this.exec({ command, attributes }, 'ID')
     const list = flatten(pathOr([], ['payload', 'ID', '0', 'attributes', '0'], response).map(Object.values))
     const keys = list.filter((_, i) => i % 2 === 0)
@@ -255,7 +255,7 @@ export default class Client {
    * @returns {Promise} Promise with information about the selected mailbox
    */
   async selectMailbox (path, options = {}) {
-    let query = {
+    const query = {
       command: options.readOnly ? 'EXAMINE' : 'SELECT',
       attributes: [{ type: 'STRING', value: path }]
     }
@@ -266,7 +266,7 @@ export default class Client {
 
     this.logger.debug('Opening', path, '...')
     const response = await this.exec(query, ['EXISTS', 'FLAGS', 'OK'], { ctx: options.ctx })
-    let mailboxInfo = parseSELECT(response)
+    const mailboxInfo = parseSELECT(response)
 
     this._changeState(STATE_SELECTED)
 
@@ -493,8 +493,8 @@ export default class Client {
    * @returns {Promise} Promise with the array of matching seq. or uid numbers
    */
   async upload (destination, message, options = {}) {
-    let flags = propOr(['\\Seen'], 'flags', options).map(value => ({ type: 'atom', value }))
-    let command = {
+    const flags = propOr(['\\Seen'], 'flags', options).map(value => ({ type: 'atom', value }))
+    const command = {
       command: 'APPEND',
       attributes: [
         { type: 'atom', value: destination },
@@ -639,7 +639,7 @@ export default class Client {
    */
   async login (auth) {
     let command
-    let options = {}
+    const options = {}
 
     if (!auth) {
       throw new Error('Authentication information not provided')
@@ -842,7 +842,7 @@ export default class Client {
    * @param {Function} next Until called, server responses are not processed
    */
   _untaggedExistsHandler (response) {
-    if (response && response.hasOwnProperty('nr')) {
+    if (response && Object.prototype.hasOwnProperty.call(response, 'nr')) {
       this.onupdate && this.onupdate(this._selectedMailbox, 'exists', response.nr)
     }
   }
@@ -854,7 +854,7 @@ export default class Client {
    * @param {Function} next Until called, server responses are not processed
    */
   _untaggedExpungeHandler (response) {
-    if (response && response.hasOwnProperty('nr')) {
+    if (response && Object.prototype.hasOwnProperty.call(response, 'nr')) {
       this.onupdate && this.onupdate(this._selectedMailbox, 'expunge', response.nr)
     }
   }

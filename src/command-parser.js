@@ -14,7 +14,7 @@ export function parseNAMESPACE (response) {
     return false
   }
 
-  let attributes = [].concat(response.payload.NAMESPACE.pop().attributes || [])
+  const attributes = [].concat(response.payload.NAMESPACE.pop().attributes || [])
   if (!attributes.length) {
     return false
   }
@@ -61,12 +61,12 @@ export function parseSELECT (response) {
     return
   }
 
-  let mailbox = {
+  const mailbox = {
     readOnly: response.code === 'READ-ONLY'
   }
-  let existsResponse = response.payload.EXISTS && response.payload.EXISTS.pop()
-  let flagsResponse = response.payload.FLAGS && response.payload.FLAGS.pop()
-  let okResponse = response.payload.OK
+  const existsResponse = response.payload.EXISTS && response.payload.EXISTS.pop()
+  const flagsResponse = response.payload.FLAGS && response.payload.FLAGS.pop()
+  const okResponse = response.payload.OK
 
   if (existsResponse) {
     mailbox.exists = existsResponse.nr || 0
@@ -108,7 +108,7 @@ export function parseSELECT (response) {
  * @param {Object} Envelope object
  */
 export function parseENVELOPE (value) {
-  let envelope = {}
+  const envelope = {}
 
   if (value[0] && value[0].value) {
     envelope.date = value[0].value
@@ -166,7 +166,7 @@ function processAddresses (list = []) {
     const name = (pathOr('', ['0', 'value'], addr)).trim()
     const address = (pathOr('', ['2', 'value'], addr)) + '@' + (pathOr('', ['3', 'value'], addr))
     const formatted = name ? (encodeAddressName(name) + ' <' + address + '>') : address
-    let parsed = parseAddress(formatted).shift() // there should be just a single address
+    const parsed = parseAddress(formatted).shift() // there should be just a single address
     parsed.name = mimeWordsDecode(parsed.name)
     return parsed
   })
@@ -196,7 +196,7 @@ function encodeAddressName (name) {
  * @param {Object} Envelope object
  */
 export function parseBODYSTRUCTURE (node, path = []) {
-  let curNode = {}
+  const curNode = {}
   let i = 0
   let part = 0
 
@@ -358,11 +358,11 @@ export function parseFETCH (response) {
     return []
   }
 
-  let list = []
-  let messages = {}
+  const list = []
+  const messages = {}
 
   response.payload.FETCH.forEach((item) => {
-    let params = [].concat([].concat(item.attributes || [])[0] || []) // ensure the first value is an array
+    const params = [].concat([].concat(item.attributes || [])[0] || []) // ensure the first value is an array
     let message
     let i, len, key
 

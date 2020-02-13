@@ -33,7 +33,7 @@ Compressor.prototype.deflate = function (buffer) {
 
 function deflater (emit) {
   const stream = new ZStream()
-  let status = deflateInit2(stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED, WINDOW_BITS, 8, Z_DEFAULT_STRATEGY)
+  const status = deflateInit2(stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED, WINDOW_BITS, 8, Z_DEFAULT_STRATEGY)
   if (status !== Z_OK) {
     throw new Error('Problem initializing deflate stream: ' + messages[status])
   }
@@ -82,7 +82,7 @@ function deflater (emit) {
 }
 
 function inflater (emit) {
-  let stream = new ZStream()
+  const stream = new ZStream()
 
   const status = inflateInit2(stream, WINDOW_BITS)
   if (status !== Z_OK) {
