@@ -1,6 +1,8 @@
 import { map, pipe, union, zip, fromPairs, propOr, pathOr, flatten } from 'ramda'
 import { imapEncode, imapDecode } from 'emailjs-utf7'
 import {
+  parseAPPEND,
+  parseCOPY,
   parseNAMESPACE,
   parseSELECT,
   parseFETCH,
@@ -490,7 +492,7 @@ export default class Client {
    * @param {Array} options.flags Any flags you want to set on the uploaded message. Defaults to [\Seen]. (optional)
    * @returns {Promise} Promise with the array of matching seq. or uid numbers
    */
-  upload (destination, message, options = {}) {
+  async upload (destination, message, options = {}) {
     let flags = propOr(['\\Seen'], 'flags', options).map(value => ({ type: 'atom', value }))
     let command = {
       command: 'APPEND',
@@ -502,7 +504,8 @@ export default class Client {
     }
 
     this.logger.debug('Uploading message to', destination, '...')
-    return this.exec(command)
+    const response = await this.exec(command)
+    return parseAPPEND(response)
   }
 
   /**
@@ -552,7 +555,7 @@ export default class Client {
    */
   async copyMessages (path, sequence, destination, options = {}) {
     this.logger.debug('Copying messages', sequence, 'from', path, 'to', destination, '...')
-    const { humanReadable } = await this.exec({
+    const response = await this.exec({
       command: options.byUid ? 'UID COPY' : 'COPY',
       attributes: [
         { type: 'sequence', value: sequence },
@@ -561,7 +564,7 @@ export default class Client {
     }, null, {
       precheck: (ctx) => this._shouldSelectMailbox(path, ctx) ? this.selectMailbox(path, { ctx }) : Promise.resolve()
     })
-    return humanReadable || 'COPY completed'
+    return parseCOPY(response)
   }
 
   /**
