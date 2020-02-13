@@ -122,7 +122,6 @@ export default class Client {
   async connect () {
     try {
       await this.openConnection()
-      this._changeState(STATE_NOT_AUTHENTICATED)
       await this.upgradeConnection()
       try {
         await this.updateId(this._clientId)
@@ -156,6 +155,7 @@ export default class Client {
 
         this.client.onready = () => {
           clearTimeout(connectionTimeout)
+          this._changeState(STATE_NOT_AUTHENTICATED)
           this.updateCapability()
             .then(() => resolve(this._capability))
         }
