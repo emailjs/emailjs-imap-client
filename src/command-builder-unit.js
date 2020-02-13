@@ -193,62 +193,62 @@ describe('buildSEARCHCommand', () => {
     }, {})).to.deep.equal({
       command: 'SEARCH',
       attributes: [{
-        'type': 'atom',
-        'value': 'UNSEEN'
+        type: 'atom',
+        value: 'UNSEEN'
       }, {
-        'type': 'atom',
-        'value': 'HEADER'
+        type: 'atom',
+        value: 'HEADER'
       }, {
-        'type': 'string',
-        'value': 'subject'
+        type: 'string',
+        value: 'subject'
       }, {
-        'type': 'string',
-        'value': 'hello world'
+        type: 'string',
+        value: 'hello world'
       }, {
-        'type': 'atom',
-        'value': 'OR'
+        type: 'atom',
+        value: 'OR'
       }, {
-        'type': 'atom',
-        'value': 'UNSEEN'
+        type: 'atom',
+        value: 'UNSEEN'
       }, {
-        'type': 'atom',
-        'value': 'SEEN'
+        type: 'atom',
+        value: 'SEEN'
       }, {
-        'type': 'atom',
-        'value': 'NOT'
+        type: 'atom',
+        value: 'NOT'
       }, {
-        'type': 'atom',
-        'value': 'SEEN'
+        type: 'atom',
+        value: 'SEEN'
       }, {
-        'type': 'atom',
-        'value': 'SENTBEFORE'
+        type: 'atom',
+        value: 'SENTBEFORE'
       }, {
-        'type': 'atom',
-        'value': '3-Feb-2011'
+        type: 'atom',
+        value: '3-Feb-2011'
       }, {
-        'type': 'atom',
-        'value': 'SINCE'
+        type: 'atom',
+        value: 'SINCE'
       }, {
-        'type': 'atom',
-        'value': '23-Dec-2011'
+        type: 'atom',
+        value: '23-Dec-2011'
       }, {
-        'type': 'atom',
-        'value': 'UID'
+        type: 'atom',
+        value: 'UID'
       }, {
-        'type': 'sequence',
-        'value': '1:*'
+        type: 'sequence',
+        value: '1:*'
       }, {
-        'type': 'atom',
-        'value': 'X-GM-MSGID'
+        type: 'atom',
+        value: 'X-GM-MSGID'
       }, {
-        'type': 'number',
-        'value': '1499257647490662970'
+        type: 'number',
+        value: '1499257647490662970'
       }, {
-        'type': 'atom',
-        'value': 'X-GM-THRID'
+        type: 'atom',
+        value: 'X-GM-THRID'
       }, {
-        'type': 'number',
-        'value': '1499257647490662971'
+        type: 'number',
+        value: '1499257647490662971'
       }]
     })
   })
@@ -280,18 +280,18 @@ describe('#_buildSTORECommand', () => {
     expect(buildSTORECommand('1,2,3', 'FLAGS', ['a', 'b'], {})).to.deep.equal({
       command: 'STORE',
       attributes: [{
-        'type': 'sequence',
-        'value': '1,2,3'
+        type: 'sequence',
+        value: '1,2,3'
       }, {
-        'type': 'atom',
-        'value': 'FLAGS'
+        type: 'atom',
+        value: 'FLAGS'
       },
       [{
-        'type': 'atom',
-        'value': 'a'
+        type: 'atom',
+        value: 'a'
       }, {
-        'type': 'atom',
-        'value': 'b'
+        type: 'atom',
+        value: 'b'
       }]
       ]
     })
@@ -301,18 +301,18 @@ describe('#_buildSTORECommand', () => {
     expect(buildSTORECommand('1,2,3', 'FLAGS', ['a', 'b'], {})).to.deep.equal({
       command: 'STORE',
       attributes: [{
-        'type': 'sequence',
-        'value': '1,2,3'
+        type: 'sequence',
+        value: '1,2,3'
       }, {
-        'type': 'atom',
-        'value': 'FLAGS'
+        type: 'atom',
+        value: 'FLAGS'
       },
       [{
-        'type': 'atom',
-        'value': 'a'
+        type: 'atom',
+        value: 'a'
       }, {
-        'type': 'atom',
-        'value': 'b'
+        type: 'atom',
+        value: 'b'
       }]
       ]
     })
@@ -322,18 +322,18 @@ describe('#_buildSTORECommand', () => {
     expect(buildSTORECommand('1,2,3', '+FLAGS', ['a', 'b'], {})).to.deep.equal({
       command: 'STORE',
       attributes: [{
-        'type': 'sequence',
-        'value': '1,2,3'
+        type: 'sequence',
+        value: '1,2,3'
       }, {
-        'type': 'atom',
-        'value': '+FLAGS'
+        type: 'atom',
+        value: '+FLAGS'
       },
       [{
-        'type': 'atom',
-        'value': 'a'
+        type: 'atom',
+        value: 'a'
       }, {
-        'type': 'atom',
-        'value': 'b'
+        type: 'atom',
+        value: 'b'
       }]
       ]
     })
@@ -343,18 +343,18 @@ describe('#_buildSTORECommand', () => {
     expect(buildSTORECommand('1,2,3', '-FLAGS', ['a', 'b'], {})).to.deep.equal({
       command: 'STORE',
       attributes: [{
-        'type': 'sequence',
-        'value': '1,2,3'
+        type: 'sequence',
+        value: '1,2,3'
       }, {
-        'type': 'atom',
-        'value': '-FLAGS'
+        type: 'atom',
+        value: '-FLAGS'
       },
       [{
-        'type': 'atom',
-        'value': 'a'
+        type: 'atom',
+        value: 'a'
       }, {
-        'type': 'atom',
-        'value': 'b'
+        type: 'atom',
+        value: 'b'
       }]
       ]
     })
@@ -366,18 +366,18 @@ describe('#_buildSTORECommand', () => {
     })).to.deep.equal({
       command: 'STORE',
       attributes: [{
-        'type': 'sequence',
-        'value': '1,2,3'
+        type: 'sequence',
+        value: '1,2,3'
       }, {
-        'type': 'atom',
-        'value': '-FLAGS.SILENT'
+        type: 'atom',
+        value: '-FLAGS.SILENT'
       },
       [{
-        'type': 'atom',
-        'value': 'a'
+        type: 'atom',
+        value: 'a'
       }, {
-        'type': 'atom',
-        'value': 'b'
+        type: 'atom',
+        value: 'b'
       }]
       ]
     })
@@ -389,18 +389,18 @@ describe('#_buildSTORECommand', () => {
     })).to.deep.equal({
       command: 'UID STORE',
       attributes: [{
-        'type': 'sequence',
-        'value': '1,2,3'
+        type: 'sequence',
+        value: '1,2,3'
       }, {
-        'type': 'atom',
-        'value': 'FLAGS'
+        type: 'atom',
+        value: 'FLAGS'
       },
       [{
-        'type': 'atom',
-        'value': 'a'
+        type: 'atom',
+        value: 'a'
       }, {
-        'type': 'atom',
-        'value': 'b'
+        type: 'atom',
+        value: 'b'
       }]
       ]
     })

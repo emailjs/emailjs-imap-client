@@ -40,6 +40,28 @@ describe('browserbox unit tests', () => {
     })
   })
 
+  describe('#openConnection', () => {
+    beforeEach(() => {
+      sinon.stub(br.client, 'connect')
+      sinon.stub(br.client, 'close')
+      sinon.stub(br.client, 'enqueueCommand')
+    })
+    it('should open connection', () => {
+      br.client.connect.returns(Promise.resolve())
+      br.client.enqueueCommand.returns(Promise.resolve({
+        capability: ['capa1', 'capa2']
+      }))
+      setTimeout(() => br.client.onready(), 0)
+      return br.openConnection().then(() => {
+        expect(br.client.connect.calledOnce).to.be.true
+        expect(br.client.enqueueCommand.calledOnce).to.be.true
+        expect(br._capability.length).to.equal(2)
+        expect(br._capability[0]).to.equal('capa1')
+        expect(br._capability[1]).to.equal('capa2')
+      })
+    })
+  })
+
   describe('#connect', () => {
     beforeEach(() => {
       sinon.stub(br.client, 'connect')
@@ -161,6 +183,20 @@ describe('browserbox unit tests', () => {
       })
 
       br._capability = []
+      br._selectedMailbox = 'FOO'
+      br.timeoutNoop = 1
+      br.enterIdle()
+    })
+
+    it('should periodically send NOOP if no mailbox selected', (done) => {
+      sinon.stub(br, 'exec').callsFake((command) => {
+        expect(command).to.equal('NOOP')
+
+        done()
+      })
+
+      br._capability = ['IDLE']
+      br._selectedMailbox = undefined
       br.timeoutNoop = 1
       br.enterIdle()
     })
@@ -175,6 +211,7 @@ describe('browserbox unit tests', () => {
       })
 
       br._capability = ['IDLE']
+      br._selectedMailbox = 'FOO'
       br.timeoutIdle = 1
       br.enterIdle()
     })
@@ -776,13 +813,16 @@ describe('browserbox unit tests', () => {
           value: '[Gmail]/Trash'
         }]
       }).returns(Promise.resolve({
-        humanReadable: 'abc'
+        copyuid: ['1', '1:2', '4,3']
       }))
 
       return br.copyMessages('INBOX', '1:2', '[Gmail]/Trash', {
         byUid: true
       }).then((response) => {
-        expect(response).to.equal('abc')
+        expect(response).to.deep.equal({
+          srcSeqSet: '1:2',
+          destSeqSet: '4,3'
+        })
         expect(br.exec.callCount).to.equal(1)
       })
     })
@@ -1184,8 +1224,8 @@ describe('browserbox unit tests', () => {
         expect(type).to.equal('fetch')
         expect(value).to.deep.equal({
           '#': 123,
-          'flags': ['\\Seen'],
-          'modseq': '4'
+          flags: ['\\Seen'],
+          modseq: '4'
         })
         done()
       }

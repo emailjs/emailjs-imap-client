@@ -39,7 +39,7 @@ Please note that **instances cannot be reused**! After terminating a connection 
 
 Where
 
-  * **host** is to hostname to connect to
+  * **host** is the hostname to connect to
   * **port** (optional) is the port to connect to (defaults to 143)
   * **options** (optional) is the options object
     * **logLevel** is the verbosity, can be set to error, warn, info, debug. See `src/common.js`
@@ -70,6 +70,16 @@ var client = new ImapClient('localhost', 143, {
 
 ```javascript
 client.onerror = function(error){}
+```
+## Get server capability
+Call `client.openConnection()` and `client.close()` without authentication to connect to server and get server capability before logging in:
+
+```javascript
+var client = new ImapClient('localhost', 143);
+client.openConnection().then(capability => {
+  client.close()
+  /* check capability too see, for example, if server is a gmail server and thereby decide on how to authenticate when connecting */
+});
 ```
 
 ## Initiate connection
@@ -602,14 +612,38 @@ Where
   * **options** is an optional options object
     * **byUid** if `true` uses UID values instead of sequence numbers to define the range
 
-Resolves with a response text from the server. Not really useful, can be ignored.
+Resolves with an object which contains uid sets of source and destination uids if the server supports [UIDPLUS](https://tools.ietf.org/html/rfc4315).
+
+  * **srcSeqSet** is the uid set of the copied messages in the source mailbox
+  * **destSeqSet** is the uid set of the copied messages in the destination mailbox
 
 Command: [COPY](http://tools.ietf.org/html/rfc3501#section-6.4.7)
 
 ### Example
 
 ```javascript
-client.copyMessages('INBOX', '1:5', '[Gmail]/Trash').then(() => { ... });
+client.copyMessages('INBOX', '1:5', '[Gmail]/Trash').then(({srcSeqSet, destSeqSet}) => { ... });
+```
+
+## Upload a message
+
+Upload a message with `upload(destination, message, [, options])`
+
+Where
+
+  * **destination** is the destination folder path. Example: '[Gmail]/Trash'
+  * **message** is the message to be uploaded
+  * **options** is an optional options object
+    * **flags** is an array of flags you want to set on the uploaded message. Defaults to [\Seen]. (optional)
+
+Resolves with the new uid of the message in the destination folder if the server supports [UIDPLUS](https://tools.ietf.org/html/rfc4315).
+
+Command: [APPEND](https://tools.ietf.org/html/rfc3501#section-6.3.11)
+
+### Example
+
+```javascript
+client.upload('INBOX', message).then((uid) => { ... });
 ```
 
 ## Move messages

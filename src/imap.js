@@ -698,7 +698,7 @@ export default class Imap {
    * @param {Object} response Parsed response object
    */
   _processResponse (response) {
-    let command = propOr('', 'command', response).toUpperCase().trim()
+    const command = propOr('', 'command', response).toUpperCase().trim()
 
     // no attributes
     if (!response || !response.attributes || !response.attributes.length) {

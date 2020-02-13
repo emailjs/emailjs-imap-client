@@ -3,6 +3,8 @@
 
 import { parser } from 'emailjs-imap-handler'
 import {
+  parseAPPEND,
+  parseCOPY,
   parseSEARCH,
   parseNAMESPACE,
   parseENVELOPE,
@@ -436,11 +438,11 @@ describe('parseFETCH', () => {
       }
     })).to.deep.equal([{
       '#': 123,
-      'uid': 789,
-      'modseq': '127'
+      uid: 789,
+      modseq: '127'
     }, {
       '#': 124,
-      'uid': 790
+      uid: 790
     }])
   })
 })
@@ -473,5 +475,40 @@ describe('parseSEARCH', () => {
         }]
       }
     })).to.deep.equal([])
+  })
+})
+
+describe('parseCOPY', () => {
+  it('should parse COPY response', () => {
+    expect(parseCOPY({
+      copyuid: ['1', '1:3', '3,4,2']
+    })).to.deep.equal({
+      srcSeqSet: '1:3',
+      destSeqSet: '3,4,2'
+    })
+  })
+
+  it('should return undefined when response does not contain copyuid', () => {
+    expect(parseCOPY({})).to.equal(undefined)
+  })
+
+  it('should return undefined when response is not defined', () => {
+    expect(parseCOPY()).to.equal(undefined)
+  })
+})
+
+describe('parseAPPEND', () => {
+  it('should parse APPEND response', () => {
+    expect(parseAPPEND({
+      appenduid: ['1', '3']
+    })).to.equal('3')
+  })
+
+  it('should return undefined when response does not contain copyuid', () => {
+    expect(parseAPPEND({})).to.equal(undefined)
+  })
+
+  it('should return undefined when response is not defined', () => {
+    expect(parseAPPEND()).to.equal(undefined)
   })
 })

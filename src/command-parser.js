@@ -1,6 +1,6 @@
 import parseAddress from 'emailjs-addressparser'
 import { compiler } from 'emailjs-imap-handler'
-import { sort, map, pipe, zip, fromPairs, prop, pathOr, propOr, flatten, toLower } from 'ramda'
+import { zip, fromPairs, prop, pathOr, propOr, toLower } from 'ramda'
 import { mimeWordEncode, mimeWordsDecode } from 'emailjs-mime-codec'
 
 /**
@@ -14,7 +14,7 @@ export function parseNAMESPACE (response) {
     return false
   }
 
-  let attributes = [].concat(response.payload.NAMESPACE.pop().attributes || [])
+  const attributes = [].concat(response.payload.NAMESPACE.pop().attributes || [])
   if (!attributes.length) {
     return false
   }
@@ -61,12 +61,12 @@ export function parseSELECT (response) {
     return
   }
 
-  let mailbox = {
+  const mailbox = {
     readOnly: response.code === 'READ-ONLY'
   }
-  let existsResponse = response.payload.EXISTS && response.payload.EXISTS.pop()
-  let flagsResponse = response.payload.FLAGS && response.payload.FLAGS.pop()
-  let okResponse = response.payload.OK
+  const existsResponse = response.payload.EXISTS && response.payload.EXISTS.pop()
+  const flagsResponse = response.payload.FLAGS && response.payload.FLAGS.pop()
+  const okResponse = response.payload.OK
 
   if (existsResponse) {
     mailbox.exists = existsResponse.nr || 0
@@ -108,7 +108,7 @@ export function parseSELECT (response) {
  * @param {Object} Envelope object
  */
 export function parseENVELOPE (value) {
-  let envelope = {}
+  const envelope = {}
 
   if (value[0] && value[0].value) {
     envelope.date = value[0].value
@@ -166,7 +166,7 @@ function processAddresses (list = []) {
     const name = (pathOr('', ['0', 'value'], addr)).trim()
     const address = (pathOr('', ['2', 'value'], addr)) + '@' + (pathOr('', ['3', 'value'], addr))
     const formatted = name ? (encodeAddressName(name) + ' <' + address + '>') : address
-    let parsed = parseAddress(formatted).shift() // there should be just a single address
+    const parsed = parseAddress(formatted).shift() // there should be just a single address
     parsed.name = mimeWordsDecode(parsed.name)
     return parsed
   })
@@ -196,7 +196,7 @@ function encodeAddressName (name) {
  * @param {Object} Envelope object
  */
 export function parseBODYSTRUCTURE (node, path = []) {
-  let curNode = {}
+  const curNode = {}
   let i = 0
   let part = 0
 
@@ -358,11 +358,11 @@ export function parseFETCH (response) {
     return []
   }
 
-  let list = []
-  let messages = {}
+  const list = []
+  const messages = {}
 
   response.payload.FETCH.forEach((item) => {
-    let params = [].concat([].concat(item.attributes || [])[0] || []) // ensure the first value is an array
+    const params = [].concat([].concat(item.attributes || [])[0] || []) // ensure the first value is an array
     let message
     let i, len, key
 
@@ -433,6 +433,43 @@ function parseFetchValue (key, value) {
 }
 
 /**
+  * Binary Search - from npm module binary-search, license CC0
+  *
+  * @param {Array} haystack Ordered array
+  * @param {any} needle Item to search for in haystack
+  * @param {Function} comparator Function that defines the sort order
+  * @return {Number} Index of needle in haystack or if not found,
+  *     -Index-1 is the position where needle could be inserted while still
+  *     keeping haystack ordered.
+  */
+function binSearch (haystack, needle, comparator = (a, b) => a - b) {
+  var mid, cmp
+  var low = 0
+  var high = haystack.length - 1
+
+  while (low <= high) {
+    // Note that "(low + high) >>> 1" may overflow, and results in
+    // a typecast to double (which gives the wrong results).
+    mid = low + (high - low >> 1)
+    cmp = +comparator(haystack[mid], needle)
+
+    if (cmp < 0.0) {
+      // too low
+      low = mid + 1
+    } else if (cmp > 0.0) {
+      // too high
+      high = mid - 1
+    } else {
+      // key found
+      return mid
+    }
+  }
+
+  // key not found
+  return ~low
+};
+
+/**
  * Parses SEARCH response. Gathers all untagged SEARCH responses, fetched seq./uid numbers
  * and compiles these into a sorted array.
  *
@@ -441,11 +478,48 @@ function parseFetchValue (key, value) {
  * @param {Array} Sorted Seq./UID number list
  */
 export function parseSEARCH (response) {
-  return pipe(
-    pathOr([], ['payload', 'SEARCH']),
-    map(x => x.attributes || []),
-    flatten,
-    map(nr => Number(propOr(nr || 0, 'value', nr)) || 0),
-    sort((a, b) => a > b)
-  )(response)
+  const list = []
+
+  if (!response || !response.payload || !response.payload.SEARCH || !response.payload.SEARCH.length) {
+    return list
+  }
+
+  response.payload.SEARCH.forEach(result =>
+    (result.attributes || []).forEach(nr => {
+      nr = Number((nr && nr.value) || nr) || 0
+      const idx = binSearch(list, nr)
+      if (idx < 0) {
+        list.splice(-idx - 1, 0, nr)
+      }
+    })
+  )
+
+  return list
+};
+
+/**
+ * Parses COPY and UID COPY response.
+ * https://tools.ietf.org/html/rfc4315
+ * @param {Object} response
+ * @returns {{destSeqSet: string, srcSeqSet: string}} Source and
+ * destination uid sets if available, undefined if not.
+ */
+export function parseCOPY (response) {
+  const copyuid = response && response.copyuid
+  if (copyuid) {
+    return {
+      srcSeqSet: copyuid[1],
+      destSeqSet: copyuid[2]
+    }
+  }
+}
+
+/**
+ * Parses APPEND (upload) response.
+ * https://tools.ietf.org/html/rfc4315
+ * @param {Object} response
+ * @returns {String} The uid assigned to the uploaded message if available.
+ */
+export function parseAPPEND (response) {
+  return response && response.appenduid && response.appenduid[1]
 }
