@@ -487,6 +487,14 @@ describe('parseCOPY', () => {
       destSeqSet: '3,4,2'
     })
   })
+
+  it('should return undefined when response does not contain copyuid', () => {
+    expect(parseCOPY({})).to.equal(undefined)
+  })
+
+  it('should return undefined when response is not defined', () => {
+    expect(parseCOPY()).to.equal(undefined)
+  })
 })
 
 describe('parseAPPEND', () => {
@@ -494,5 +502,13 @@ describe('parseAPPEND', () => {
     expect(parseAPPEND({
       appenduid: ['1', '3']
     })).to.equal('3')
+  })
+
+  it('should return undefined when response does not contain copyuid', () => {
+    expect(parseAPPEND({})).to.equal(undefined)
+  })
+
+  it('should return undefined when response is not defined', () => {
+    expect(parseAPPEND()).to.equal(undefined)
   })
 })

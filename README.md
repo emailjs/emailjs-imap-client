@@ -602,10 +602,10 @@ Where
   * **options** is an optional options object
     * **byUid** if `true` uses UID values instead of sequence numbers to define the range
 
-Resolves with an object which contains sequence sets of source and destination uids. Note that the ordering of the sets matter - the source uids map directly to the destination uids.
+Resolves with an object which contains uid sets of source and destination uids if the server supports [UIDPLUS](https://tools.ietf.org/html/rfc4315).
 
-  * **srcSeqSet** is the sequence set of the uids of the copied messages in the source mailbox
-  * **destSeqSet** is the sequence set of the new uids of the copied messages in the destination mailbox
+  * **srcSeqSet** is the uid set of the copied messages in the source mailbox
+  * **destSeqSet** is the uid set of the copied messages in the destination mailbox
 
 Command: [COPY](http://tools.ietf.org/html/rfc3501#section-6.4.7)
 
@@ -626,7 +626,7 @@ Where
   * **options** is an optional options object
     * **flags** is an array of flags you want to set on the uploaded message. Defaults to [\Seen]. (optional)
 
-Resolves with the new uid of the message in the destination folder.
+Resolves with the new uid of the message in the destination folder if the server supports [UIDPLUS](https://tools.ietf.org/html/rfc4315).
 
 Command: [COPY](http://tools.ietf.org/html/rfc3501#section-6.4.7)
 

@@ -499,26 +499,26 @@ export function parseSEARCH (response) {
 
 /**
  * Parses COPY and UID COPY response.
+ * https://tools.ietf.org/html/rfc4315
  * @param {Object} response
  * @returns {{destSeqSet: string, srcSeqSet: string}} Source and
- * destination uid sequence sets.
+ * destination uid sets if available, undefined if not.
  */
 export function parseCOPY (response) {
-  const value = { srcSeqSet: '', destSeqSet: '' }
   const copyuid = response && response.copyuid
-
   if (copyuid) {
-    value.srcSeqSet = copyuid[1]
-    value.destSeqSet = copyuid[2]
+    return {
+      srcSeqSet: copyuid[1],
+      destSeqSet: copyuid[2]
+    }
   }
-
-  return value
 }
 
 /**
  * Parses APPEND (upload) response.
+ * https://tools.ietf.org/html/rfc4315
  * @param {Object} response
- * @returns {String} The uid assigned to the uploaded message.
+ * @returns {String} The uid assigned to the uploaded message if available.
  */
 export function parseAPPEND (response) {
   return response && response.appenduid && response.appenduid[1]
