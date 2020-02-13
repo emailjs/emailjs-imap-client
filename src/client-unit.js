@@ -779,6 +779,7 @@ describe('browserbox unit tests', () => {
         humanReadable: 'abc'
       }))
 
+      br._capability = ['UIDPLUS']
       return br.copyMessages('INBOX', '1:2', '[Gmail]/Trash', {
         byUid: true
       }).then((response) => {
