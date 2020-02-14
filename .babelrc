@@ -1,6 +1,6 @@
 {
   "presets": [
-    ["env", {
+    ["@babel/preset-env", {
       "targets": {
         "node": "7.0.0",
         "browsers": ["last 2 Chrome versions"]

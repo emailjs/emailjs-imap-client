@@ -10,8 +10,7 @@
       "stopOnEntry": false,
       "args": [
         "./src/*-unit.js",
-        "--require", "babel-register",
-        "--require", "babel-polyfill",
+        "--require", "@babel/register",
         "testutils.js",
         "--reporter", "spec",
         "--no-timeouts"

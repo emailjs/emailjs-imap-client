@@ -1,6 +1,6 @@
 {
   "name": "emailjs-imap-client",
-  "version": "3.0.7",
+  "version": "3.1.0",
   "homepage": "https://github.com/emailjs/emailjs-imap-client",
   "description": "JavaScript IMAP client",
   "author": "Andris Reinman <andris@kreata.ee>",
@@ -13,8 +13,8 @@
     "lint": "$(npm bin)/standard",
     "preversion": "npm run build",
     "test": "npm run lint && npm run unit && npm run integration",
-    "unit": "$(npm bin)/mocha './src/*-unit.js' --reporter spec --require babel-register --require babel-polyfill testutils.js",
-    "integration": "$(npm bin)/mocha './src/*-integration.js' --reporter spec --require babel-register --require babel-polyfill testutils.js",
+    "unit": "$(npm bin)/mocha './src/*-unit.js' --reporter spec --require @babel/register testutils.js",
+    "integration": "$(npm bin)/mocha './src/*-integration.js' --reporter spec --require @babel/register testutils.js",
     "build-worker": "./scripts/worker.sh"
   },
   "repository": {
@@ -33,13 +33,11 @@
     "ramda": "^0.26.1"
   },
   "devDependencies": {
-    "babel-cli": "^6.26.0",
-    "babel-core": "^6.26.3",
+    "@babel/core": "^7.8.4",
+    "@babel/preset-env": "^7.8.4",
+    "@babel/register": "^7.8.3",
     "babel-loader": "^8.0.6",
     "babel-plugin-inline-import": "^3.0.0",
-    "babel-polyfill": "^6.26.0",
-    "babel-preset-env": "^1.7.0",
-    "babel-register": "^6.26.0",
     "chai": "^4.2.0",
     "hoodiecrow-imap": "^2.1.0",
     "mocha": "^7.0.1",
