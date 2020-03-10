@@ -52,6 +52,7 @@ Where
     * **ignoreTLS** – if set to true, *never uses STARTTLS before authentication* even if the host advertises support for it
     * **requireTLS** – if set to true, *always uses STARTTLS before authentication* even if the host does not advertise it. If STARTTLS fails, do not try to authenticate the user
     * **enableCompression** - if set to true then use IMAP COMPRESS extension (rfc4978) if the server supports it (Gmail does). All data sent and received in this case is compressed with *deflate*
+    * **idle** - (optional) if set to false, idle will not be entered. Defaults to true. Please note, that if idle is set to false `client.onupdate` will not be triggered automatically anymore.
 
 Default STARTTLS support is opportunistic – if the server advertises STARTTLS capability, the client tries to use it. If STARTTLS is not advertised, the clients sends passwords in the plain. You can use `ignoreTLS` and `requireTLS` to change this behavior by explicitly enabling or disabling STARTTLS usage.
 
