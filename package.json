@@ -27,7 +27,7 @@
     "emailjs-base64": "^1.1.4",
     "emailjs-imap-handler": "^3.0.2",
     "emailjs-mime-codec": "^2.0.8",
-    "emailjs-tcp-socket": "^2.0.2",
+    "emailjs-tcp-socket": "https://github.com/pipedrive/emailjs-tcp-socket/tarball/building_source_code",
     "emailjs-utf7": "^4.0.1",
     "pako": "^1.0.10",
     "ramda": "^0.26.1"
