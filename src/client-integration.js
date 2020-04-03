@@ -199,6 +199,22 @@ describe('browserbox integration tests', () => {
       })
     })
 
+    describe('#subscribe', () => {
+      it('should succeed', () => {
+        return imap.subscribeMailbox('inbox').then(response => {
+          expect(response.command).to.equal('OK')
+        })
+      })
+    })
+
+    describe('#unsubscribe', () => {
+      it('should succeed', () => {
+        return imap.unsubscribeMailbox('inbox').then(response => {
+          expect(response.command).to.equal('OK')
+        })
+      })
+    })
+
     describe('#upload', () => {
       it('should succeed', () => {
         var msgCount
