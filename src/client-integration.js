@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-expressions */
 
 import hoodiecrow from 'hoodiecrow-imap'
-import ImapClient, { LOG_LEVEL_NONE as logLevel } from '..'
+import ImapClient, { LOG_LEVEL_NONE as logLevel } from '../src/index'
 import { parseSEARCH } from './command-parser'
 import { buildSEARCHCommand } from './command-builder'
 
@@ -195,6 +195,22 @@ describe('browserbox integration tests', () => {
       it('should succeed', () => {
         return imap.listMessages('inbox', '1:*', ['uid', 'flags', 'envelope', 'bodystructure', 'body.peek[]']).then((messages) => {
           expect(messages).to.not.be.empty
+        })
+      })
+    })
+
+    describe('#subscribe', () => {
+      it('should succeed', () => {
+        return imap.subscribeMailbox('inbox').then(response => {
+          expect(response.command).to.equal('OK')
+        })
+      })
+    })
+
+    describe('#unsubscribe', () => {
+      it('should succeed', () => {
+        return imap.unsubscribeMailbox('inbox').then(response => {
+          expect(response.command).to.equal('OK')
         })
       })
     })

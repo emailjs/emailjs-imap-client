@@ -239,9 +239,39 @@ client.listNamespaces().then((namespaces) => { ... })
 }
 ```
 
+## Subscribe to mailbox
+
+Subscribe to a mailbox with the given path with `subscribeMailbox(path)`.
+
+Subscribing to a mailbox that is already subscribed is redundant and does return an OK just as when subscribing to unsubscribed mailbox.
+
+Command: [SUBSCRIBE](http://tools.ietf.org/html/rfc3501#section-6.3.6)
+
+Example
+
+```javascript
+// On a server with unsubscribed Sent mailbox
+client.subscribeMailbox('Sent').then(() => { ... });
+```
+
+## Unsubscribe from mailbox
+
+Unsubscribe from a mailbox with the given path with `unsubscribeMailbox(path)`.
+
+Unsubscribing from a mailbox that is already unsubscribed is redundant and does return an OK just as when unsubscribing from a subscribed mailbox.
+
+Command: [UNSUBSCRIBE](http://tools.ietf.org/html/rfc3501#section-6.3.7)
+
+Example
+
+```javascript
+// On a server with subscribed Sent mailbox
+client.unsubscribeMailbox('Sent').then(() => { ... });
+```
+
 ## Create mailbox
 
-Create a folder with the given path with `createMailbox(path)`, automatically handling utf-7 encoding. You currently need to manually build the path string yourself.
+Create a folder with the given path with `createMailbox(path)`. You currently need to manually build the path string yourself.
 
 If the server indicates a failure that the folder already exists, but responds with the ALREADYEXISTS response code, the request will be treated as a success.
 
@@ -260,7 +290,7 @@ client.createMailbox('Foo').then(() => { ... });
 ```
 ## Delete mailbox
 
-Delete a folder with the given path with `deleteMailbox(path)`, automatically handling utf-7 encoding.
+Delete a folder with the given path with `deleteMailbox(path)`.
 
 Command: [DELETE](http://tools.ietf.org/html/rfc3501#section-6.3.4)
 
