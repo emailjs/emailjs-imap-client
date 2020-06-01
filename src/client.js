@@ -410,7 +410,7 @@ export default class Client {
    *     Promise resolves if mailbox was created.
    *     In the event the server says NO [ALREADYEXISTS], we treat that as success.
    */
-  renameMailbox (oldPath, path) {
+  async renameMailbox (oldPath, path) {
      this.logger.debug('renaming mailbox', oldPath, path, '...')
     try {
       await this.exec({ command: 'RENAME', attributes: [oldPath, path] })
