@@ -396,6 +396,33 @@ export default class Client {
       throw err
     }
   }
+  
+  
+  /**
+   * rename a mailbox with the given path.
+   *
+   * CREATE details:
+   *   http://tools.ietf.org/html/rfc3501#section-6.3.3
+   *
+   * @param {String} oldPath
+   * @param {String} path
+   *     The path of the mailbox you would like to create.  This method will
+   *     handle utf7 encoding for you.
+   * @returns {Promise}
+   *     Promise resolves if mailbox was created.
+   *     In the event the server says NO [ALREADYEXISTS], we treat that as success.
+   */
+  async renameMailbox(oldPath,path) {
+     this.logger.debug('renaming mailbox', oldPath,path, '...')
+    try {
+      await this.exec({ command: 'RENAME', attributes: [oldPath,path] })
+    } catch (err) {
+      if (err && err.code === 'ALREADYEXISTS') {
+        return
+      }
+      throw err
+    }
+  }
 
   /**
    * Delete a mailbox with the given path.
