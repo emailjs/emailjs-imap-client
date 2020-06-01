@@ -396,7 +396,8 @@ export default class Client {
       throw err
     }
   }
-/**
+  
+   /**
    * rename a mailbox with the given path.
    *
    * CREATE details:
@@ -412,7 +413,7 @@ export default class Client {
    */
   async renameMailbox (oldPath, path) {
      this.logger.debug('renaming mailbox', oldPath, path, '...')
-    try {
+   try {
       await this.exec({ command: 'RENAME', attributes: [oldPath, path] })
     } catch (err) {
       if (err && err.code === 'ALREADYEXISTS') {
@@ -421,6 +422,7 @@ export default class Client {
       throw err
     }
   }
+  
   /**
    * Delete a mailbox with the given path.
    *
