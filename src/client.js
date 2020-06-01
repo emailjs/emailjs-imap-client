@@ -412,16 +412,16 @@ export default class Client {
    *     In the event the server says NO [ALREADYEXISTS], we treat that as success.
    */
     async renameMailbox (oldPath, path) {
-    this.logger.debug('Creating mailbox', oldPath, path, '...')
-    try {
-      await this.exec({ command: 'RENAME', attributes: [oldPath, path] })
-    } catch (err) {
-      if (err && err.code === 'ALREADYEXISTS') {
-        return
+      this.logger.debug('Creating mailbox', oldPath, path, '...')
+      try {
+        await this.exec({ command: 'RENAME', attributes: [oldPath, path] })
+      } catch (err) {
+        if (err && err.code === 'ALREADYEXISTS') {
+          return
+        }
+        throw err
       }
-      throw err
-    }
-  }
+   }
   
   /**
    * Delete a mailbox with the given path.
