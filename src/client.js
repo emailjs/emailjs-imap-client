@@ -410,6 +410,7 @@ export default class Client {
    *     Promise resolves if mailbox was created.
    *     In the event the server says NO [ALREADYEXISTS], we treat that as success.
    */
+  
   async renameMailbox (oldPath, path) {
     this.logger.debug('Creating mailbox', oldPath, path, '...')
     try {
@@ -432,6 +433,7 @@ export default class Client {
    * @returns {Promise}
    *     Promise resolves if mailbox was deleted.
    */
+  
   deleteMailbox (path) {
     this.logger.debug('Deleting mailbox', path, '...')
     return this.exec({ command: 'DELETE', attributes: [path] })
