@@ -474,6 +474,41 @@ class Client {
       }
     })();
   }
+  
+  /**
+   * rename a mailbox with the given path.
+   *
+   * CREATE details:
+   *   http://tools.ietf.org/html/rfc3501#section-6.3.3
+   *
+   * @param {String} oldPath
+   * @param {String} path
+   *     The new path of the mailbox you would like to rename.  This method will
+   *     handle utf7 encoding for you.
+   * @returns {Promise}
+   *     Promise resolves if mailbox was renamed.
+   *     In the event the server says NO [ALREADYEXISTS], we treat that as success.
+   */
+  renameMailbox(oldPath,path) {
+    var _this8 = this;
+
+    return _asyncToGenerator(function* () {
+      _this8.logger.debug('renameing mailbox', oldPath,path, '...');
+
+      try {
+        yield _this8.exec({
+          command: 'RENAME',
+          attributes: [(0, _emailjsUtf.imapEncode)(oldPath),(1, _emailjsUtf.imapEncode)(path)]
+        });
+      } catch (err) {
+        if (err && err.code === 'ALREADYEXISTS') {
+          return;
+        }
+
+        throw err;
+      }
+    })();
+  }
   /**
    * Delete a mailbox with the given path.
    *
