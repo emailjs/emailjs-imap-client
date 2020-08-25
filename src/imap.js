@@ -346,8 +346,7 @@ export default class Imap {
     } else {
       if (!this.socket) {
         this._onError(new Error("Error :: Unexpected socket close"));
-      }
-      else {
+      } else {
         this.socket.send(buffer);
       }
     }
