@@ -367,7 +367,12 @@ class Imap {
     if (this.compressed) {
       this._sendCompressed(buffer);
     } else {
-      this.socket.send(buffer);
+      try {
+        this.socket.send(buffer);
+      } catch (e) {
+        this.logger.error('Socket has been closed or gone missing!', str);
+        return this._onError(e);
+      }
     }
   }
   /**
