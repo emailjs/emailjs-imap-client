@@ -19,7 +19,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/emailjs/emailjs-imap-client.git"
+    "url": "git://github.com/pipedrive/emailjs-imap-client.git"
   },
   "main": "dist/index",
   "dependencies": {
