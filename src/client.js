@@ -71,6 +71,8 @@ export default class Client {
     this._state = false // Current state
     this._authenticated = false // Is the connection authenticated
     this._capability = [] // List of extensions the server supports
+    this._humanReadable = ''
+    this._okGreeting = ''
     this._selectedMailbox = false // Selected mailbox
     this._enteredIdle = false
     this._idleTimeout = false
@@ -158,6 +160,10 @@ export default class Client {
         this.client.onready = () => {
           clearTimeout(connectionTimeout)
           this._changeState(STATE_NOT_AUTHENTICATED)
+          /* The human-readable string on connection startup is the OK-greeting
+             See https://tools.ietf.org/html/rfc3501#section-7.1.1
+             and diagram in https://tools.ietf.org/html/rfc3501#section-3.4 */
+          this._okGreeting = this._humanReadable
           this.updateCapability()
             .then(() => resolve(this._capability))
         }
@@ -838,17 +844,26 @@ export default class Client {
     return this._capability.indexOf(capa.toUpperCase().trim()) >= 0
   }
 
+  getOkGreeting () {
+    return this._okGreeting
+  }
+
   // Default handlers for untagged responses
 
   /**
    * Checks if an untagged OK includes [CAPABILITY] tag and updates capability object
+   * Also stores the human readable string from the untagged response
+   * See https://tools.ietf.org/html/rfc3501#section-7.1.1
    *
    * @param {Object} response Parsed server response
    * @param {Function} next Until called, server responses are not processed
    */
   _untaggedOkHandler (response) {
-    if (response && response.capability) {
-      this._capability = response.capability
+    if (response) {
+      if (response.capability) {
+        this._capability = response.capability
+      }
+      this._humanReadable = response.humanReadable
     }
   }
 
