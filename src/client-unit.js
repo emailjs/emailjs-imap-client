@@ -1018,12 +1018,26 @@ describe('browserbox unit tests', () => {
     })
   })
 
+  describe('#getOkGreeting', () => {
+    it('should get greeting', () => {
+      br._okGreeting = 'hi hi'
+      expect(br.getOkGreeting()).to.equal('hi hi')
+    })
+  })
+
   describe('#_untaggedOkHandler', () => {
     it('should update capability if present', () => {
       br._untaggedOkHandler({
         capability: ['abc']
       }, () => { })
       expect(br._capability).to.deep.equal(['abc'])
+    })
+
+    it('should update human-readable', () => {
+      br._untaggedOkHandler({
+        humanReadable: 'Server is ready'
+      }, () => { })
+      expect(br._humanReadable).to.equal('Server is ready')
     })
   })
 
