@@ -36,7 +36,7 @@ const TIMEOUT_ENTER_IDLE = 1000
 /**
  * Lower Bound for socket timeout to wait since the last data was written to a socket
  */
-const TIMEOUT_SOCKET_LOWER_BOUND = 10000
+const TIMEOUT_SOCKET_LOWER_BOUND = 60000
 
 /**
  * Multiplier for socket timeout:
