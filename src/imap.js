@@ -36,7 +36,7 @@ const TIMEOUT_ENTER_IDLE = 1000
 /**
  * Lower Bound for socket timeout to wait since the last data was written to a socket
  */
-const TIMEOUT_SOCKET_LOWER_BOUND = 10000
+const TIMEOUT_SOCKET_LOWER_BOUND = 60000
 
 /**
  * Multiplier for socket timeout:
@@ -162,6 +162,12 @@ export default class Imap {
    * @returns {Promise} Resolves when the socket is closed
    */
   close (error) {
+    if (this._enteredClosingState) {
+      return Promise.resolve()
+    }
+
+    this._enteredClosingState = true
+
     return new Promise((resolve) => {
       var tearDown = () => {
         // fulfill pending promises
@@ -257,7 +263,11 @@ export default class Imap {
     var tag = 'W' + (++this._tagCounter)
     request.tag = tag
 
-    return new Promise((resolve, reject) => {
+    return new Promise(resolve => {
+      var reject = error => {
+        return resolve(this.close(error))
+      }
+
       var data = {
         tag: tag,
         request: request,
@@ -345,10 +355,9 @@ export default class Imap {
       this._sendCompressed(buffer)
     } else {
       if (!this.socket) {
-        this._onError(new Error("Error :: Unexpected socket close"));
-      }
-      else {
-        this.socket.send(buffer);
+        this._onError(new Error('Error :: Unexpected socket close'))
+      } else {
+        this.socket.send(buffer)
       }
     }
   }

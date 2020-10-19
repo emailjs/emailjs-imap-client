@@ -455,24 +455,5 @@ describe('browserbox integration tests', () => {
       imap.onerror = () => { done() }
       imap.selectMailbox('inbox').catch(() => {})
     })
-
-    it('should reject all pending commands on timeout', () => {
-      let rejectionCount = 0
-      return Promise.all([
-        imap.selectMailbox('INBOX')
-          .catch(err => {
-            expect(err).to.exist
-            rejectionCount++
-          }),
-        imap.listMessages('INBOX', '1:*', ['body.peek[]'])
-          .catch(err => {
-            expect(err).to.exist
-            rejectionCount++
-          })
-
-      ]).then(() => {
-        expect(rejectionCount).to.equal(2)
-      })
-    })
   })
 })
