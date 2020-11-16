@@ -317,6 +317,37 @@ client.selectMailbox('INBOX').then((mailbox) => { ... });
 }
 ```
 
+## Mailbox status
+
+Get status of mailbox `mailboxStatus(path, options)`
+
+Where
+
+  * **path** is the full path to the mailbox (see *path* property with `listMailboxes`)
+  * **options** *optional* options object with the following properties
+    * **condstore** if set to `true` adds (HIGHESTMODSEQ) option when getting status
+
+Resolves with
+
+  * **UIDNEXT** (string) predicted next UID value
+  * **MESSAGES** (string) predicted messages count
+  * **HIGHESTMODSEQ** (string) (with CONDSTORE only) highest modseq value (javascript can't handle 64bit uints so this is a string)
+
+
+Example
+
+```javascript
+client.mailboxStatus('INBOX').then((mailbox) => { ... });
+```
+
+```json
+{
+    "UIDNEXT": "10",
+    "MESSAGES": "10",
+    "HIGHESTMODSEQ": "10"
+}
+```
+
 ## List messages
 
 List messages with `listMessages(path, sequence, query[, options])`

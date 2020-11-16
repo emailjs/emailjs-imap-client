@@ -6,7 +6,8 @@ import {
   parseNAMESPACE,
   parseSELECT,
   parseFETCH,
-  parseSEARCH
+  parseSEARCH,
+  parseSTATUS
 } from './command-parser'
 import {
   buildFETCHCommand,
@@ -339,6 +340,36 @@ export default class Client {
     })
 
     return tree
+  }
+
+  /**
+   * Runs mailbox STATUS
+   *
+   * STATUS details:
+   *  https://tools.ietf.org/html/rfc3501#section-6.3.10
+   *
+   * @param {String} path Full path to mailbox
+   * @param {Object} [options] Options object
+   * @returns {Promise} Promise with information about the selected mailbox
+   */
+  async mailboxStatus (path, options = {}) {
+    const statusDataItems = ['UIDNEXT', 'MESSAGES']
+
+    if (options.condstore && this._capability.indexOf('CONDSTORE') >= 0) {
+      statusDataItems.push('HIGHESTMODSEQ')
+    }
+
+    this.logger.debug('Opening', path, '...')
+
+    const response = await this.exec({
+      command: 'STATUS',
+      attributes: [
+        { type: 'STRING', value: path },
+        { type: 'ATOM', value: `(${statusDataItems.join(' ')})` }
+      ]
+    }, ['STATUS'])
+
+    return parseSTATUS(response, statusDataItems)
   }
 
   /**

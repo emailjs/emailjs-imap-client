@@ -391,6 +391,32 @@ export function parseFETCH (response) {
 }
 
 /**
+ * Parses STATUS response
+ *
+ * @param {Object} response
+ * @return {Object} Message object
+ */
+export function parseSTATUS (response, atoms = []) {
+  if (!response || !response.payload || !response.payload.STATUS || !response.payload.STATUS.length) {
+    return []
+  }
+
+  const result = {}
+  const attributes = response.payload.STATUS[0].attributes[1]
+  const getValueByAtom = (atom) => {
+    const atomIndex = attributes.findIndex((attribute) => attribute.value === atom)
+
+    return attributes[atomIndex + 1].value
+  }
+
+  atoms.forEach((atom) => {
+    result[atom] = getValueByAtom(atom)
+  })
+
+  return result
+}
+
+/**
  * Parses a single value from the FETCH response object
  *
  * @param {String} key Key name (uppercase)
