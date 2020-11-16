@@ -1001,6 +1001,84 @@ describe('browserbox unit tests', () => {
     })
   })
 
+  describe('#mailboxStatus', () => {
+    const path = 'Inbox'
+
+    beforeEach(() => {
+      sinon.stub(br, 'exec')
+    })
+
+    it('should run STATUS', () => {
+      br.exec.withArgs({
+        command: 'STATUS',
+        attributes: [
+          { type: 'STRING', value: path },
+          { type: 'ATOM', value: '(UIDNEXT MESSAGES)' }
+        ]
+      }).returns(Promise.resolve({
+        payload: {
+          STATUS: [{
+            tag: '*',
+            command: 'STATUS',
+            attributes:
+              [
+                { type: 'ATOM', value: path },
+                [
+                  { type: 'ATOM', value: 'UIDNEXT' },
+                  { type: 'ATOM', value: '2824' },
+                  { type: 'ATOM', value: 'MESSAGES' },
+                  { type: 'ATOM', value: '676' }
+                ]
+              ]
+          }]
+        }
+      }))
+
+      return br.mailboxStatus(path).then((result) => {
+        expect(br.exec.callCount).to.equal(1)
+        expect(result.UIDNEXT).to.equal('2824')
+        expect(result.MESSAGES).to.equal('676')
+      })
+    })
+
+    it('should run STATUS with HIGHESTMODSEQ', () => {
+      br._capability = ['CONDSTORE']
+      br.exec.withArgs({
+        command: 'STATUS',
+        attributes: [
+          { type: 'STRING', value: path },
+          { type: 'ATOM', value: '(UIDNEXT MESSAGES HIGHESTMODSEQ)' }
+        ]
+      }).returns(Promise.resolve({
+        payload: {
+          STATUS: [{
+            tag: '*',
+            command: 'STATUS',
+            attributes:
+              [
+                { type: 'ATOM', value: path },
+                [
+                  { type: 'ATOM', value: 'UIDNEXT' },
+                  { type: 'ATOM', value: '2824' },
+                  { type: 'ATOM', value: 'MESSAGES' },
+                  { type: 'ATOM', value: '676' },
+                  { type: 'ATOM', value: 'HIGHESTMODSEQ' },
+                  { type: 'ATOM', value: '10' }
+                ]
+              ]
+          }]
+        }
+      }))
+
+      return br.mailboxStatus(path, { condstore: true }).then((result) => {
+        expect(br.exec.callCount).to.equal(1)
+        expect(result.UIDNEXT).to.equal('2824')
+        expect(result.MESSAGES).to.equal('676')
+        expect(result.HIGHESTMODSEQ).to.equal('10')
+      })
+    })
+  })
+
   describe('#hasCapability', () => {
     it('should detect existing capability', () => {
       br._capability = ['ZZZ']
