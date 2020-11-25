@@ -1036,8 +1036,8 @@ describe('browserbox unit tests', () => {
 
       return br.mailboxStatus(path).then((result) => {
         expect(br.exec.callCount).to.equal(1)
-        expect(result.UIDNEXT).to.equal('2824')
-        expect(result.MESSAGES).to.equal('676')
+        expect(result.uidNext).to.equal(2824)
+        expect(result.messages).to.equal(676)
       })
     })
 
@@ -1072,9 +1072,9 @@ describe('browserbox unit tests', () => {
 
       return br.mailboxStatus(path, { condstore: true }).then((result) => {
         expect(br.exec.callCount).to.equal(1)
-        expect(result.UIDNEXT).to.equal('2824')
-        expect(result.MESSAGES).to.equal('676')
-        expect(result.HIGHESTMODSEQ).to.equal('10')
+        expect(result.uidNext).to.equal(2824)
+        expect(result.messages).to.equal(676)
+        expect(result.highestModseq).to.equal(10)
       })
     })
   })
