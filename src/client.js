@@ -359,13 +359,20 @@ export default class Client {
       statusDataItems.push('HIGHESTMODSEQ')
     }
 
+    const statusAttributes = statusDataItems.map((statusDataItem) => {
+      return {
+        type: 'ATOM',
+        value: statusDataItem
+      }
+    })
+
     this.logger.debug('Opening', path, '...')
 
     const response = await this.exec({
       command: 'STATUS',
       attributes: [
         { type: 'STRING', value: path },
-        { type: 'ATOM', value: `(${statusDataItems.join(' ')})` }
+        [...statusAttributes]
       ]
     }, ['STATUS'])
 
