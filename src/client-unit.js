@@ -1013,7 +1013,10 @@ describe('browserbox unit tests', () => {
         command: 'STATUS',
         attributes: [
           { type: 'STRING', value: path },
-          { type: 'ATOM', value: '(UIDNEXT MESSAGES)' }
+          [
+            { type: 'ATOM', value: 'UIDNEXT' },
+            { type: 'ATOM', value: 'MESSAGES' }
+          ]
         ]
       }).returns(Promise.resolve({
         payload: {
@@ -1047,7 +1050,11 @@ describe('browserbox unit tests', () => {
         command: 'STATUS',
         attributes: [
           { type: 'STRING', value: path },
-          { type: 'ATOM', value: '(UIDNEXT MESSAGES HIGHESTMODSEQ)' }
+          [
+            { type: 'ATOM', value: 'UIDNEXT' },
+            { type: 'ATOM', value: 'MESSAGES' },
+            { type: 'ATOM', value: 'HIGHESTMODSEQ' }
+          ]
         ]
       }).returns(Promise.resolve({
         payload: {
