@@ -329,9 +329,9 @@ Where
 
 Resolves with
 
-  * **UIDNEXT** (string) predicted next UID value
-  * **MESSAGES** (string) predicted messages count
-  * **HIGHESTMODSEQ** (string) (with CONDSTORE only) highest modseq value (javascript can't handle 64bit uints so this is a string)
+  * **uidNext** (number) predicted next UID value
+  * **messages** (number) predicted messages count
+  * **highestModseq** (number) (with CONDSTORE only) highest modseq value
 
 
 Example
@@ -342,9 +342,9 @@ client.mailboxStatus('INBOX').then((mailbox) => { ... });
 
 ```json
 {
-    "UIDNEXT": "10",
-    "MESSAGES": "10",
-    "HIGHESTMODSEQ": "10"
+    "uidNext": 10,
+    "messages": 10,
+    "highestModseq": 10
 }
 ```
 

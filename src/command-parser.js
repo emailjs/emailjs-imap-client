@@ -402,15 +402,22 @@ export function parseSTATUS (response, atoms = []) {
   }
 
   const result = {}
+  const atomKeyMap = {
+    UIDNEXT: 'uidNext',
+    MESSAGES: 'messages',
+    HIGHESTMODSEQ: 'highestModseq'
+  }
   const attributes = response.payload.STATUS[0].attributes[1]
+
   const getValueByAtom = (atom) => {
     const atomIndex = attributes.findIndex((attribute) => attribute.value === atom)
+    const value = attributes[atomIndex + 1].value
 
-    return attributes[atomIndex + 1].value
+    return Number.parseInt(value, 10)
   }
 
   atoms.forEach((atom) => {
-    result[atom] = getValueByAtom(atom)
+    result[atomKeyMap[atom]] = getValueByAtom(atom)
   })
 
   return result
