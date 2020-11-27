@@ -1084,6 +1084,41 @@ describe('browserbox unit tests', () => {
         expect(result.highestModseq).to.equal(10)
       })
     })
+
+    it('should run STATUS with invalid result', () => {
+      br.exec.withArgs({
+        command: 'STATUS',
+        attributes: [
+          { type: 'STRING', value: path },
+          [
+            { type: 'ATOM', value: 'UIDNEXT' },
+            { type: 'ATOM', value: 'MESSAGES' }
+          ]
+        ]
+      }).returns(Promise.resolve({
+        payload: {
+          STATUS: [{
+            tag: '*',
+            command: 'STATUS',
+            attributes:
+              [
+                { type: 'ATOM', value: path },
+                [
+                  { type: 'ATOM', value: 'UIDNEXT' },
+                  { type: 'ATOM', value: 'youyou' },
+                  { type: 'ATOM', value: 'MESSAGES_invalid' }
+                ]
+              ]
+          }]
+        }
+      }))
+
+      return br.mailboxStatus(path).then((result) => {
+        expect(br.exec.callCount).to.equal(1)
+        expect(result.uidNext).to.equal(null)
+        expect(result.messages).to.equal(null)
+      })
+    })
   })
 
   describe('#hasCapability', () => {
