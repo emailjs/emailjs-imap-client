@@ -411,9 +411,12 @@ export function parseSTATUS (response, atoms = []) {
 
   const getValueByAtom = (atom) => {
     const atomIndex = attributes.findIndex((attribute) => attribute.value === atom)
-    const value = attributes[atomIndex + 1].value
+    const atomValueAttribute = attributes[atomIndex + 1]
+    const parsedAtomValue = atomValueAttribute && atomValueAttribute.value
+      ? Number.parseInt(atomValueAttribute.value, 10)
+      : null
 
-    return Number.parseInt(value, 10)
+    return parsedAtomValue || null
   }
 
   atoms.forEach((atom) => {
