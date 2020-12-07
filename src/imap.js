@@ -557,7 +557,7 @@ export default class Imap {
         response = parser(command, { valueAsString })
         this.logger.debug('S:', () => compiler(response, false, true))
       } catch (e) {
-        this.logger.error('Error parsing imap command!', response)
+        this.logger.error('Error parsing imap command!', { response, command })
         return this._onError(e)
       }
 
