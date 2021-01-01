@@ -266,13 +266,17 @@ export default class Imap {
           if (this.isError(response)) {
             // add command and attributes for more clue what failed
             response.command = request.command
-            response.attributes = request.attributes
+            if (request.command !== 'login') {
+              response.attributes = request.attributes
+            }
             return reject(response)
           } else if (['NO', 'BAD'].indexOf(propOr('', 'command', response).toUpperCase().trim()) >= 0) {
             var error = new Error(response.humanReadable || 'Error')
             // add command and attributes for more clue what failed
             error.command = request.command
-            error.attributes = request.attributes
+            if (request.command !== 'login') {
+              error.attributes = request.attributes
+            }
             if (response.code) {
               error.code = response.code
             }
