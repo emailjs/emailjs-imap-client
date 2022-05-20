@@ -487,7 +487,6 @@ export function parseSEARCH (response) {
     return list
   }
 
-  const list = []
   response.payload.SEARCH.forEach(result =>
     (result.attributes || []).forEach(nr => {
       nr = Number((nr && nr.value) || nr) || 0
