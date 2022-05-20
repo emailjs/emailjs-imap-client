@@ -477,8 +477,8 @@ describe('parseSEARCH', () => {
     })).to.deep.equal([])
   })
 
-  it('should return undefined when response is not defined', () => {
-    expect(parseSEARCH()).to.equal(undefined)
+  it('should throw error when response is not defined', () => {
+    expect(() => parseSEARCH()).throws(Error, 'parseSEARCH')
   })
 })
 
