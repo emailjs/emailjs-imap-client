@@ -474,16 +474,14 @@ function binSearch (haystack, needle, comparator = (a, b) => a - b) {
  * and compiles these into a sorted array.
  *
  * @param {Object} response
- * @return {Object} Message object
- * @param {Array} Sorted Seq./UID number list
+ * @return {Array} Sorted Seq./UID number list or undefined if response is not valid
  */
 export function parseSEARCH (response) {
-  const list = []
-
   if (!response || !response.payload || !response.payload.SEARCH || !response.payload.SEARCH.length) {
-    return list
+    return
   }
 
+  const list = []
   response.payload.SEARCH.forEach(result =>
     (result.attributes || []).forEach(nr => {
       nr = Number((nr && nr.value) || nr) || 0

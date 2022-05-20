@@ -476,6 +476,10 @@ describe('parseSEARCH', () => {
       }
     })).to.deep.equal([])
   })
+
+  it('should return undefined when response is not defined', () => {
+    expect(parseSEARCH()).to.equal(undefined)
+  })
 })
 
 describe('parseCOPY', () => {
