@@ -127,12 +127,7 @@ export default class Client {
     try {
       await this.openConnection()
       await this.upgradeConnection()
-      try {
-        await this.updateId(this._clientId)
-      } catch (err) {
-        this.logger.warn('Failed to update server id!', err.message)
-      }
-
+      await this.updateId(this._clientId)
       await this.login(this._auth)
       await this.compressConnection()
       this.logger.debug('Connection established, ready to roll!')
