@@ -92,6 +92,45 @@ describe('browserbox unit tests', () => {
       })
     })
 
+    it('should connect even though ID command is BAD', () => {
+      var idError = new Error()
+      idError.command = 'BAD'
+
+      br.client.connect.returns(Promise.resolve())
+      br.updateCapability.returns(Promise.resolve())
+      br.upgradeConnection.returns(Promise.resolve())
+      br.updateId.throws(idError)
+      br.login.returns(Promise.resolve())
+      br.compressConnection.returns(Promise.resolve())
+
+      setTimeout(() => br.client.onready(), 0)
+      return br.connect().then(() => {
+        expect(br.client.connect.calledOnce).to.be.true
+        expect(br.updateCapability.calledOnce).to.be.true
+        expect(br.upgradeConnection.calledOnce).to.be.true
+        expect(br.updateId.calledOnce).to.be.true
+        expect(br.login.calledOnce).to.be.true
+        expect(br.compressConnection.calledOnce).to.be.true
+      })
+    })
+
+    it('should fail on non-BAD error during ID command', () => {
+      br.client.connect.returns(Promise.resolve())
+      br.updateCapability.returns(Promise.resolve())
+      br.upgradeConnection.returns(Promise.resolve())
+      br.updateId.throws(new Error())
+
+      setTimeout(() => br.client.onready(), 0)
+      return br.connect().catch(() => {
+        expect(br.client.connect.calledOnce).to.be.true
+        expect(br.updateCapability.calledOnce).to.be.true
+        expect(br.upgradeConnection.calledOnce).to.be.true
+        expect(br.updateId.calledOnce).to.be.true
+        expect(br.login.called).to.be.false
+        expect(br.compressConnection.called).to.be.false
+      })
+    })
+
     it('should fail to login', (done) => {
       br.client.connect.returns(Promise.resolve())
       br.updateCapability.returns(Promise.resolve())
