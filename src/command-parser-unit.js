@@ -476,6 +476,10 @@ describe('parseSEARCH', () => {
       }
     })).to.deep.equal([])
   })
+
+  it('should throw error when response is not defined', () => {
+    expect(() => parseSEARCH()).throws(Error, 'parseSEARCH')
+  })
 })
 
 describe('parseCOPY', () => {
