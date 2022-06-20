@@ -456,6 +456,7 @@ describe('browserbox imap unit tests', () => {
         t: 1
       }).catch((err) => {
         expect(err).to.exist
+        expect(err.command).to.equal('NO')
       })
     })
 
