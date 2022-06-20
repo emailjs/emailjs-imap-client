@@ -265,12 +265,16 @@ export default class Imap {
         callback: (response) => {
           if (this.isError(response)) {
             return reject(response)
-          } else if (['NO', 'BAD'].indexOf(propOr('', 'command', response).toUpperCase().trim()) >= 0) {
-            var error = new Error(response.humanReadable || 'Error')
-            if (response.code) {
-              error.code = response.code
+          } else {
+            const command = propOr('', 'command', response).toUpperCase().trim()
+            if (['NO', 'BAD'].includes(command)) {
+              var error = new Error(response.humanReadable || 'Error')
+              error.command = command
+              if (response.code) {
+                error.code = response.code
+              }
+              return reject(error)
             }
-            return reject(error)
           }
 
           resolve(response)

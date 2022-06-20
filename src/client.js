@@ -127,7 +127,21 @@ export default class Client {
     try {
       await this.openConnection()
       await this.upgradeConnection()
-      await this.updateId(this._clientId)
+
+      try {
+        await this.updateId(this._clientId)
+      } catch (err) {
+        if (err.command === 'BAD') {
+          // Do not fail connection even though ID command turns out BAD, e.g.
+          // poczta.o2.pl lists ID capability both before and after login while
+          // it only works after login.
+          this.logger.warn('Failed to update server id!', err.message)
+        } else {
+          // Re-throw other errors (e.g. socket errors).
+          throw err
+        }
+      }
+
       await this.login(this._auth)
       await this.compressConnection()
       this.logger.debug('Connection established, ready to roll!')
