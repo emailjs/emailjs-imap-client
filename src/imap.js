@@ -340,10 +340,7 @@ export default class Imap {
    */
   send (str) {
     const buffer = toTypedArray(str).buffer
-    const timeout = this.timeoutSocketLowerBound + Math.floor(buffer.byteLength * this.timeoutSocketMultiplier)
-
-    clearTimeout(this._socketTimeoutTimer) // clear pending timeouts
-    this._socketTimeoutTimer = setTimeout(() => this._onError(new Error(' Socket timed out!')), timeout) // arm the next timeout
+    this._resetSocketTimeout(buffer.byteLength)
 
     if (this.compressed) {
       this._sendCompressed(buffer)
@@ -401,9 +398,8 @@ export default class Imap {
    * @param {Event} evt
    */
   _onData (evt) {
-    clearTimeout(this._socketTimeoutTimer) // reset the timeout on each data packet
-    const timeout = this.timeoutSocketLowerBound + Math.floor(4096 * this.timeoutSocketMultiplier) // max packet size is 4096 bytes
-    this._socketTimeoutTimer = setTimeout(() => this._onError(new Error(' Socket timed out!')), timeout)
+    // reset the timeout on each data packet
+    this._resetSocketTimeout()
 
     this._incomingBuffers.push(new Uint8Array(evt.data)) // append to the incoming buffer
     this._parseIncomingCommands(this._iterateIncomingBuffer()) // Consume the incoming buffer
@@ -590,9 +586,13 @@ export default class Imap {
     } else if (this._currentCommand.payload && response.tag === '*' && command in this._currentCommand.payload) {
       // expected untagged response
       this._currentCommand.payload[command].push(response)
+      // still expecting more data for the response of the current command
+      this._resetSocketTimeout()
     } else if (response.tag === '*' && command in this._globalAcceptUntagged) {
       // unexpected untagged response
       this._globalAcceptUntagged[command](response)
+      // still expecting more data for the response of the current command
+      this._resetSocketTimeout()
     } else if (response.tag === this._currentCommand.tag) {
       // tagged response
       if (this._currentCommand.payload && Object.keys(this._currentCommand.payload).length) {
@@ -609,6 +609,7 @@ export default class Imap {
    */
   _sendRequest () {
     if (!this._clientQueue.length) {
+      this._currentCommand = false
       return this._enterIdle()
     }
     this._clearIdle()
@@ -841,6 +842,12 @@ export default class Imap {
     } else {
       this._compression.deflate(buffer)
     }
+  }
+
+  _resetSocketTimeout (byteLength) {
+    clearTimeout(this._socketTimeoutTimer)
+    const timeout = this.timeoutSocketLowerBound + Math.floor((byteLength || 4096) * this.timeoutSocketMultiplier) // max packet size is 4096 bytes
+    this._socketTimeoutTimer = setTimeout(() => this._onError(new Error(' Socket timed out!')), timeout)
   }
 }
 
