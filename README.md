@@ -124,7 +124,7 @@ Mailbox object is with the following structure
   * **path** (string) full path to the mailbox
   * **delimiter** (string) path delimiting symbol.  In the event the server returns NIL for this (some servers do this for the INBOX), it will be coerced to a '/' at this time, but the behavior may be changed in the future depending on how the folder creation API is implemented.
   * **listed** (boolean) mailbox was found in the LIST response
-  * **subscribed** (boolean) mailbox was found in the LSUB response
+  * **subscribed** (boolean) mailbox was found in the LIST (SUBSCRIBED) response if LIST-EXTENDED response otherwise in LSUB response
   * **specialUse** (string) mailbox was identified as a special use mailbox ('\Trash', '\Sent', '\Junk' etc. see [RFC6154](http://tools.ietf.org/html/rfc6154#section-2))
   * **specialUseFlag** (string) the same as `specialUse` but without using folder name based heuristics
   * **flags** (array) a list of flags

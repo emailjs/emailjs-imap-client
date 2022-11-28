@@ -573,6 +573,32 @@ describe('browserbox unit tests', () => {
       })
     })
 
+    it('should call LIST and LIST (SUBSCRIBED) in sequence when LIST-EXTENDED', () => {
+      br.exec.withArgs({
+        command: 'LIST',
+        attributes: ['', '*']
+      }).returns(Promise.resolve({
+        payload: {
+          LIST: [false]
+        }
+      }))
+
+      br.exec.withArgs({
+        command: 'LIST (SUBSCRIBED)',
+        attributes: ['', '*']
+      }).returns(Promise.resolve({
+        payload: {
+          LIST: [false]
+        }
+      }))
+
+      br._capability = ['LIST-EXTENDED']
+
+      return br.listMailboxes().then((tree) => {
+        expect(tree).to.exist
+      })
+    })
+
     it('should not die on NIL separators', () => {
       br.exec.withArgs({
         command: 'LIST',
