@@ -133,8 +133,9 @@ export default class Imap {
         this.socket.oncert = (cert) => { this.oncert && this.oncert(cert) }
       } catch (E) { }
 
-      // Connection closing unexpected is an error
-      this.socket.onclose = () => this._onError(new Error('Socket closed unexpectedly!'))
+      // Socket closing - let's close the client
+      this.socket.onclose = () => this.close()
+
       this.socket.ondata = (evt) => {
         try {
           this._onData(evt)
