@@ -99,10 +99,12 @@ describe('browserbox imap unit tests', () => {
   })
 
   describe('#socket.onclose', () => {
-    it('should close the client', () => {
+    it('should close the client and emit error', () => {
       sinon.stub(client, 'close')
+      sinon.stub(client, '_onError')
       client.socket.onclose()
       expect(client.close.calledOnce).to.be.true
+      expect(client._onError.calledOnce).to.be.true
     })
   })
 
