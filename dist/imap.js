@@ -359,7 +359,8 @@ class Imap {
 
   send(str) {
     const buffer = (0, _common.toTypedArray)(str).buffer;
-    const timeout = this.timeoutSocketLowerBound + Math.floor(buffer.byteLength * this.timeoutSocketMultiplier);
+    let timeout = this.timeoutSocketLowerBound + Math.floor(buffer.byteLength * this.timeoutSocketMultiplier);
+    timeout = timeout < this.timeoutSocketLowerBound ? this.timeoutSocketLowerBound : timeout;
     clearTimeout(this._socketTimeoutTimer); // clear pending timeouts
 
     this._socketTimeoutTimer = setTimeout(() => this._onError(new Error(' Socket timed out!')), timeout); // arm the next timeout
