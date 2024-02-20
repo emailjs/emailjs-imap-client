@@ -75,6 +75,7 @@ export default class Client {
     this._okGreeting = ''
     this._selectedMailbox = false // Selected mailbox
     this._enteredIdle = false
+    this._useIdle = propOr(true, 'idle', options)
     this._idleTimeout = false
     this._enableCompression = !!options.enableCompression
     this._auth = options.auth
@@ -766,7 +767,7 @@ export default class Client {
       return
     }
     const supportsIdle = this._capability.indexOf('IDLE') >= 0
-    this._enteredIdle = supportsIdle && this._selectedMailbox ? 'IDLE' : 'NOOP'
+    this._enteredIdle = supportsIdle && this._selectedMailbox && this._useIdle ? 'IDLE' : 'NOOP'
     this.logger.debug('Entering idle with ' + this._enteredIdle)
 
     if (this._enteredIdle === 'NOOP') {
