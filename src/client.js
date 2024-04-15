@@ -761,7 +761,7 @@ export default class Client {
    * IDLE details:
    *   https://tools.ietf.org/html/rfc2177
    */
-  enterIdle () {
+  async enterIdle () {
     if (this._enteredIdle) {
       return
     }
@@ -770,14 +770,22 @@ export default class Client {
     this.logger.debug('Entering idle with ' + this._enteredIdle)
 
     if (this._enteredIdle === 'NOOP') {
-      this._idleTimeout = setTimeout(() => {
+      this._idleTimeout = setTimeout(async () => {
         this.logger.debug('Sending NOOP')
-        this.exec('NOOP')
+        try {
+          await this.exec('NOOP')
+        } catch (e) {
+          this.logger.error('Could not idle (NOOP)', e)
+        }
       }, this.timeoutNoop)
     } else if (this._enteredIdle === 'IDLE') {
-      this.client.enqueueCommand({
-        command: 'IDLE'
-      })
+      try {
+        await this.client.enqueueCommand({
+          command: 'IDLE'
+        })
+      } catch (e) {
+        this.logger.error('Could not idle (IDLE)', e)
+      }
       this._idleTimeout = setTimeout(() => {
         this.client.send('DONE\r\n')
         this._enteredIdle = false
