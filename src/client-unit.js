@@ -219,6 +219,7 @@ describe('browserbox unit tests', () => {
         expect(command).to.equal('NOOP')
 
         done()
+        return Promise.resolve()
       })
 
       br._capability = []
@@ -232,6 +233,7 @@ describe('browserbox unit tests', () => {
         expect(command).to.equal('NOOP')
 
         done()
+        return Promise.resolve()
       })
 
       br._capability = ['IDLE']
@@ -241,7 +243,7 @@ describe('browserbox unit tests', () => {
     })
 
     it('should break IDLE after timeout', (done) => {
-      sinon.stub(br.client, 'enqueueCommand')
+      sinon.stub(br.client, 'enqueueCommand').returns(Promise.resolve())
       sinon.stub(br.client.socket, 'send').callsFake((payload) => {
         expect(br.client.enqueueCommand.args[0][0].command).to.equal('IDLE')
         expect([].slice.call(new Uint8Array(payload))).to.deep.equal([0x44, 0x4f, 0x4e, 0x45, 0x0d, 0x0a])

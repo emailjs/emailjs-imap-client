@@ -772,12 +772,12 @@ export default class Client {
     if (this._enteredIdle === 'NOOP') {
       this._idleTimeout = setTimeout(() => {
         this.logger.debug('Sending NOOP')
-        this.exec('NOOP')
+        this.exec('NOOP').catch(e => this.logger.error('Could not idle (NOOP)', e))
       }, this.timeoutNoop)
     } else if (this._enteredIdle === 'IDLE') {
       this.client.enqueueCommand({
         command: 'IDLE'
-      })
+      }).catch(e => this.logger.error('Could not idle (IDLE)', e))
       this._idleTimeout = setTimeout(() => {
         this.client.send('DONE\r\n')
         this._enteredIdle = false
