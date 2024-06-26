@@ -39,7 +39,10 @@ const SPECIAL_USE_BOXES = {
     'սևագրեր', 'טיוטות', 'مسودات', 'مسودات', 'موسودې', 'پیش نویسها', 'ڈرافٹ/', 'ड्राफ़्ट', 'प्रारूप', 'খসড়া', 'খসড়া', 'ড্ৰাফ্ট', 'ਡ੍ਰਾਫਟ', 'ડ્રાફ્ટસ',
     'ଡ୍ରାଫ୍ଟ', 'வரைவுகள்', 'చిత్తు ప్రతులు', 'ಕರಡುಗಳು', 'കരടുകള്‍', 'කෙටුම් පත්', 'ฉบับร่าง', 'მონახაზები', 'ረቂቆች', 'សារព្រាង', '下書き', '草稿',
     '草稿', '草稿', '임시 보관함'
-  ]
+  ],
+  // The \Archive flag is rarely used by major email providers so we also check the path.
+  // Thunderbird names them Archives instead of Archive.
+  '\\Archive': ['archive', 'archives']
 }
 const SPECIAL_USE_BOX_FLAGS = Object.keys(SPECIAL_USE_BOXES)
 
