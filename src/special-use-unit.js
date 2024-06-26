@@ -39,4 +39,13 @@ describe('checkSpecialUse', () => {
       name: 'Praht'
     })).to.equal('\\All')
   })
+
+  it('should return an Archive flag on finding box named Archive or Archives', () => {
+    expect(checkSpecialUse({
+      name: 'Archive'
+    })).to.equal('\\Archive')
+    expect(checkSpecialUse({
+      name: 'Archives'
+    })).to.equal('\\Archive')
+  })
 })
